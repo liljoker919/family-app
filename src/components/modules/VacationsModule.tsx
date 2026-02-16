@@ -4,6 +4,19 @@ import type { Schema } from '../../../amplify/data/resource';
 
 const client = generateClient<Schema>();
 
+const getTransportationEmoji = (transportation: string) => {
+  switch (transportation) {
+    case 'flight':
+      return '✈️';
+    case 'car':
+      return '🚗';
+    case 'boat':
+      return '⛵';
+    default:
+      return '🚗';
+  }
+};
+
 interface VacationsModuleProps {
   user: any;
 }
@@ -259,7 +272,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                 <p className="text-gray-600 mt-1">{vacation.description}</p>
                 <div className="flex gap-4 mt-2 text-sm text-gray-500">
                   <span>📅 {vacation.startDate} - {vacation.endDate}</span>
-                  <span>🚗 {vacation.transportation}</span>
+                  <span>{getTransportationEmoji(vacation.transportation || '')} {vacation.transportation}</span>
                   {vacation.accommodations && <span>🏨 {vacation.accommodations}</span>}
                 </div>
               </div>

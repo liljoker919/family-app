@@ -138,7 +138,7 @@ export default function DashboardDemo() {
                     <p className="text-gray-600 mt-1">Relaxing family trip to the coast</p>
                     <div className="flex gap-4 mt-2 text-sm text-gray-500">
                       <span>📅 2026-07-15 - 2026-07-22</span>
-                      <span>🚗 flight</span>
+                      <span>✈️ flight</span>
                       <span>🏨 Beachside Resort</span>
                     </div>
                   </div>
