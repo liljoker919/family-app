@@ -137,3 +137,11 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Amplify
+amplify/outputs.json
+amplify/.config/
+.amplify/
+
+# Astro
+.astro/
