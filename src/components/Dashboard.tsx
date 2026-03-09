@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Authenticator } from '@aws-amplify/ui-react';
 import { Amplify } from 'aws-amplify';
-import { amplifyConfig } from '../amplifyconfiguration';
+import outputs from '../../amplify_outputs.json';
 import VacationsModule from './modules/VacationsModule';
 import PropertyModule from './modules/PropertyModule';
 import CarsModule from './modules/CarsModule';
 import CalendarModule from './modules/CalendarModule';
 
-Amplify.configure(amplifyConfig);
+Amplify.configure(outputs);
 
 type ActiveModule = 'vacations' | 'property' | 'cars' | 'calendar';
 
