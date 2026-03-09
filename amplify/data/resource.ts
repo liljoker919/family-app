@@ -10,6 +10,7 @@ const schema = a.schema({
       transportation: a.enum(['flight', 'car', 'boat']),
       accommodations: a.string(),
       createdBy: a.string().required(),
+      activities: a.hasMany('Activity', 'vacationId'),
     })
     .authorization((allow) => [
       allow.authenticated(),
@@ -23,6 +24,7 @@ const schema = a.schema({
       description: a.string(),
       date: a.date(),
       location: a.string(),
+      feedbacks: a.hasMany('Feedback', 'activityId'),
     })
     .authorization((allow) => [
       allow.authenticated(),
@@ -46,6 +48,7 @@ const schema = a.schema({
       name: a.string().required(),
       address: a.string(),
       type: a.string(),
+      transactions: a.hasMany('PropertyTransaction', 'propertyId'),
     })
     .authorization((allow) => [
       allow.authenticated(),
@@ -73,6 +76,7 @@ const schema = a.schema({
       vin: a.string().required(),
       currentMileage: a.integer(),
       color: a.string(),
+      services: a.hasMany('CarService', 'carId'),
     })
     .authorization((allow) => [
       allow.authenticated(),
