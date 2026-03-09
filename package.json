@@ -44,7 +44,7 @@
   },
   "overrides": {
     "@aws-amplify/plugin-types": {
-      "@aws-sdk/types": "$@aws-sdk/types"
+      "@aws-sdk/types": "^3.734.0"
     }
   }
 }
