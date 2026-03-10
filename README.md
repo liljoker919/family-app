@@ -5,6 +5,7 @@ A comprehensive family management application built with **Astro**, **React**, a
 ## Features
 
 ### 🏖️ Vacations Module
+
 - Create and manage family vacations
 - Track dates, transportation (flight/car/boat), and accommodations
 - Add activities to vacations
@@ -12,12 +13,14 @@ A comprehensive family management application built with **Astro**, **React**, a
 - Planners can add trip details; all family members can view and provide feedback
 
 ### 🏠 Property Module
+
 - Manage family properties
 - Track income and expenses for each property
 - View financial summaries with total income, expenses, and net income
 - Categorize transactions for better organization
 
 ### 🚗 Cars Module
+
 - Maintain a registry of family vehicles
 - Record VIN, mileage, and vehicle details
 - Track service history including:
@@ -27,6 +30,7 @@ A comprehensive family management application built with **Astro**, **React**, a
   - Date of service
 
 ### 📅 Calendar
+
 - Integrated FullCalendar view
 - Placeholder for displaying family events and vacation dates
 
@@ -49,17 +53,20 @@ A comprehensive family management application built with **Astro**, **React**, a
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/liljoker919/family-app.git
 cd family-app
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Set up AWS Amplify:
+
 ```bash
 npx ampx sandbox
 ```
@@ -69,6 +76,7 @@ npx ampx sandbox
    - Fill in your AWS Amplify configuration values after deployment
 
 5. Start the development server:
+
 ```bash
 npm run dev
 ```
@@ -96,6 +104,7 @@ family-app/
 ## Data Models
 
 ### Vacation
+
 - Title, description
 - Start and end dates
 - Transportation type (flight/car/boat)
@@ -103,38 +112,46 @@ family-app/
 - Created by user
 
 ### Activity
+
 - Belongs to a vacation
 - Name, description
 - Date and location
 - Associated feedback
 
 ### Feedback
+
 - Belongs to an activity
 - User rating (1-5 stars)
 - Comments
 - User ID and timestamp
 
 ### Property
+
 - Name and address
 - Property type
 
 ### PropertyTransaction
+
 - Belongs to a property
 - Type (income/expense)
 - Amount and date
 - Description and category
 
 ### Car
+
 - Make, model, year
 - VIN (Vehicle Identification Number)
 - Current mileage
 - Color
 
 ### CarService
+
 - Belongs to a car
 - Service type and description
 - Mileage at service
 - Date, cost, and service provider
+
+### Chores
 
 ## Authentication
 
@@ -143,6 +160,7 @@ The app uses AWS Cognito for authentication with email-based login. Only authent
 ## UI Theme
 
 The application features a Royal Blue color scheme throughout the interface:
+
 - Primary color: Royal Blue (#0046a7)
 - Navigation and headers use royal blue styling
 - Consistent color palette for a cohesive user experience
@@ -163,13 +181,16 @@ npm run preview
 ## Deployment
 
 ### Deploy Backend
+
 ```bash
 npx ampx sandbox   # For development
 npx ampx deploy    # For production
 ```
 
 ### Deploy Frontend
+
 The application can be deployed to various hosting platforms:
+
 - AWS Amplify Hosting
 - Vercel
 - Netlify
