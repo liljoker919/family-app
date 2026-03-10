@@ -1,6 +1,19 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 
 const schema = a.schema({
+  Profile: a
+    .model({
+      userId: a.id().required(),
+      email: a.string().required(),
+      displayName: a.string(),
+      role: a.enum(['ADMIN', 'PLANNER', 'MEMBER']),
+    })
+    .authorization((allow) => [
+      allow.ownerDefinedIn('userId').to(['read', 'update']),
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read']),
+    ]),
+
   Vacation: a
     .model({
       title: a.string().required(),
@@ -13,7 +26,8 @@ const schema = a.schema({
       activities: a.hasMany('Activity', 'vacationId'),
     })
     .authorization((allow) => [
-      allow.authenticated(),
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
   Activity: a
@@ -27,7 +41,8 @@ const schema = a.schema({
       feedbacks: a.hasMany('Feedback', 'activityId'),
     })
     .authorization((allow) => [
-      allow.authenticated(),
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
   Feedback: a
@@ -40,7 +55,8 @@ const schema = a.schema({
       createdAt: a.datetime(),
     })
     .authorization((allow) => [
-      allow.authenticated(),
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
   Property: a
@@ -51,7 +67,7 @@ const schema = a.schema({
       transactions: a.hasMany('PropertyTransaction', 'propertyId'),
     })
     .authorization((allow) => [
-      allow.authenticated(),
+      allow.group('ADMIN'),
     ]),
 
   PropertyTransaction: a
@@ -65,7 +81,7 @@ const schema = a.schema({
       category: a.string(),
     })
     .authorization((allow) => [
-      allow.authenticated(),
+      allow.group('ADMIN'),
     ]),
 
   Car: a
@@ -79,7 +95,8 @@ const schema = a.schema({
       services: a.hasMany('CarService', 'carId'),
     })
     .authorization((allow) => [
-      allow.authenticated(),
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
   CarService: a
@@ -94,7 +111,8 @@ const schema = a.schema({
       serviceProvider: a.string(),
     })
     .authorization((allow) => [
-      allow.authenticated(),
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
     ]),
 });
 
