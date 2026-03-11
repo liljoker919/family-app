@@ -1,19 +1,56 @@
-import { useState, useEffect } from 'react';
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '../../../amplify/data/resource';
+import { useState, useEffect } from "react";
+import { generateClient } from "aws-amplify/data";
+import type { Schema } from "../../../amplify/data/resource";
 
 const client = generateClient<Schema>();
 
 const getTransportationEmoji = (transportation: string) => {
   switch (transportation) {
-    case 'flight':
-      return '✈️';
-    case 'car':
-      return '🚗';
-    case 'boat':
-      return '⛵';
+    case "flight":
+    case "FLIGHT":
+      return "✈️";
+    case "car":
+    case "CAR":
+      return "🚗";
+    case "boat":
+    case "BOAT":
+      return "⛵";
+    case "TRAIN":
+      return "🚂";
+    case "CRUISE":
+      return "🚢";
     default:
-      return '🚗';
+      return "🚗";
+  }
+};
+
+const getTripTypeLabel = (tripType: string | null | undefined) => {
+  switch (tripType) {
+    case "SINGLE_LOCATION":
+      return "📍 Single Location";
+    case "MULTI_LOCATION":
+      return "🗺️ Multi-Location";
+    case "CRUISE":
+      return "🚢 Cruise";
+    default:
+      return "";
+  }
+};
+
+const getExcursionStatusBadge = (status: string | null | undefined) => {
+  switch (status) {
+    case "PROPOSED":
+      return "bg-yellow-100 text-yellow-800";
+    case "UNDER_REVIEW":
+      return "bg-blue-100 text-blue-800";
+    case "SELECTED":
+      return "bg-green-100 text-green-800";
+    case "BOOKED":
+      return "bg-purple-100 text-purple-800";
+    case "REJECTED":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-gray-100 text-gray-800";
   }
 };
 
@@ -21,32 +58,107 @@ interface VacationsModuleProps {
   user: any;
 }
 
+type ActiveTab = "activities" | "itinerary" | "excursions";
+
 export default function VacationsModule({ user }: VacationsModuleProps) {
   const [vacations, setVacations] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [legs, setLegs] = useState<any[]>([]);
+  const [transportSegments, setTransportSegments] = useState<any[]>([]);
+  const [accommodationStays, setAccommodationStays] = useState<any[]>([]);
+  const [cruisePortStops, setCruisePortStops] = useState<any[]>([]);
+  const [excursionOptions, setExcursionOptions] = useState<any[]>([]);
+  const [excursionVotes, setExcursionVotes] = useState<any[]>([]);
+  const [excursionComments, setExcursionComments] = useState<any[]>([]);
+
   const [showVacationForm, setShowVacationForm] = useState(false);
   const [showActivityForm, setShowActivityForm] = useState(false);
+  const [showLegForm, setShowLegForm] = useState(false);
+  const [showTransportForm, setShowTransportForm] = useState(false);
+  const [showAccommodationForm, setShowAccommodationForm] = useState(false);
+  const [showPortStopForm, setShowPortStopForm] = useState(false);
+  const [showExcursionForm, setShowExcursionForm] = useState(false);
+  const [showCommentForm, setShowCommentForm] = useState(false);
+
   const [selectedVacation, setSelectedVacation] = useState<any>(null);
   const [selectedActivity, setSelectedActivity] = useState<any>(null);
+  const [selectedLeg, setSelectedLeg] = useState<any>(null);
+  const [selectedExcursion, setSelectedExcursion] = useState<any>(null);
+  const [selectedPortStop, setSelectedPortStop] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("activities");
+
   const [vacationForm, setVacationForm] = useState({
-    title: '',
-    description: '',
-    startDate: '',
-    endDate: '',
-    transportation: 'flight' as 'flight' | 'car' | 'boat',
-    accommodations: '',
+    title: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+    transportation: "flight" as "flight" | "car" | "boat",
+    accommodations: "",
+    tripType: "SINGLE_LOCATION" as "SINGLE_LOCATION" | "MULTI_LOCATION" | "CRUISE",
   });
+
   const [activityForm, setActivityForm] = useState({
-    name: '',
-    description: '',
-    date: '',
-    location: '',
+    name: "",
+    description: "",
+    date: "",
+    location: "",
   });
+
   const [feedbackForm, setFeedbackForm] = useState({
     rating: 5,
-    comment: '',
+    comment: "",
   });
+
+  const [legForm, setLegForm] = useState({
+    sequence: 1,
+    name: "",
+    description: "",
+    legType: "TRAVEL" as "TRAVEL" | "STAY" | "CRUISE_LEG",
+    startDate: "",
+    endDate: "",
+  });
+
+  const [transportForm, setTransportForm] = useState({
+    type: "FLIGHT" as "FLIGHT" | "TRAIN" | "CAR" | "BOAT" | "CRUISE",
+    carrier: "",
+    flightNumber: "",
+    departureLocation: "",
+    arrivalLocation: "",
+    departureTime: "",
+    arrivalTime: "",
+    confirmationCode: "",
+    notes: "",
+  });
+
+  const [accommodationForm, setAccommodationForm] = useState({
+    type: "HOTEL" as "HOTEL" | "RENTAL" | "CABIN" | "RESORT" | "CRUISE_SHIP" | "OTHER",
+    name: "",
+    address: "",
+    checkInDate: "",
+    checkOutDate: "",
+    confirmationCode: "",
+    notes: "",
+  });
+
+  const [portStopForm, setPortStopForm] = useState({
+    portName: "",
+    country: "",
+    arrivalDate: "",
+    departureDate: "",
+    sequence: 1,
+  });
+
+  const [excursionForm, setExcursionForm] = useState({
+    name: "",
+    description: "",
+    estimatedCost: "",
+    duration: "",
+    category: "",
+    status: "PROPOSED" as "PROPOSED" | "UNDER_REVIEW" | "SELECTED" | "BOOKED" | "REJECTED",
+  });
+
+  const [commentText, setCommentText] = useState("");
 
   useEffect(() => {
     fetchVacations();
@@ -57,7 +169,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
       const { data } = await client.models.Vacation.list();
       setVacations(data);
     } catch (error) {
-      console.error('Error fetching vacations:', error);
+      console.error("Error fetching vacations:", error);
     }
   };
 
@@ -68,7 +180,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
       });
       setActivities(data);
     } catch (error) {
-      console.error('Error fetching activities:', error);
+      console.error("Error fetching activities:", error);
     }
   };
 
@@ -79,7 +191,95 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
       });
       setFeedbacks(data);
     } catch (error) {
-      console.error('Error fetching feedbacks:', error);
+      console.error("Error fetching feedbacks:", error);
+    }
+  };
+
+  const fetchLegs = async (vacationId: string) => {
+    try {
+      const { data } = await client.models.TripLeg.list({
+        filter: { vacationId: { eq: vacationId } },
+      });
+      const sorted = [...data].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+      setLegs(sorted);
+    } catch (error) {
+      console.error("Error fetching trip legs:", error);
+    }
+  };
+
+  const fetchTransportSegments = async (tripLegId: string) => {
+    try {
+      const { data } = await client.models.TransportSegment.list({
+        filter: { tripLegId: { eq: tripLegId } },
+      });
+      setTransportSegments(data);
+    } catch (error) {
+      console.error("Error fetching transport segments:", error);
+    }
+  };
+
+  const fetchAccommodationStays = async (tripLegId: string) => {
+    try {
+      const { data } = await client.models.AccommodationStay.list({
+        filter: { tripLegId: { eq: tripLegId } },
+      });
+      setAccommodationStays(data);
+    } catch (error) {
+      console.error("Error fetching accommodation stays:", error);
+    }
+  };
+
+  const fetchCruisePortStops = async (tripLegId: string) => {
+    try {
+      const { data } = await client.models.CruisePortStop.list({
+        filter: { tripLegId: { eq: tripLegId } },
+      });
+      const sorted = [...data].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+      setCruisePortStops(sorted);
+    } catch (error) {
+      console.error("Error fetching cruise port stops:", error);
+    }
+  };
+
+  const fetchExcursionOptions = async (tripLegId?: string, cruisePortStopId?: string) => {
+    try {
+      let data: any[] = [];
+      if (cruisePortStopId) {
+        const result = await client.models.ExcursionOption.list({
+          filter: { cruisePortStopId: { eq: cruisePortStopId } },
+        });
+        data = result.data;
+      } else if (tripLegId) {
+        const result = await client.models.ExcursionOption.list({
+          filter: { tripLegId: { eq: tripLegId } },
+        });
+        data = result.data;
+      }
+      setExcursionOptions(data);
+    } catch (error) {
+      console.error("Error fetching excursion options:", error);
+    }
+  };
+
+  const fetchExcursionVotes = async (excursionOptionId: string) => {
+    try {
+      const { data } = await client.models.ExcursionVote.list({
+        filter: { excursionOptionId: { eq: excursionOptionId } },
+      });
+      setExcursionVotes(data);
+    } catch (error) {
+      console.error("Error fetching excursion votes:", error);
+    }
+  };
+
+  const fetchExcursionComments = async (excursionOptionId: string) => {
+    try {
+      const { data } = await client.models.ExcursionComment.list({
+        filter: { excursionOptionId: { eq: excursionOptionId } },
+      });
+      setExcursionComments(data);
+    } catch (error) {
+      console.error("Error fetching excursion comments:", error);
     }
   };
 
@@ -88,74 +288,193 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
     try {
       await client.models.Vacation.create({
         ...vacationForm,
-        createdBy: user?.signInDetails?.loginId || 'unknown',
+        createdBy: user?.signInDetails?.loginId || "unknown",
       });
-      setVacationForm({
-        title: '',
-        description: '',
-        startDate: '',
-        endDate: '',
-        transportation: 'flight',
-        accommodations: '',
-      });
+      setVacationForm({ title: "", description: "", startDate: "", endDate: "", transportation: "flight", accommodations: "", tripType: "SINGLE_LOCATION" });
       setShowVacationForm(false);
       fetchVacations();
     } catch (error) {
-      console.error('Error creating vacation:', error);
+      console.error("Error creating vacation:", error);
     }
   };
 
   const handleCreateActivity = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedVacation) return;
     try {
-      await client.models.Activity.create({
-        ...activityForm,
-        vacationId: selectedVacation.id,
-      });
-      setActivityForm({
-        name: '',
-        description: '',
-        date: '',
-        location: '',
-      });
+      await client.models.Activity.create({ ...activityForm, vacationId: selectedVacation.id });
+      setActivityForm({ name: "", description: "", date: "", location: "" });
       setShowActivityForm(false);
       fetchActivities(selectedVacation.id);
     } catch (error) {
-      console.error('Error creating activity:', error);
+      console.error("Error creating activity:", error);
     }
   };
 
   const handleCreateFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedActivity) return;
     try {
       await client.models.Feedback.create({
         ...feedbackForm,
         activityId: selectedActivity.id,
-        userId: user?.signInDetails?.loginId || 'unknown',
+        userId: user?.signInDetails?.loginId || "unknown",
         createdAt: new Date().toISOString(),
       });
-      setFeedbackForm({
-        rating: 5,
-        comment: '',
-      });
+      setFeedbackForm({ rating: 5, comment: "" });
       fetchFeedbacks(selectedActivity.id);
     } catch (error) {
-      console.error('Error creating feedback:', error);
+      console.error("Error creating feedback:", error);
+    }
+  };
+
+  const handleCreateLeg = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await client.models.TripLeg.create({
+        ...legForm,
+        vacationId: selectedVacation.id,
+        startDate: legForm.startDate || undefined,
+        endDate: legForm.endDate || undefined,
+      });
+      setLegForm({ sequence: legs.length + 2, name: "", description: "", legType: "TRAVEL", startDate: "", endDate: "" });
+      setShowLegForm(false);
+      fetchLegs(selectedVacation.id);
+    } catch (error) {
+      console.error("Error creating trip leg:", error);
+    }
+  };
+
+  const handleCreateTransportSegment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await client.models.TransportSegment.create({
+        ...transportForm,
+        tripLegId: selectedLeg.id,
+        departureTime: transportForm.departureTime || undefined,
+        arrivalTime: transportForm.arrivalTime || undefined,
+      });
+      setTransportForm({ type: "FLIGHT", carrier: "", flightNumber: "", departureLocation: "", arrivalLocation: "", departureTime: "", arrivalTime: "", confirmationCode: "", notes: "" });
+      setShowTransportForm(false);
+      fetchTransportSegments(selectedLeg.id);
+    } catch (error) {
+      console.error("Error creating transport segment:", error);
+    }
+  };
+
+  const handleCreateAccommodationStay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await client.models.AccommodationStay.create({ ...accommodationForm, tripLegId: selectedLeg.id });
+      setAccommodationForm({ type: "HOTEL", name: "", address: "", checkInDate: "", checkOutDate: "", confirmationCode: "", notes: "" });
+      setShowAccommodationForm(false);
+      fetchAccommodationStays(selectedLeg.id);
+    } catch (error) {
+      console.error("Error creating accommodation stay:", error);
+    }
+  };
+
+  const handleCreatePortStop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await client.models.CruisePortStop.create({
+        ...portStopForm,
+        tripLegId: selectedLeg.id,
+        arrivalDate: portStopForm.arrivalDate || undefined,
+        departureDate: portStopForm.departureDate || undefined,
+      });
+      setPortStopForm({ portName: "", country: "", arrivalDate: "", departureDate: "", sequence: cruisePortStops.length + 2 });
+      setShowPortStopForm(false);
+      fetchCruisePortStops(selectedLeg.id);
+    } catch (error) {
+      console.error("Error creating port stop:", error);
+    }
+  };
+
+  const handleCreateExcursion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await client.models.ExcursionOption.create({
+        ...excursionForm,
+        estimatedCost: excursionForm.estimatedCost ? parseFloat(excursionForm.estimatedCost) : undefined,
+        proposedBy: user?.signInDetails?.loginId || "unknown",
+        tripLegId: selectedPortStop ? undefined : selectedLeg?.id,
+        cruisePortStopId: selectedPortStop?.id,
+      });
+      setExcursionForm({ name: "", description: "", estimatedCost: "", duration: "", category: "", status: "PROPOSED" });
+      setShowExcursionForm(false);
+      if (selectedPortStop) {
+        fetchExcursionOptions(undefined, selectedPortStop.id);
+      } else if (selectedLeg) {
+        fetchExcursionOptions(selectedLeg.id);
+      }
+    } catch (error) {
+      console.error("Error creating excursion option:", error);
+    }
+  };
+
+  const handleVote = async (excursionOptionId: string, vote: "UP" | "DOWN") => {
+    const uid = user?.signInDetails?.loginId || "unknown";
+    const existing = excursionVotes.find((v) => v.userId === uid);
+    if (existing) {
+      try {
+        await client.models.ExcursionVote.update({ id: existing.id, vote });
+        fetchExcursionVotes(excursionOptionId);
+      } catch (error) {
+        console.error("Error updating vote:", error);
+      }
+    } else {
+      try {
+        await client.models.ExcursionVote.create({ excursionOptionId, userId: uid, vote });
+        fetchExcursionVotes(excursionOptionId);
+      } catch (error) {
+        console.error("Error creating vote:", error);
+      }
+    }
+  };
+
+  const handleCreateComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await client.models.ExcursionComment.create({
+        excursionOptionId: selectedExcursion.id,
+        userId: user?.signInDetails?.loginId || "unknown",
+        comment: commentText.trim(),
+        createdAt: new Date().toISOString(),
+      });
+      setCommentText("");
+      setShowCommentForm(false);
+      fetchExcursionComments(selectedExcursion.id);
+    } catch (error) {
+      console.error("Error creating comment:", error);
     }
   };
 
   const handleDeleteVacation = async (id: string) => {
-    if (confirm('Are you sure you want to delete this vacation?')) {
+    if (confirm("Are you sure you want to delete this vacation?")) {
       try {
         await client.models.Vacation.delete({ id });
         fetchVacations();
       } catch (error) {
-        console.error('Error deleting vacation:', error);
+        console.error("Error deleting vacation:", error);
       }
     }
   };
+
+  const openVacationDetail = (vacation: any, tab: ActiveTab = "activities") => {
+    setSelectedVacation(vacation);
+    setSelectedLeg(null);
+    setSelectedActivity(null);
+    setSelectedExcursion(null);
+    setSelectedPortStop(null);
+    setActiveTab(tab);
+    if (tab === "activities") fetchActivities(vacation.id);
+    if (tab === "itinerary") fetchLegs(vacation.id);
+    if (tab === "excursions") fetchLegs(vacation.id);
+  };
+
+  const uid = user?.signInDetails?.loginId || "unknown";
+  const upCount = excursionVotes.filter((v) => v.vote === "UP").length;
+  const downCount = excursionVotes.filter((v) => v.vote === "DOWN").length;
+  const myVote = excursionVotes.find((v) => v.userId === uid)?.vote;
 
   return (
     <div>
@@ -217,15 +536,22 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Transportation</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Trip Type</label>
+                <select
+                  value={vacationForm.tripType}
+                  onChange={(e) => setVacationForm({ ...vacationForm, tripType: e.target.value as any })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
+                >
+                  <option value="SINGLE_LOCATION">📍 Single Location</option>
+                  <option value="MULTI_LOCATION">🗺️ Multi-Location</option>
+                  <option value="CRUISE">🚢 Cruise</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Primary Transportation</label>
                 <select
                   value={vacationForm.transportation}
-                  onChange={(e) =>
-                    setVacationForm({
-                      ...vacationForm,
-                      transportation: e.target.value as 'flight' | 'car' | 'boat',
-                    })
-                  }
+                  onChange={(e) => setVacationForm({ ...vacationForm, transportation: e.target.value as any })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
                 >
                   <option value="flight">Flight</option>
@@ -243,17 +569,10 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                 />
               </div>
               <div className="flex gap-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-6 py-2 rounded-lg transition"
-                >
+                <button type="submit" className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-6 py-2 rounded-lg transition">
                   Create Vacation
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setShowVacationForm(false)}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg transition"
-                >
+                <button type="button" onClick={() => setShowVacationForm(false)} className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg transition">
                   Cancel
                 </button>
               </div>
@@ -270,21 +589,33 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
               <div>
                 <h3 className="text-xl font-bold text-gray-800">{vacation.title}</h3>
                 <p className="text-gray-600 mt-1">{vacation.description}</p>
-                <div className="flex gap-4 mt-2 text-sm text-gray-500">
+                <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-500">
                   <span>📅 {vacation.startDate} - {vacation.endDate}</span>
-                  <span>{getTransportationEmoji(vacation.transportation || '')} {vacation.transportation}</span>
+                  <span>{getTransportationEmoji(vacation.transportation || "")} {vacation.transportation}</span>
                   {vacation.accommodations && <span>🏨 {vacation.accommodations}</span>}
+                  {vacation.tripType && (
+                    <span className="text-royal-blue-700 font-medium">{getTripTypeLabel(vacation.tripType)}</span>
+                  )}
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap justify-end">
                 <button
-                  onClick={() => {
-                    setSelectedVacation(vacation);
-                    fetchActivities(vacation.id);
-                  }}
+                  onClick={() => openVacationDetail(vacation, "activities")}
                   className="bg-royal-blue-100 hover:bg-royal-blue-200 text-royal-blue-700 px-4 py-2 rounded-lg transition text-sm"
                 >
-                  View Activities
+                  Activities
+                </button>
+                <button
+                  onClick={() => openVacationDetail(vacation, "itinerary")}
+                  className="bg-green-100 hover:bg-green-200 text-green-700 px-4 py-2 rounded-lg transition text-sm"
+                >
+                  Itinerary
+                </button>
+                <button
+                  onClick={() => openVacationDetail(vacation, "excursions")}
+                  className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-4 py-2 rounded-lg transition text-sm"
+                >
+                  Excursions
                 </button>
                 <button
                   onClick={() => handleDeleteVacation(vacation.id)}
@@ -295,156 +626,871 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
               </div>
             </div>
 
-            {/* Activities Section */}
             {selectedVacation?.id === vacation.id && (
               <div className="mt-6 border-t pt-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h4 className="text-lg font-semibold">Activities</h4>
-                  <button
-                    onClick={() => setShowActivityForm(true)}
-                    className="bg-royal-blue-500 hover:bg-royal-blue-600 text-white px-4 py-2 rounded-lg transition text-sm"
-                  >
-                    Add Activity
-                  </button>
+                {/* Tab Bar */}
+                <div className="flex gap-2 mb-4 border-b">
+                  {(["activities", "itinerary", "excursions"] as ActiveTab[]).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => {
+                        setActiveTab(tab);
+                        if (tab === "activities") fetchActivities(vacation.id);
+                        if (tab === "itinerary") fetchLegs(vacation.id);
+                        if (tab === "excursions") fetchLegs(vacation.id);
+                      }}
+                      className={`px-4 py-2 text-sm font-medium capitalize border-b-2 -mb-px transition ${
+                        activeTab === tab
+                          ? tab === "activities"
+                            ? "border-royal-blue-600 text-royal-blue-700"
+                            : tab === "itinerary"
+                            ? "border-green-600 text-green-700"
+                            : "border-orange-600 text-orange-700"
+                          : "border-transparent text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      {tab === "activities" ? "✅ Activities" : tab === "itinerary" ? "🗺️ Itinerary" : "🎯 Excursions"}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Activity Form */}
-                {showActivityForm && (
-                  <div className="mb-4 bg-gray-50 p-4 rounded-lg">
-                    <form onSubmit={handleCreateActivity} className="space-y-3">
-                      <input
-                        type="text"
-                        placeholder="Activity Name"
-                        value={activityForm.name}
-                        onChange={(e) => setActivityForm({ ...activityForm, name: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                        required
-                      />
-                      <textarea
-                        placeholder="Description"
-                        value={activityForm.description}
-                        onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                        rows={2}
-                      />
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          type="date"
-                          value={activityForm.date}
-                          onChange={(e) => setActivityForm({ ...activityForm, date: e.target.value })}
-                          className="px-4 py-2 border border-gray-300 rounded-lg"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Location"
-                          value={activityForm.location}
-                          onChange={(e) => setActivityForm({ ...activityForm, location: e.target.value })}
-                          className="px-4 py-2 border border-gray-300 rounded-lg"
-                        />
+                {/* ACTIVITIES TAB */}
+                {activeTab === "activities" && (
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="text-lg font-semibold">Activities</h4>
+                      <button
+                        onClick={() => setShowActivityForm(true)}
+                        className="bg-royal-blue-500 hover:bg-royal-blue-600 text-white px-4 py-2 rounded-lg transition text-sm"
+                      >
+                        Add Activity
+                      </button>
+                    </div>
+                    {showActivityForm && (
+                      <div className="mb-4 bg-gray-50 p-4 rounded-lg">
+                        <form onSubmit={handleCreateActivity} className="space-y-3">
+                          <input
+                            type="text"
+                            placeholder="Activity Name"
+                            value={activityForm.name}
+                            onChange={(e) => setActivityForm({ ...activityForm, name: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            required
+                          />
+                          <textarea
+                            placeholder="Description"
+                            value={activityForm.description}
+                            onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            rows={2}
+                          />
+                          <div className="grid grid-cols-2 gap-3">
+                            <input
+                              type="date"
+                              value={activityForm.date}
+                              onChange={(e) => setActivityForm({ ...activityForm, date: e.target.value })}
+                              className="px-4 py-2 border border-gray-300 rounded-lg"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Location"
+                              value={activityForm.location}
+                              onChange={(e) => setActivityForm({ ...activityForm, location: e.target.value })}
+                              className="px-4 py-2 border border-gray-300 rounded-lg"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="submit" className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-4 py-2 rounded-lg transition text-sm">
+                              Add
+                            </button>
+                            <button type="button" onClick={() => setShowActivityForm(false)} className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg transition text-sm">
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-4 py-2 rounded-lg transition text-sm"
-                        >
-                          Add
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowActivityForm(false)}
-                          className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg transition text-sm"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
+                    )}
+                    <div className="space-y-3">
+                      {activities.map((activity) => (
+                        <div key={activity.id} className="bg-gray-50 p-4 rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h5 className="font-semibold text-gray-800">{activity.name}</h5>
+                              <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
+                              <div className="flex gap-3 mt-2 text-xs text-gray-500">
+                                {activity.date && <span>📅 {activity.date}</span>}
+                                {activity.location && <span>📍 {activity.location}</span>}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => { setSelectedActivity(activity); fetchFeedbacks(activity.id); }}
+                              className="bg-royal-blue-100 hover:bg-royal-blue-200 text-royal-blue-700 px-3 py-1 rounded text-xs"
+                            >
+                              Feedback
+                            </button>
+                          </div>
+                          {selectedActivity?.id === activity.id && (
+                            <div className="mt-4 border-t pt-4">
+                              <h6 className="font-medium text-sm mb-3">Rate this Activity</h6>
+                              <form onSubmit={handleCreateFeedback} className="space-y-2">
+                                <div className="flex gap-2 items-center">
+                                  <label className="text-sm">Rating:</label>
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <button
+                                      key={star}
+                                      type="button"
+                                      onClick={() => setFeedbackForm({ ...feedbackForm, rating: star })}
+                                      className="text-2xl focus:outline-none"
+                                    >
+                                      {star <= feedbackForm.rating ? "⭐" : "☆"}
+                                    </button>
+                                  ))}
+                                </div>
+                                <textarea
+                                  placeholder="Leave a comment..."
+                                  value={feedbackForm.comment}
+                                  onChange={(e) => setFeedbackForm({ ...feedbackForm, comment: e.target.value })}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                  rows={2}
+                                />
+                                <button type="submit" className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-4 py-1 rounded text-sm">
+                                  Submit Feedback
+                                </button>
+                              </form>
+                              <div className="mt-4 space-y-2">
+                                {feedbacks.map((feedback) => (
+                                  <div key={feedback.id} className="bg-white p-3 rounded border border-gray-200">
+                                    <div className="flex gap-1 mb-1">
+                                      {Array.from({ length: feedback.rating }).map((_, i) => (
+                                        <span key={i} className="text-yellow-500">⭐</span>
+                                      ))}
+                                    </div>
+                                    <p className="text-sm text-gray-700">{feedback.comment}</p>
+                                    <p className="text-xs text-gray-500 mt-1">By {feedback.userId}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {activities.length === 0 && (
+                        <p className="text-center text-gray-500 py-6 text-sm">No activities yet. Add one to get started!</p>
+                      )}
+                    </div>
                   </div>
                 )}
 
-                {/* Activities List */}
-                <div className="space-y-3">
-                  {activities.map((activity) => (
-                    <div key={activity.id} className="bg-gray-50 p-4 rounded-lg">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h5 className="font-semibold text-gray-800">{activity.name}</h5>
-                          <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
-                          <div className="flex gap-3 mt-2 text-xs text-gray-500">
-                            {activity.date && <span>📅 {activity.date}</span>}
-                            {activity.location && <span>📍 {activity.location}</span>}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setSelectedActivity(activity);
-                            fetchFeedbacks(activity.id);
-                          }}
-                          className="bg-royal-blue-100 hover:bg-royal-blue-200 text-royal-blue-700 px-3 py-1 rounded text-xs"
-                        >
-                          Feedback
-                        </button>
-                      </div>
-
-                      {/* Feedback Section */}
-                      {selectedActivity?.id === activity.id && (
-                        <div className="mt-4 border-t pt-4">
-                          <h6 className="font-medium text-sm mb-3">Rate this Activity</h6>
-                          <form onSubmit={handleCreateFeedback} className="space-y-2">
-                            <div className="flex gap-2 items-center">
-                              <label className="text-sm">Rating:</label>
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <button
-                                  key={star}
-                                  type="button"
-                                  onClick={() => setFeedbackForm({ ...feedbackForm, rating: star })}
-                                  className="text-2xl focus:outline-none"
-                                >
-                                  {star <= feedbackForm.rating ? '⭐' : '☆'}
-                                </button>
-                              ))}
-                            </div>
-                            <textarea
-                              placeholder="Leave a comment..."
-                              value={feedbackForm.comment}
-                              onChange={(e) => setFeedbackForm({ ...feedbackForm, comment: e.target.value })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
-                              rows={2}
+                {/* ITINERARY TAB */}
+                {activeTab === "itinerary" && (
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="text-lg font-semibold">Trip Itinerary</h4>
+                      <button
+                        onClick={() => {
+                          setLegForm({ sequence: legs.length + 1, name: "", description: "", legType: "TRAVEL", startDate: "", endDate: "" });
+                          setShowLegForm(true);
+                        }}
+                        className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition text-sm"
+                      >
+                        + Add Leg
+                      </button>
+                    </div>
+                    {showLegForm && (
+                      <div className="mb-4 bg-green-50 p-4 rounded-lg">
+                        <h5 className="font-medium mb-3 text-green-800">New Trip Leg</h5>
+                        <form onSubmit={handleCreateLeg} className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <input
+                              type="number"
+                              placeholder="Sequence #"
+                              value={legForm.sequence}
+                              onChange={(e) => setLegForm({ ...legForm, sequence: parseInt(e.target.value) })}
+                              className="px-4 py-2 border border-gray-300 rounded-lg"
+                              required
+                              min={1}
                             />
-                            <button
-                              type="submit"
-                              className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-4 py-1 rounded text-sm"
+                            <select
+                              value={legForm.legType}
+                              onChange={(e) => setLegForm({ ...legForm, legType: e.target.value as any })}
+                              className="px-4 py-2 border border-gray-300 rounded-lg"
                             >
-                              Submit Feedback
+                              <option value="TRAVEL">🚀 Travel</option>
+                              <option value="STAY">🏨 Stay</option>
+                              <option value="CRUISE_LEG">🚢 Cruise Leg</option>
+                            </select>
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Leg Name (e.g. Outbound Flight, Paris Stay)"
+                            value={legForm.name}
+                            onChange={(e) => setLegForm({ ...legForm, name: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            required
+                          />
+                          <textarea
+                            placeholder="Description"
+                            value={legForm.description}
+                            onChange={(e) => setLegForm({ ...legForm, description: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            rows={2}
+                          />
+                          <div className="grid grid-cols-2 gap-3">
+                            <input
+                              type="date"
+                              value={legForm.startDate}
+                              onChange={(e) => setLegForm({ ...legForm, startDate: e.target.value })}
+                              className="px-4 py-2 border border-gray-300 rounded-lg"
+                            />
+                            <input
+                              type="date"
+                              value={legForm.endDate}
+                              onChange={(e) => setLegForm({ ...legForm, endDate: e.target.value })}
+                              className="px-4 py-2 border border-gray-300 rounded-lg"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="submit" className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm">
+                              Add Leg
                             </button>
-                          </form>
-
-                          {/* Existing Feedbacks */}
-                          <div className="mt-4 space-y-2">
-                            {feedbacks.map((feedback) => (
-                              <div key={feedback.id} className="bg-white p-3 rounded border border-gray-200">
-                                <div className="flex gap-1 mb-1">
-                                  {Array.from({ length: feedback.rating }).map((_, i) => (
-                                    <span key={i} className="text-yellow-500">⭐</span>
-                                  ))}
+                            <button type="button" onClick={() => setShowLegForm(false)} className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg text-sm">
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+                    <div className="space-y-4">
+                      {legs.map((leg) => (
+                        <div key={leg.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                          <div
+                            className="flex justify-between items-center p-4 bg-gray-50 cursor-pointer"
+                            onClick={() => {
+                              if (selectedLeg?.id === leg.id) {
+                                setSelectedLeg(null);
+                              } else {
+                                setSelectedLeg(leg);
+                                fetchTransportSegments(leg.id);
+                                fetchAccommodationStays(leg.id);
+                                if (leg.legType === "CRUISE_LEG") fetchCruisePortStops(leg.id);
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="bg-royal-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">
+                                {leg.sequence}
+                              </span>
+                              <div>
+                                <p className="font-semibold text-gray-800">{leg.name}</p>
+                                {leg.description && <p className="text-sm text-gray-500">{leg.description}</p>}
+                                <div className="flex gap-3 text-xs text-gray-400 mt-1">
+                                  <span className="capitalize">{leg.legType?.toLowerCase().replace("_", " ")}</span>
+                                  {leg.startDate && <span>📅 {leg.startDate}</span>}
+                                  {leg.endDate && <span>→ {leg.endDate}</span>}
                                 </div>
-                                <p className="text-sm text-gray-700">{feedback.comment}</p>
-                                <p className="text-xs text-gray-500 mt-1">By {feedback.userId}</p>
                               </div>
+                            </div>
+                            <span className="text-gray-400">{selectedLeg?.id === leg.id ? "▲" : "▼"}</span>
+                          </div>
+                          {selectedLeg?.id === leg.id && (
+                            <div className="p-4 space-y-5">
+                              {/* Transport Segments */}
+                              <div>
+                                <div className="flex justify-between items-center mb-2">
+                                  <h6 className="font-semibold text-sm text-gray-700">🚀 Transport Segments</h6>
+                                  <button
+                                    onClick={() => setShowTransportForm(true)}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    + Add
+                                  </button>
+                                </div>
+                                {showTransportForm && (
+                                  <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                                    <form onSubmit={handleCreateTransportSegment} className="space-y-2">
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <select
+                                          value={transportForm.type}
+                                          onChange={(e) => setTransportForm({ ...transportForm, type: e.target.value as any })}
+                                          className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                        >
+                                          <option value="FLIGHT">✈️ Flight</option>
+                                          <option value="TRAIN">🚂 Train</option>
+                                          <option value="CAR">🚗 Car</option>
+                                          <option value="BOAT">⛵ Boat</option>
+                                          <option value="CRUISE">🚢 Cruise</option>
+                                        </select>
+                                        <input
+                                          type="text"
+                                          placeholder="Carrier (e.g. Delta, Amtrak)"
+                                          value={transportForm.carrier}
+                                          onChange={(e) => setTransportForm({ ...transportForm, carrier: e.target.value })}
+                                          className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <input
+                                          type="text"
+                                          placeholder="Flight/Train #"
+                                          value={transportForm.flightNumber}
+                                          onChange={(e) => setTransportForm({ ...transportForm, flightNumber: e.target.value })}
+                                          className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                        />
+                                        <input
+                                          type="text"
+                                          placeholder="Confirmation Code"
+                                          value={transportForm.confirmationCode}
+                                          onChange={(e) => setTransportForm({ ...transportForm, confirmationCode: e.target.value })}
+                                          className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <input
+                                          type="text"
+                                          placeholder="Departure Location *"
+                                          value={transportForm.departureLocation}
+                                          onChange={(e) => setTransportForm({ ...transportForm, departureLocation: e.target.value })}
+                                          className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                          required
+                                        />
+                                        <input
+                                          type="text"
+                                          placeholder="Arrival Location *"
+                                          value={transportForm.arrivalLocation}
+                                          onChange={(e) => setTransportForm({ ...transportForm, arrivalLocation: e.target.value })}
+                                          className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                          required
+                                        />
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <input
+                                          type="datetime-local"
+                                          value={transportForm.departureTime}
+                                          onChange={(e) => setTransportForm({ ...transportForm, departureTime: e.target.value })}
+                                          className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                        />
+                                        <input
+                                          type="datetime-local"
+                                          value={transportForm.arrivalTime}
+                                          onChange={(e) => setTransportForm({ ...transportForm, arrivalTime: e.target.value })}
+                                          className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                        />
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <button type="submit" className="bg-blue-600 text-white px-3 py-1.5 rounded text-xs">
+                                          Add
+                                        </button>
+                                        <button type="button" onClick={() => setShowTransportForm(false)} className="bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-xs">
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </form>
+                                  </div>
+                                )}
+                                {transportSegments.length === 0 ? (
+                                  <p className="text-xs text-gray-400 italic">No transport segments yet.</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {transportSegments.map((seg) => (
+                                      <div key={seg.id} className="bg-blue-50 p-3 rounded text-sm">
+                                        <div className="flex items-center gap-2 font-medium">
+                                          {getTransportationEmoji(seg.type)} {seg.carrier} {seg.flightNumber}
+                                        </div>
+                                        <div className="text-gray-600 mt-1">
+                                          {seg.departureLocation} → {seg.arrivalLocation}
+                                        </div>
+                                        {seg.departureTime && (
+                                          <div className="text-xs text-gray-400 mt-1">
+                                            Departs: {new Date(seg.departureTime).toLocaleString()}
+                                            {seg.arrivalTime && ` · Arrives: ${new Date(seg.arrivalTime).toLocaleString()}`}
+                                          </div>
+                                        )}
+                                        {seg.confirmationCode && (
+                                          <div className="text-xs text-gray-500">Conf: {seg.confirmationCode}</div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Accommodation Stays */}
+                              <div>
+                                <div className="flex justify-between items-center mb-2">
+                                  <h6 className="font-semibold text-sm text-gray-700">🏨 Accommodation Stays</h6>
+                                  <button
+                                    onClick={() => setShowAccommodationForm(true)}
+                                    className="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    + Add
+                                  </button>
+                                </div>
+                                {showAccommodationForm && (
+                                  <div className="bg-purple-50 p-3 rounded-lg mb-3">
+                                    <form onSubmit={handleCreateAccommodationStay} className="space-y-2">
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <select
+                                          value={accommodationForm.type}
+                                          onChange={(e) => setAccommodationForm({ ...accommodationForm, type: e.target.value as any })}
+                                          className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                        >
+                                          <option value="HOTEL">🏨 Hotel</option>
+                                          <option value="RENTAL">🏠 Rental</option>
+                                          <option value="CABIN">🌲 Cabin</option>
+                                          <option value="RESORT">🌴 Resort</option>
+                                          <option value="CRUISE_SHIP">🚢 Cruise Ship</option>
+                                          <option value="OTHER">Other</option>
+                                        </select>
+                                        <input
+                                          type="text"
+                                          placeholder="Name *"
+                                          value={accommodationForm.name}
+                                          onChange={(e) => setAccommodationForm({ ...accommodationForm, name: e.target.value })}
+                                          className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                          required
+                                        />
+                                      </div>
+                                      <input
+                                        type="text"
+                                        placeholder="Address"
+                                        value={accommodationForm.address}
+                                        onChange={(e) => setAccommodationForm({ ...accommodationForm, address: e.target.value })}
+                                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                      />
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                          <label className="text-xs text-gray-500">Check-in *</label>
+                                          <input
+                                            type="date"
+                                            value={accommodationForm.checkInDate}
+                                            onChange={(e) => setAccommodationForm({ ...accommodationForm, checkInDate: e.target.value })}
+                                            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                            required
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="text-xs text-gray-500">Check-out *</label>
+                                          <input
+                                            type="date"
+                                            value={accommodationForm.checkOutDate}
+                                            onChange={(e) => setAccommodationForm({ ...accommodationForm, checkOutDate: e.target.value })}
+                                            className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                            required
+                                          />
+                                        </div>
+                                      </div>
+                                      <input
+                                        type="text"
+                                        placeholder="Confirmation Code"
+                                        value={accommodationForm.confirmationCode}
+                                        onChange={(e) => setAccommodationForm({ ...accommodationForm, confirmationCode: e.target.value })}
+                                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                      />
+                                      <div className="flex gap-2">
+                                        <button type="submit" className="bg-purple-600 text-white px-3 py-1.5 rounded text-xs">
+                                          Add
+                                        </button>
+                                        <button type="button" onClick={() => setShowAccommodationForm(false)} className="bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-xs">
+                                          Cancel
+                                        </button>
+                                      </div>
+                                    </form>
+                                  </div>
+                                )}
+                                {accommodationStays.length === 0 ? (
+                                  <p className="text-xs text-gray-400 italic">No accommodation stays yet.</p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {accommodationStays.map((stay) => (
+                                      <div key={stay.id} className="bg-purple-50 p-3 rounded text-sm">
+                                        <div className="font-medium">{stay.name}</div>
+                                        {stay.address && <div className="text-gray-500 text-xs">📍 {stay.address}</div>}
+                                        <div className="text-gray-600 text-xs mt-1">
+                                          Check-in: {stay.checkInDate} · Check-out: {stay.checkOutDate}
+                                        </div>
+                                        {stay.confirmationCode && (
+                                          <div className="text-xs text-gray-500">Conf: {stay.confirmationCode}</div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Cruise Port Stops */}
+                              {leg.legType === "CRUISE_LEG" && (
+                                <div>
+                                  <div className="flex justify-between items-center mb-2">
+                                    <h6 className="font-semibold text-sm text-gray-700">⚓ Port Stops</h6>
+                                    <button
+                                      onClick={() => {
+                                        setPortStopForm({ portName: "", country: "", arrivalDate: "", departureDate: "", sequence: cruisePortStops.length + 1 });
+                                        setShowPortStopForm(true);
+                                      }}
+                                      className="bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded text-xs"
+                                    >
+                                      + Add Port Stop
+                                    </button>
+                                  </div>
+                                  {showPortStopForm && (
+                                    <div className="bg-teal-50 p-3 rounded-lg mb-3">
+                                      <form onSubmit={handleCreatePortStop} className="space-y-2">
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <input
+                                            type="text"
+                                            placeholder="Port Name *"
+                                            value={portStopForm.portName}
+                                            onChange={(e) => setPortStopForm({ ...portStopForm, portName: e.target.value })}
+                                            className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                            required
+                                          />
+                                          <input
+                                            type="text"
+                                            placeholder="Country"
+                                            value={portStopForm.country}
+                                            onChange={(e) => setPortStopForm({ ...portStopForm, country: e.target.value })}
+                                            className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                          />
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-2">
+                                          <input
+                                            type="number"
+                                            placeholder="Sequence #"
+                                            value={portStopForm.sequence}
+                                            onChange={(e) => setPortStopForm({ ...portStopForm, sequence: parseInt(e.target.value) })}
+                                            className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                            required
+                                            min={1}
+                                          />
+                                          <input
+                                            type="date"
+                                            value={portStopForm.arrivalDate}
+                                            onChange={(e) => setPortStopForm({ ...portStopForm, arrivalDate: e.target.value })}
+                                            className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                          />
+                                          <input
+                                            type="date"
+                                            value={portStopForm.departureDate}
+                                            onChange={(e) => setPortStopForm({ ...portStopForm, departureDate: e.target.value })}
+                                            className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                          />
+                                        </div>
+                                        <div className="flex gap-2">
+                                          <button type="submit" className="bg-teal-600 text-white px-3 py-1.5 rounded text-xs">
+                                            Add
+                                          </button>
+                                          <button type="button" onClick={() => setShowPortStopForm(false)} className="bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-xs">
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </form>
+                                    </div>
+                                  )}
+                                  {cruisePortStops.length === 0 ? (
+                                    <p className="text-xs text-gray-400 italic">No port stops yet.</p>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      {cruisePortStops.map((stop) => (
+                                        <div key={stop.id} className="bg-teal-50 p-3 rounded text-sm flex justify-between items-start">
+                                          <div>
+                                            <div className="font-medium">
+                                              ⚓ {stop.portName}{stop.country ? `, ${stop.country}` : ""}
+                                            </div>
+                                            {stop.arrivalDate && (
+                                              <div className="text-xs text-gray-500 mt-1">
+                                                Arrives: {stop.arrivalDate}{stop.departureDate ? ` · Departs: ${stop.departureDate}` : ""}
+                                              </div>
+                                            )}
+                                          </div>
+                                          <button
+                                            onClick={() => { setSelectedPortStop(stop); fetchExcursionOptions(undefined, stop.id); }}
+                                            className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-2 py-1 rounded text-xs"
+                                          >
+                                            Excursions
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {legs.length === 0 && (
+                        <p className="text-center text-gray-500 py-6 text-sm">No trip legs yet. Add one to build your itinerary!</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* EXCURSIONS TAB */}
+                {activeTab === "excursions" && (
+                  <div>
+                    <h4 className="text-lg font-semibold mb-4">Excursion Options</h4>
+                    {legs.length === 0 ? (
+                      <p className="text-center text-gray-500 py-6 text-sm">
+                        Add trip legs in the Itinerary tab first to manage excursions.
+                      </p>
+                    ) : (
+                      <div>
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Select Trip Leg</label>
+                          <div className="flex flex-wrap gap-2">
+                            {legs.map((leg) => (
+                              <button
+                                key={leg.id}
+                                onClick={() => {
+                                  setSelectedLeg(leg);
+                                  setSelectedPortStop(null);
+                                  fetchExcursionOptions(leg.id);
+                                  if (leg.legType === "CRUISE_LEG") fetchCruisePortStops(leg.id);
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-sm border transition ${
+                                  selectedLeg?.id === leg.id
+                                    ? "bg-orange-500 text-white border-orange-500"
+                                    : "bg-white text-gray-700 border-gray-300 hover:border-orange-400"
+                                }`}
+                              >
+                                {leg.sequence}. {leg.name}
+                              </button>
                             ))}
                           </div>
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                        {selectedLeg && (
+                          <>
+                            {selectedLeg.legType === "CRUISE_LEG" && cruisePortStops.length > 0 && (
+                              <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Filter by Port Stop (optional)
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    onClick={() => { setSelectedPortStop(null); fetchExcursionOptions(selectedLeg.id); }}
+                                    className={`px-3 py-1.5 rounded-lg text-sm border transition ${
+                                      !selectedPortStop
+                                        ? "bg-teal-500 text-white border-teal-500"
+                                        : "bg-white text-gray-700 border-gray-300 hover:border-teal-400"
+                                    }`}
+                                  >
+                                    All Ports
+                                  </button>
+                                  {cruisePortStops.map((stop) => (
+                                    <button
+                                      key={stop.id}
+                                      onClick={() => { setSelectedPortStop(stop); fetchExcursionOptions(undefined, stop.id); }}
+                                      className={`px-3 py-1.5 rounded-lg text-sm border transition ${
+                                        selectedPortStop?.id === stop.id
+                                          ? "bg-teal-500 text-white border-teal-500"
+                                          : "bg-white text-gray-700 border-gray-300 hover:border-teal-400"
+                                      }`}
+                                    >
+                                      ⚓ {stop.portName}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            <div className="flex justify-between items-center mb-3">
+                              <p className="text-sm text-gray-600">
+                                Excursions for:{" "}
+                                <span className="font-medium">
+                                  {selectedPortStop ? `⚓ ${selectedPortStop.portName}` : selectedLeg.name}
+                                </span>
+                              </p>
+                              <button
+                                onClick={() => setShowExcursionForm(true)}
+                                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg text-sm"
+                              >
+                                + Propose Excursion
+                              </button>
+                            </div>
+                            {showExcursionForm && (
+                              <div className="bg-orange-50 p-4 rounded-lg mb-4">
+                                <h5 className="font-medium mb-3 text-orange-800">Propose Excursion Option</h5>
+                                <form onSubmit={handleCreateExcursion} className="space-y-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Excursion Name *"
+                                    value={excursionForm.name}
+                                    onChange={(e) => setExcursionForm({ ...excursionForm, name: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                    required
+                                  />
+                                  <textarea
+                                    placeholder="Description"
+                                    value={excursionForm.description}
+                                    onChange={(e) => setExcursionForm({ ...excursionForm, description: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                    rows={2}
+                                  />
+                                  <div className="grid grid-cols-3 gap-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Category (e.g. Adventure)"
+                                      value={excursionForm.category}
+                                      onChange={(e) => setExcursionForm({ ...excursionForm, category: e.target.value })}
+                                      className="px-3 py-2 border border-gray-300 rounded text-sm"
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Duration (e.g. 3 hours)"
+                                      value={excursionForm.duration}
+                                      onChange={(e) => setExcursionForm({ ...excursionForm, duration: e.target.value })}
+                                      className="px-3 py-2 border border-gray-300 rounded text-sm"
+                                    />
+                                    <input
+                                      type="number"
+                                      placeholder="Est. Cost ($)"
+                                      value={excursionForm.estimatedCost}
+                                      onChange={(e) => setExcursionForm({ ...excursionForm, estimatedCost: e.target.value })}
+                                      className="px-3 py-2 border border-gray-300 rounded text-sm"
+                                      min={0}
+                                      step={0.01}
+                                    />
+                                  </div>
+                                  <select
+                                    value={excursionForm.status}
+                                    onChange={(e) => setExcursionForm({ ...excursionForm, status: e.target.value as any })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                                  >
+                                    <option value="PROPOSED">Proposed</option>
+                                    <option value="UNDER_REVIEW">Under Review</option>
+                                    <option value="SELECTED">Selected</option>
+                                    <option value="BOOKED">Booked</option>
+                                    <option value="REJECTED">Rejected</option>
+                                  </select>
+                                  <div className="flex gap-2">
+                                    <button type="submit" className="bg-orange-600 text-white px-4 py-1.5 rounded text-sm">
+                                      Propose
+                                    </button>
+                                    <button type="button" onClick={() => setShowExcursionForm(false)} className="bg-gray-300 text-gray-800 px-4 py-1.5 rounded text-sm">
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </form>
+                              </div>
+                            )}
+                            {excursionOptions.length === 0 ? (
+                              <p className="text-center text-gray-500 py-6 text-sm italic">
+                                No excursion options yet. Be the first to propose one!
+                              </p>
+                            ) : (
+                              <div className="space-y-4">
+                                {excursionOptions.map((excursion) => (
+                                  <div key={excursion.id} className="border border-orange-200 rounded-lg p-4">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <h5 className="font-semibold text-gray-800">{excursion.name}</h5>
+                                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${getExcursionStatusBadge(excursion.status)}`}>
+                                        {excursion.status}
+                                      </span>
+                                    </div>
+                                    {excursion.description && (
+                                      <p className="text-sm text-gray-600 mb-2">{excursion.description}</p>
+                                    )}
+                                    <div className="flex flex-wrap gap-3 text-xs text-gray-500 mb-3">
+                                      {excursion.category && <span>🏷️ {excursion.category}</span>}
+                                      {excursion.duration && <span>⏱️ {excursion.duration}</span>}
+                                      {excursion.estimatedCost != null && (
+                                        <span>💰 ${excursion.estimatedCost.toFixed(2)}</span>
+                                      )}
+                                      {excursion.proposedBy && <span>👤 {excursion.proposedBy}</span>}
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedExcursion(excursion);
+                                          fetchExcursionVotes(excursion.id);
+                                          handleVote(excursion.id, "UP");
+                                        }}
+                                        className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition ${
+                                          selectedExcursion?.id === excursion.id && myVote === "UP"
+                                            ? "bg-green-500 text-white"
+                                            : "bg-green-100 hover:bg-green-200 text-green-700"
+                                        }`}
+                                      >
+                                        👍 {selectedExcursion?.id === excursion.id ? upCount : ""}
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setSelectedExcursion(excursion);
+                                          fetchExcursionVotes(excursion.id);
+                                          handleVote(excursion.id, "DOWN");
+                                        }}
+                                        className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition ${
+                                          selectedExcursion?.id === excursion.id && myVote === "DOWN"
+                                            ? "bg-red-500 text-white"
+                                            : "bg-red-100 hover:bg-red-200 text-red-700"
+                                        }`}
+                                      >
+                                        👎 {selectedExcursion?.id === excursion.id ? downCount : ""}
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setSelectedExcursion(excursion);
+                                          fetchExcursionComments(excursion.id);
+                                          setShowCommentForm(true);
+                                        }}
+                                        className="text-sm text-royal-blue-600 hover:text-royal-blue-800 underline"
+                                      >
+                                        💬 Comments
+                                      </button>
+                                    </div>
+                                    {selectedExcursion?.id === excursion.id && (
+                                      <div className="mt-4 border-t pt-3">
+                                        {showCommentForm && (
+                                          <form onSubmit={handleCreateComment} className="flex gap-2 mb-3">
+                                            <input
+                                              type="text"
+                                              placeholder="Add your opinion..."
+                                              value={commentText}
+                                              onChange={(e) => setCommentText(e.target.value)}
+                                              className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm"
+                                              required
+                                            />
+                                            <button type="submit" className="bg-royal-blue-600 text-white px-3 py-1.5 rounded text-sm">
+                                              Post
+                                            </button>
+                                            <button type="button" onClick={() => setShowCommentForm(false)} className="bg-gray-300 text-gray-800 px-3 py-1.5 rounded text-sm">
+                                              ✕
+                                            </button>
+                                          </form>
+                                        )}
+                                        {excursionComments.length === 0 ? (
+                                          <p className="text-xs text-gray-400 italic">No comments yet.</p>
+                                        ) : (
+                                          <div className="space-y-2">
+                                            {excursionComments.map((c) => (
+                                              <div key={c.id} className="bg-gray-50 p-2 rounded text-sm">
+                                                <p className="text-gray-800">{c.comment}</p>
+                                                <p className="text-xs text-gray-400 mt-1">
+                                                  {c.userId}{c.createdAt ? ` · ${new Date(c.createdAt).toLocaleString()}` : ""}
+                                                </p>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
         ))}
-
         {vacations.length === 0 && (
           <div className="text-center py-12 text-gray-500">
-            <p>No vacations yet. Add your first vacation to get started!</p>
+            <p className="text-xl mb-2">🏖️ No vacations planned yet</p>
+            <p className="text-sm">Click "Add Vacation" to start planning your next trip!</p>
           </div>
         )}
       </div>
