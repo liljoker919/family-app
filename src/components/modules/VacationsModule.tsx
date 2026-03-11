@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../../amplify/data/resource";
 
@@ -472,9 +472,9 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
   };
 
   const uid = user?.signInDetails?.loginId || "unknown";
-  const upCount = excursionVotes.filter((v) => v.vote === "UP").length;
-  const downCount = excursionVotes.filter((v) => v.vote === "DOWN").length;
-  const myVote = excursionVotes.find((v) => v.userId === uid)?.vote;
+  const upCount = useMemo(() => excursionVotes.filter((v) => v.vote === "UP").length, [excursionVotes]);
+  const downCount = useMemo(() => excursionVotes.filter((v) => v.vote === "DOWN").length, [excursionVotes]);
+  const myVote = useMemo(() => excursionVotes.find((v) => v.userId === uid)?.vote, [excursionVotes, uid]);
 
   return (
     <div>
@@ -1401,7 +1401,6 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                       <button
                                         onClick={() => {
                                           setSelectedExcursion(excursion);
-                                          fetchExcursionVotes(excursion.id);
                                           handleVote(excursion.id, "UP");
                                         }}
                                         className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition ${
@@ -1415,7 +1414,6 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                       <button
                                         onClick={() => {
                                           setSelectedExcursion(excursion);
-                                          fetchExcursionVotes(excursion.id);
                                           handleVote(excursion.id, "DOWN");
                                         }}
                                         className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition ${
