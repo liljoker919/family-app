@@ -14,6 +14,8 @@ const backend = defineBackend({
 backend.postConfirmation.resources.lambda.addToRolePolicy(
   new PolicyStatement({
     actions: ['cognito-idp:AdminAddUserToGroup'],
-    resources: [backend.auth.resources.userPool.userPoolArn],
+    // Use wildcard resource to avoid circular dependency between the user pool
+    // (which owns the trigger) and the trigger lambda execution role policy.
+    resources: ['*'],
   }),
 );
