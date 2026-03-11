@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../../amplify/data/resource";
 
@@ -58,9 +58,10 @@ interface VacationsModuleProps {
   user: any;
 }
 
-type ActiveTab = "activities" | "itinerary" | "excursions";
+type ActiveTab = "activities" | "itinerary" | "excursions" | "flights";
 
 export default function VacationsModule({ user }: VacationsModuleProps) {
+  const segmentIdCounter = React.useRef(0);
   const [vacations, setVacations] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
@@ -87,6 +88,21 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
   const [selectedExcursion, setSelectedExcursion] = useState<any>(null);
   const [selectedPortStop, setSelectedPortStop] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>("activities");
+
+  const [flightSegments, setFlightSegments] = useState<any[]>([]);
+  const [pendingFlightSegments, setPendingFlightSegments] = useState<Array<{
+    localId: string;
+    airline: string;
+    flightNumber: string;
+    departureAirport: string;
+    arrivalAirport: string;
+    departureDateTime: string;
+    arrivalDateTime: string;
+    confirmationNumber: string;
+    notes: string;
+  }>>([]);
+  const [showFlightSegmentForm, setShowFlightSegmentForm] = useState(false);
+  const [flightSegmentFormError, setFlightSegmentFormError] = useState("");
 
   const [vacationForm, setVacationForm] = useState({
     title: "",
@@ -156,6 +172,17 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
     duration: "",
     category: "",
     status: "PROPOSED" as "PROPOSED" | "UNDER_REVIEW" | "SELECTED" | "BOOKED" | "REJECTED",
+  });
+
+  const [flightSegmentForm, setFlightSegmentForm] = useState({
+    airline: "",
+    flightNumber: "",
+    departureAirport: "",
+    arrivalAirport: "",
+    departureDateTime: "",
+    arrivalDateTime: "",
+    confirmationNumber: "",
+    notes: "",
   });
 
   const [commentText, setCommentText] = useState("");
@@ -293,14 +320,45 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
     }
   };
 
+  const fetchFlightSegments = async (vacationId: string) => {
+    try {
+      const { data } = await client.models.FlightSegment.list({
+        filter: { vacationId: { eq: vacationId } },
+      });
+      setFlightSegments(data);
+    } catch (error) {
+      console.error("Error fetching flight segments:", error);
+    }
+  };
+
   const handleCreateVacation = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await client.models.Vacation.create({
+      const { data: newVacation } = await client.models.Vacation.create({
         ...vacationForm,
         createdBy: user?.signInDetails?.loginId || "unknown",
       });
+      if (newVacation && pendingFlightSegments.length > 0) {
+        await Promise.all(
+          pendingFlightSegments.map((seg) =>
+            client.models.FlightSegment.create({
+              vacationId: newVacation.id,
+              airline: seg.airline,
+              flightNumber: seg.flightNumber,
+              departureAirport: seg.departureAirport,
+              arrivalAirport: seg.arrivalAirport,
+              departureDateTime: seg.departureDateTime,
+              arrivalDateTime: seg.arrivalDateTime,
+              confirmationNumber: seg.confirmationNumber || undefined,
+              notes: seg.notes || undefined,
+            })
+          )
+        );
+      }
       setVacationForm({ title: "", description: "", startDate: "", endDate: "", transportation: "flight", accommodations: "", tripType: "SINGLE_LOCATION" });
+      setPendingFlightSegments([]);
+      setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
+      setFlightSegmentFormError("");
       setShowVacationForm(false);
       fetchVacations();
     } catch (error) {
@@ -473,6 +531,76 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
     }
   };
 
+  const validateFlightSegmentForm = (form: typeof flightSegmentForm): string => {
+    if (!form.airline.trim()) return "Airline is required.";
+    if (!form.flightNumber.trim()) return "Flight number is required.";
+    if (!form.departureAirport.trim()) return "Departure airport is required.";
+    if (!form.arrivalAirport.trim()) return "Arrival airport is required.";
+    if (!form.departureDateTime) return "Departure date/time is required.";
+    if (!form.arrivalDateTime) return "Arrival date/time is required.";
+    if (new Date(form.arrivalDateTime) <= new Date(form.departureDateTime)) {
+      return "Arrival date/time must be after departure date/time.";
+    }
+    return "";
+  };
+
+  const handleAddPendingFlightSegment = () => {
+    const error = validateFlightSegmentForm(flightSegmentForm);
+    if (error) {
+      setFlightSegmentFormError(error);
+      return;
+    }
+    setPendingFlightSegments((prev) => [
+      ...prev,
+      { ...flightSegmentForm, localId: String(++segmentIdCounter.current) },
+    ]);
+    setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
+    setFlightSegmentFormError("");
+  };
+
+  const handleRemovePendingFlightSegment = (localId: string) => {
+    setPendingFlightSegments((prev) => prev.filter((s) => s.localId !== localId));
+  };
+
+  const handleCreateFlightSegment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedVacation) return;
+    const error = validateFlightSegmentForm(flightSegmentForm);
+    if (error) {
+      setFlightSegmentFormError(error);
+      return;
+    }
+    try {
+      await client.models.FlightSegment.create({
+        vacationId: selectedVacation.id,
+        airline: flightSegmentForm.airline,
+        flightNumber: flightSegmentForm.flightNumber,
+        departureAirport: flightSegmentForm.departureAirport,
+        arrivalAirport: flightSegmentForm.arrivalAirport,
+        departureDateTime: flightSegmentForm.departureDateTime,
+        arrivalDateTime: flightSegmentForm.arrivalDateTime,
+        confirmationNumber: flightSegmentForm.confirmationNumber || undefined,
+        notes: flightSegmentForm.notes || undefined,
+      });
+      setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
+      setFlightSegmentFormError("");
+      setShowFlightSegmentForm(false);
+      fetchFlightSegments(selectedVacation.id);
+    } catch (error) {
+      console.error("Error creating flight segment:", error);
+    }
+  };
+
+  const handleDeleteFlightSegment = async (id: string) => {
+    if (!selectedVacation) return;
+    try {
+      await client.models.FlightSegment.delete({ id });
+      fetchFlightSegments(selectedVacation.id);
+    } catch (error) {
+      console.error("Error deleting flight segment:", error);
+    }
+  };
+
   const openVacationDetail = (vacation: any, tab: ActiveTab = "activities") => {
     setSelectedVacation(vacation);
     setSelectedLeg(null);
@@ -483,6 +611,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
     if (tab === "activities") fetchActivities(vacation.id);
     if (tab === "itinerary") fetchLegs(vacation.id);
     if (tab === "excursions") fetchLegs(vacation.id);
+    if (tab === "flights") fetchFlightSegments(vacation.id);
   };
 
   const uid = user?.signInDetails?.loginId || "unknown";
@@ -579,11 +708,141 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
                 />
               </div>
+
+              {/* Flight Itinerary Section — shown only when transportation is flight */}
+              {vacationForm.transportation === "flight" && (
+                <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                  <h4 className="text-sm font-semibold text-blue-800 mb-3">✈️ Flight Itinerary</h4>
+
+                  {/* Pending flight segments list */}
+                  {pendingFlightSegments.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {pendingFlightSegments.map((seg) => (
+                        <div key={seg.localId} className="bg-white border border-blue-100 rounded p-3 text-sm flex justify-between items-start">
+                          <div>
+                            <div className="font-medium text-gray-800">
+                              ✈️ {seg.airline} {seg.flightNumber}
+                            </div>
+                            <div className="text-gray-600 mt-0.5">
+                              {seg.departureAirport} → {seg.arrivalAirport}
+                            </div>
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              {new Date(seg.departureDateTime).toLocaleString()} → {new Date(seg.arrivalDateTime).toLocaleString()}
+                            </div>
+                            {seg.confirmationNumber && (
+                              <div className="text-xs text-gray-500">Conf: {seg.confirmationNumber}</div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePendingFlightSegment(seg.localId)}
+                            className="text-red-500 hover:text-red-700 text-xs ml-2"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add flight segment inline form */}
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Airline *"
+                        value={flightSegmentForm.airline}
+                        onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, airline: e.target.value })}
+                        className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Flight Number *"
+                        value={flightSegmentForm.flightNumber}
+                        onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, flightNumber: e.target.value })}
+                        className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Departure Airport *"
+                        value={flightSegmentForm.departureAirport}
+                        onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, departureAirport: e.target.value })}
+                        className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Arrival Airport *"
+                        value={flightSegmentForm.arrivalAirport}
+                        onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, arrivalAirport: e.target.value })}
+                        className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-500">Departure Date/Time *</label>
+                        <input
+                          type="datetime-local"
+                          value={flightSegmentForm.departureDateTime}
+                          onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, departureDateTime: e.target.value })}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Arrival Date/Time *</label>
+                        <input
+                          type="datetime-local"
+                          value={flightSegmentForm.arrivalDateTime}
+                          onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, arrivalDateTime: e.target.value })}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Confirmation Number"
+                        value={flightSegmentForm.confirmationNumber}
+                        onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, confirmationNumber: e.target.value })}
+                        className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Notes"
+                        value={flightSegmentForm.notes}
+                        onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, notes: e.target.value })}
+                        className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    {flightSegmentFormError && (
+                      <p className="text-xs text-red-600">{flightSegmentFormError}</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleAddPendingFlightSegment}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm"
+                    >
+                      + Add Flight Segment
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-4">
                 <button type="submit" className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-6 py-2 rounded-lg transition">
                   Create Vacation
                 </button>
-                <button type="button" onClick={() => setShowVacationForm(false)} className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg transition">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVacationForm(false);
+                    setPendingFlightSegments([]);
+                    setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
+                    setFlightSegmentFormError("");
+                  }}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg transition"
+                >
                   Cancel
                 </button>
               </div>
@@ -622,6 +881,14 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                 >
                   Itinerary
                 </button>
+                {vacation.transportation === "flight" && (
+                  <button
+                    onClick={() => openVacationDetail(vacation, "flights")}
+                    className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-lg transition text-sm"
+                  >
+                    ✈️ Flights
+                  </button>
+                )}
                 <button
                   onClick={() => openVacationDetail(vacation, "excursions")}
                   className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-4 py-2 rounded-lg transition text-sm"
@@ -640,8 +907,15 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
             {selectedVacation?.id === vacation.id && (
               <div className="mt-6 border-t pt-6">
                 {/* Tab Bar */}
-                <div className="flex gap-2 mb-4 border-b">
-                  {(["activities", "itinerary", "excursions"] as ActiveTab[]).map((tab) => (
+                <div className="flex gap-2 mb-4 border-b flex-wrap">
+                  {(
+                    [
+                      "activities",
+                      "itinerary",
+                      ...(vacation.transportation === "flight" ? ["flights"] : []),
+                      "excursions",
+                    ] as ActiveTab[]
+                  ).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => {
@@ -649,18 +923,27 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                         if (tab === "activities") fetchActivities(vacation.id);
                         if (tab === "itinerary") fetchLegs(vacation.id);
                         if (tab === "excursions") fetchLegs(vacation.id);
+                        if (tab === "flights") fetchFlightSegments(vacation.id);
                       }}
-                      className={`px-4 py-2 text-sm font-medium capitalize border-b-2 -mb-px transition ${
+                      className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
                         activeTab === tab
                           ? tab === "activities"
                             ? "border-royal-blue-600 text-royal-blue-700"
                             : tab === "itinerary"
                             ? "border-green-600 text-green-700"
+                            : tab === "flights"
+                            ? "border-blue-600 text-blue-700"
                             : "border-orange-600 text-orange-700"
                           : "border-transparent text-gray-500 hover:text-gray-700"
                       }`}
                     >
-                      {tab === "activities" ? "✅ Activities" : tab === "itinerary" ? "🗺️ Itinerary" : "🎯 Excursions"}
+                      {tab === "activities"
+                        ? "✅ Activities"
+                        : tab === "itinerary"
+                        ? "🗺️ Itinerary"
+                        : tab === "flights"
+                        ? "✈️ Flights"
+                        : "🎯 Excursions"}
                     </button>
                   ))}
                 </div>
@@ -1233,6 +1516,160 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                         <p className="text-center text-gray-500 py-6 text-sm">No trip legs yet. Add one to build your itinerary!</p>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* FLIGHTS TAB */}
+                {activeTab === "flights" && (
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="text-lg font-semibold">✈️ Flight Itinerary</h4>
+                      <button
+                        onClick={() => {
+                          setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
+                          setFlightSegmentFormError("");
+                          setShowFlightSegmentForm(true);
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition text-sm"
+                      >
+                        + Add Flight Segment
+                      </button>
+                    </div>
+
+                    {showFlightSegmentForm && (
+                      <div className="mb-4 bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                        <h5 className="font-medium mb-3 text-blue-800">New Flight Segment</h5>
+                        <form onSubmit={handleCreateFlightSegment} className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder="Airline *"
+                              value={flightSegmentForm.airline}
+                              onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, airline: e.target.value })}
+                              className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Flight Number *"
+                              value={flightSegmentForm.flightNumber}
+                              onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, flightNumber: e.target.value })}
+                              className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder="Departure Airport *"
+                              value={flightSegmentForm.departureAirport}
+                              onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, departureAirport: e.target.value })}
+                              className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Arrival Airport *"
+                              value={flightSegmentForm.arrivalAirport}
+                              onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, arrivalAirport: e.target.value })}
+                              className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-gray-500">Departure Date/Time *</label>
+                              <input
+                                type="datetime-local"
+                                value={flightSegmentForm.departureDateTime}
+                                onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, departureDateTime: e.target.value })}
+                                className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500">Arrival Date/Time *</label>
+                              <input
+                                type="datetime-local"
+                                value={flightSegmentForm.arrivalDateTime}
+                                onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, arrivalDateTime: e.target.value })}
+                                className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder="Confirmation Number"
+                              value={flightSegmentForm.confirmationNumber}
+                              onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, confirmationNumber: e.target.value })}
+                              className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Notes"
+                              value={flightSegmentForm.notes}
+                              onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, notes: e.target.value })}
+                              className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                          </div>
+                          {flightSegmentFormError && (
+                            <p className="text-xs text-red-600">{flightSegmentFormError}</p>
+                          )}
+                          <div className="flex gap-2">
+                            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm">
+                              Save
+                            </button>
+                            <button type="button" onClick={() => { setShowFlightSegmentForm(false); setFlightSegmentFormError(""); }} className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-1.5 rounded text-sm">
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+
+                    {flightSegments.length === 0 ? (
+                      <p className="text-center text-gray-500 py-6 text-sm">No flight segments yet. Add one to build your flight itinerary!</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {flightSegments.map((seg, idx) => (
+                          <div key={seg.id} className="border border-blue-200 rounded-lg p-4 bg-white">
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-3">
+                                <span className="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">
+                                  {idx + 1}
+                                </span>
+                                <div>
+                                  <div className="font-semibold text-gray-800">
+                                    ✈️ {seg.airline} · {seg.flightNumber}
+                                  </div>
+                                  <div className="text-gray-600 text-sm mt-0.5">
+                                    {seg.departureAirport} → {seg.arrivalAirport}
+                                  </div>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleDeleteFlightSegment(seg.id)}
+                                className="text-red-400 hover:text-red-600 text-xs"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-gray-600">
+                              <div>
+                                <span className="text-xs text-gray-400 block">Departs</span>
+                                {new Date(seg.departureDateTime).toLocaleString()}
+                              </div>
+                              <div>
+                                <span className="text-xs text-gray-400 block">Arrives</span>
+                                {new Date(seg.arrivalDateTime).toLocaleString()}
+                              </div>
+                            </div>
+                            {(seg.confirmationNumber || seg.notes) && (
+                              <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+                                {seg.confirmationNumber && <span>🔖 Conf: {seg.confirmationNumber}</span>}
+                                {seg.notes && <span>📝 {seg.notes}</span>}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 

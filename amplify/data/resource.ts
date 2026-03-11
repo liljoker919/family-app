@@ -26,10 +26,29 @@ const schema = a.schema({
       tripType: a.enum(['SINGLE_LOCATION', 'MULTI_LOCATION', 'CRUISE']),
       activities: a.hasMany('Activity', 'vacationId'),
       legs: a.hasMany('TripLeg', 'vacationId'),
+      flightSegments: a.hasMany('FlightSegment', 'vacationId'),
     })
     .authorization((allow) => [
       allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  FlightSegment: a
+    .model({
+      vacationId: a.id().required(),
+      vacation: a.belongsTo('Vacation', 'vacationId'),
+      airline: a.string().required(),
+      flightNumber: a.string().required(),
+      departureAirport: a.string().required(),
+      arrivalAirport: a.string().required(),
+      departureDateTime: a.datetime().required(),
+      arrivalDateTime: a.datetime().required(),
+      confirmationNumber: a.string(),
+      notes: a.string(),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
   TripLeg: a
