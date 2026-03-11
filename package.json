@@ -40,7 +40,11 @@
   },
   "devDependencies": {
     "@aws-amplify/backend": "^1.21.0",
-    "@aws-amplify/backend-cli": "^1.8.2"
+    "@aws-amplify/backend-cli": "^1.8.2",
+    "@aws-sdk/client-dynamodb": "^3.1006.0",
+    "@aws-sdk/lib-dynamodb": "^3.1006.0",
+    "@types/aws-lambda": "^8.10.161",
+    "@types/node": "^25.4.0"
   },
   "overrides": {
     "@aws-amplify/plugin-types": {

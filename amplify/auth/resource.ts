@@ -1,4 +1,5 @@
 import { defineAuth } from '@aws-amplify/backend';
+import { postConfirmation } from '../functions/post-confirmation/resource';
 
 export const auth = defineAuth({
   loginWith: {
@@ -14,5 +15,8 @@ export const auth = defineAuth({
       mutable: true,
       required: false,
     },
+  },
+  triggers: {
+    postConfirmation,
   },
 });
