@@ -23,7 +23,127 @@ const schema = a.schema({
       transportation: a.enum(['flight', 'car', 'boat']),
       accommodations: a.string(),
       createdBy: a.string().required(),
+      tripType: a.enum(['SINGLE_LOCATION', 'MULTI_LOCATION', 'CRUISE']),
       activities: a.hasMany('Activity', 'vacationId'),
+      legs: a.hasMany('TripLeg', 'vacationId'),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  TripLeg: a
+    .model({
+      vacationId: a.id().required(),
+      vacation: a.belongsTo('Vacation', 'vacationId'),
+      sequence: a.integer().required(),
+      name: a.string().required(),
+      description: a.string(),
+      legType: a.enum(['TRAVEL', 'STAY', 'CRUISE_LEG']),
+      startDate: a.date(),
+      endDate: a.date(),
+      transportSegments: a.hasMany('TransportSegment', 'tripLegId'),
+      accommodationStays: a.hasMany('AccommodationStay', 'tripLegId'),
+      cruisePortStops: a.hasMany('CruisePortStop', 'tripLegId'),
+      excursionOptions: a.hasMany('ExcursionOption', 'tripLegId'),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  TransportSegment: a
+    .model({
+      tripLegId: a.id().required(),
+      tripLeg: a.belongsTo('TripLeg', 'tripLegId'),
+      type: a.enum(['FLIGHT', 'TRAIN', 'CAR', 'BOAT', 'CRUISE']),
+      carrier: a.string(),
+      flightNumber: a.string(),
+      departureLocation: a.string().required(),
+      arrivalLocation: a.string().required(),
+      departureTime: a.datetime(),
+      arrivalTime: a.datetime(),
+      confirmationCode: a.string(),
+      notes: a.string(),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  AccommodationStay: a
+    .model({
+      tripLegId: a.id().required(),
+      tripLeg: a.belongsTo('TripLeg', 'tripLegId'),
+      type: a.enum(['HOTEL', 'RENTAL', 'CABIN', 'RESORT', 'CRUISE_SHIP', 'OTHER']),
+      name: a.string().required(),
+      address: a.string(),
+      checkInDate: a.date().required(),
+      checkOutDate: a.date().required(),
+      confirmationCode: a.string(),
+      notes: a.string(),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  CruisePortStop: a
+    .model({
+      tripLegId: a.id().required(),
+      tripLeg: a.belongsTo('TripLeg', 'tripLegId'),
+      portName: a.string().required(),
+      country: a.string(),
+      arrivalDate: a.date(),
+      departureDate: a.date(),
+      sequence: a.integer().required(),
+      excursionOptions: a.hasMany('ExcursionOption', 'cruisePortStopId'),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  ExcursionOption: a
+    .model({
+      tripLegId: a.id(),
+      tripLeg: a.belongsTo('TripLeg', 'tripLegId'),
+      cruisePortStopId: a.id(),
+      cruisePortStop: a.belongsTo('CruisePortStop', 'cruisePortStopId'),
+      name: a.string().required(),
+      description: a.string(),
+      estimatedCost: a.float(),
+      duration: a.string(),
+      category: a.string(),
+      status: a.enum(['PROPOSED', 'UNDER_REVIEW', 'SELECTED', 'BOOKED', 'REJECTED']),
+      proposedBy: a.string(),
+      votes: a.hasMany('ExcursionVote', 'excursionOptionId'),
+      comments: a.hasMany('ExcursionComment', 'excursionOptionId'),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  ExcursionVote: a
+    .model({
+      excursionOptionId: a.id().required(),
+      excursionOption: a.belongsTo('ExcursionOption', 'excursionOptionId'),
+      userId: a.string().required(),
+      vote: a.enum(['UP', 'DOWN']),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  ExcursionComment: a
+    .model({
+      excursionOptionId: a.id().required(),
+      excursionOption: a.belongsTo('ExcursionOption', 'excursionOptionId'),
+      userId: a.string().required(),
+      comment: a.string().required(),
+      createdAt: a.datetime(),
     })
     .authorization((allow) => [
       allow.group('ADMIN'),
