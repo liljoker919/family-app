@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../../amplify/data/resource";
 
@@ -61,6 +61,7 @@ interface VacationsModuleProps {
 type ActiveTab = "activities" | "itinerary" | "excursions" | "flights";
 
 export default function VacationsModule({ user }: VacationsModuleProps) {
+  const segmentIdCounter = React.useRef(0);
   const [vacations, setVacations] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
@@ -551,7 +552,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
     }
     setPendingFlightSegments((prev) => [
       ...prev,
-      { ...flightSegmentForm, localId: Math.random().toString(36).slice(2) },
+      { ...flightSegmentForm, localId: String(++segmentIdCounter.current) },
     ]);
     setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
     setFlightSegmentFormError("");
@@ -907,7 +908,14 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
               <div className="mt-6 border-t pt-6">
                 {/* Tab Bar */}
                 <div className="flex gap-2 mb-4 border-b flex-wrap">
-                  {(["activities", "itinerary", "excursions"] as ActiveTab[]).map((tab) => (
+                  {(
+                    [
+                      "activities",
+                      "itinerary",
+                      ...(vacation.transportation === "flight" ? ["flights"] : []),
+                      "excursions",
+                    ] as ActiveTab[]
+                  ).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => {
@@ -915,35 +923,29 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                         if (tab === "activities") fetchActivities(vacation.id);
                         if (tab === "itinerary") fetchLegs(vacation.id);
                         if (tab === "excursions") fetchLegs(vacation.id);
+                        if (tab === "flights") fetchFlightSegments(vacation.id);
                       }}
-                      className={`px-4 py-2 text-sm font-medium capitalize border-b-2 -mb-px transition ${
+                      className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
                         activeTab === tab
                           ? tab === "activities"
                             ? "border-royal-blue-600 text-royal-blue-700"
                             : tab === "itinerary"
                             ? "border-green-600 text-green-700"
+                            : tab === "flights"
+                            ? "border-blue-600 text-blue-700"
                             : "border-orange-600 text-orange-700"
                           : "border-transparent text-gray-500 hover:text-gray-700"
                       }`}
                     >
-                      {tab === "activities" ? "✅ Activities" : tab === "itinerary" ? "🗺️ Itinerary" : "🎯 Excursions"}
+                      {tab === "activities"
+                        ? "✅ Activities"
+                        : tab === "itinerary"
+                        ? "🗺️ Itinerary"
+                        : tab === "flights"
+                        ? "✈️ Flights"
+                        : "🎯 Excursions"}
                     </button>
                   ))}
-                  {vacation.transportation === "flight" && (
-                    <button
-                      onClick={() => {
-                        setActiveTab("flights");
-                        fetchFlightSegments(vacation.id);
-                      }}
-                      className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
-                        activeTab === "flights"
-                          ? "border-blue-600 text-blue-700"
-                          : "border-transparent text-gray-500 hover:text-gray-700"
-                      }`}
-                    >
-                      ✈️ Flights
-                    </button>
-                  )}
                 </div>
 
                 {/* ACTIVITIES TAB */}
