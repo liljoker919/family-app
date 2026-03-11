@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../../amplify/data/resource";
 
@@ -69,7 +69,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
   const [accommodationStays, setAccommodationStays] = useState<any[]>([]);
   const [cruisePortStops, setCruisePortStops] = useState<any[]>([]);
   const [excursionOptions, setExcursionOptions] = useState<any[]>([]);
-  const [excursionVotes, setExcursionVotes] = useState<any[]>([]);
+  const [votesByExcursion, setVotesByExcursion] = useState<Record<string, any[]>>({});
   const [excursionComments, setExcursionComments] = useState<any[]>([]);
 
   const [showVacationForm, setShowVacationForm] = useState(false);
@@ -256,6 +256,16 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
         data = result.data;
       }
       setExcursionOptions(data);
+      // Fetch votes for all excursion options at once for display
+      if (data.length > 0) {
+        const voteFetches = data.map((opt) =>
+          client.models.ExcursionVote.list({ filter: { excursionOptionId: { eq: opt.id } } })
+        );
+        const results = await Promise.all(voteFetches);
+        const votesMap: Record<string, any[]> = {};
+        data.forEach((opt, i) => { votesMap[opt.id] = results[i].data; });
+        setVotesByExcursion(votesMap);
+      }
     } catch (error) {
       console.error("Error fetching excursion options:", error);
     }
@@ -266,7 +276,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
       const { data } = await client.models.ExcursionVote.list({
         filter: { excursionOptionId: { eq: excursionOptionId } },
       });
-      setExcursionVotes(data);
+      setVotesByExcursion((prev) => ({ ...prev, [excursionOptionId]: data }));
     } catch (error) {
       console.error("Error fetching excursion votes:", error);
     }
@@ -300,6 +310,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
 
   const handleCreateActivity = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedVacation) return;
     try {
       await client.models.Activity.create({ ...activityForm, vacationId: selectedVacation.id });
       setActivityForm({ name: "", description: "", date: "", location: "" });
@@ -312,6 +323,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
 
   const handleCreateFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedActivity) return;
     try {
       await client.models.Feedback.create({
         ...feedbackForm,
@@ -335,7 +347,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
         startDate: legForm.startDate || undefined,
         endDate: legForm.endDate || undefined,
       });
-      setLegForm({ sequence: legs.length + 2, name: "", description: "", legType: "TRAVEL", startDate: "", endDate: "" });
+      setLegForm({ sequence: legs.length + 1, name: "", description: "", legType: "TRAVEL", startDate: "", endDate: "" });
       setShowLegForm(false);
       fetchLegs(selectedVacation.id);
     } catch (error) {
@@ -381,7 +393,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
         arrivalDate: portStopForm.arrivalDate || undefined,
         departureDate: portStopForm.departureDate || undefined,
       });
-      setPortStopForm({ portName: "", country: "", arrivalDate: "", departureDate: "", sequence: cruisePortStops.length + 2 });
+      setPortStopForm({ portName: "", country: "", arrivalDate: "", departureDate: "", sequence: cruisePortStops.length + 1 });
       setShowPortStopForm(false);
       fetchCruisePortStops(selectedLeg.id);
     } catch (error) {
@@ -413,7 +425,8 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
 
   const handleVote = async (excursionOptionId: string, vote: "UP" | "DOWN") => {
     const uid = user?.signInDetails?.loginId || "unknown";
-    const existing = excursionVotes.find((v) => v.userId === uid);
+    const currentVotes = votesByExcursion[excursionOptionId] ?? [];
+    const existing = currentVotes.find((v) => v.userId === uid);
     if (existing) {
       try {
         await client.models.ExcursionVote.update({ id: existing.id, vote });
@@ -433,6 +446,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
 
   const handleCreateComment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedExcursion || !commentText.trim()) return;
     try {
       await client.models.ExcursionComment.create({
         excursionOptionId: selectedExcursion.id,
@@ -472,9 +486,6 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
   };
 
   const uid = user?.signInDetails?.loginId || "unknown";
-  const upCount = useMemo(() => excursionVotes.filter((v) => v.vote === "UP").length, [excursionVotes]);
-  const downCount = useMemo(() => excursionVotes.filter((v) => v.vote === "DOWN").length, [excursionVotes]);
-  const myVote = useMemo(() => excursionVotes.find((v) => v.userId === uid)?.vote, [excursionVotes, uid]);
 
   return (
     <div>
@@ -1378,7 +1389,12 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                               </p>
                             ) : (
                               <div className="space-y-4">
-                                {excursionOptions.map((excursion) => (
+                                {excursionOptions.map((excursion) => {
+                                  const excVotes = votesByExcursion[excursion.id] ?? [];
+                                  const excUpCount = excVotes.filter((v) => v.vote === "UP").length;
+                                  const excDownCount = excVotes.filter((v) => v.vote === "DOWN").length;
+                                  const excMyVote = excVotes.find((v) => v.userId === uid)?.vote;
+                                  return (
                                   <div key={excursion.id} className="border border-orange-200 rounded-lg p-4">
                                     <div className="flex items-center gap-2 mb-1">
                                       <h5 className="font-semibold text-gray-800">{excursion.name}</h5>
@@ -1404,12 +1420,12 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                           handleVote(excursion.id, "UP");
                                         }}
                                         className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition ${
-                                          selectedExcursion?.id === excursion.id && myVote === "UP"
+                                          excMyVote === "UP"
                                             ? "bg-green-500 text-white"
                                             : "bg-green-100 hover:bg-green-200 text-green-700"
                                         }`}
                                       >
-                                        👍 {selectedExcursion?.id === excursion.id ? upCount : ""}
+                                        👍 {excUpCount}
                                       </button>
                                       <button
                                         onClick={() => {
@@ -1417,12 +1433,12 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                           handleVote(excursion.id, "DOWN");
                                         }}
                                         className={`flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium transition ${
-                                          selectedExcursion?.id === excursion.id && myVote === "DOWN"
+                                          excMyVote === "DOWN"
                                             ? "bg-red-500 text-white"
                                             : "bg-red-100 hover:bg-red-200 text-red-700"
                                         }`}
                                       >
-                                        👎 {selectedExcursion?.id === excursion.id ? downCount : ""}
+                                        👎 {excDownCount}
                                       </button>
                                       <button
                                         onClick={() => {
@@ -1472,7 +1488,8 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                       </div>
                                     )}
                                   </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             )}
                           </>
