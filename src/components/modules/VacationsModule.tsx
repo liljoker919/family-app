@@ -325,7 +325,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
       const { data } = await client.models.FlightSegment.list({
         filter: { vacationId: { eq: vacationId } },
       });
-      setFlightSegments(data);
+      setFlightSegments(data ?? []);
     } catch (error) {
       console.error("Error fetching flight segments:", error);
     }
@@ -347,8 +347,8 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
               flightNumber: seg.flightNumber,
               departureAirport: seg.departureAirport,
               arrivalAirport: seg.arrivalAirport,
-              departureDateTime: seg.departureDateTime,
-              arrivalDateTime: seg.arrivalDateTime,
+              departureDateTime: new Date(seg.departureDateTime).toISOString(),
+              arrivalDateTime: new Date(seg.arrivalDateTime).toISOString(),
               confirmationNumber: seg.confirmationNumber || undefined,
               notes: seg.notes || undefined,
             })
@@ -571,23 +571,29 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
       return;
     }
     try {
-      await client.models.FlightSegment.create({
+      const { data: created, errors } = await client.models.FlightSegment.create({
         vacationId: selectedVacation.id,
         airline: flightSegmentForm.airline,
         flightNumber: flightSegmentForm.flightNumber,
         departureAirport: flightSegmentForm.departureAirport,
         arrivalAirport: flightSegmentForm.arrivalAirport,
-        departureDateTime: flightSegmentForm.departureDateTime,
-        arrivalDateTime: flightSegmentForm.arrivalDateTime,
+        departureDateTime: new Date(flightSegmentForm.departureDateTime).toISOString(),
+        arrivalDateTime: new Date(flightSegmentForm.arrivalDateTime).toISOString(),
         confirmationNumber: flightSegmentForm.confirmationNumber || undefined,
         notes: flightSegmentForm.notes || undefined,
       });
+      if (errors || !created) {
+        console.error("Error creating flight segment:", errors);
+        setFlightSegmentFormError("Failed to save flight segment. Please try again.");
+        return;
+      }
       setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
       setFlightSegmentFormError("");
       setShowFlightSegmentForm(false);
       fetchFlightSegments(selectedVacation.id);
     } catch (error) {
       console.error("Error creating flight segment:", error);
+      setFlightSegmentFormError("An unexpected error occurred. Please try again.");
     }
   };
 
