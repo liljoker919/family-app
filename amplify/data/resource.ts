@@ -250,7 +250,7 @@ const schema = a.schema({
       amount: a.float().required(),
       description: a.string(),
       date: a.date().required(),
-      category: a.string(),
+      category: a.enum(['RENT_INCOME', 'MORTGAGE', 'TAXES', 'MAINTENANCE', 'INSURANCE']).required(),
     })
     .authorization((allow) => [
       allow.group('ADMIN'),

@@ -8,98 +8,49 @@ interface PropertyModuleProps {
   user: any;
 }
 
+type CategoryKey = 'RENT_INCOME' | 'MORTGAGE' | 'TAXES' | 'MAINTENANCE' | 'INSURANCE';
+
+const CATEGORIES: Record<CategoryKey, { label: string; type: 'income' | 'expense'; icon: string; colorClass: string }> = {
+  RENT_INCOME:  { label: 'Rent Income',  type: 'income',  icon: '💰', colorClass: 'bg-green-100 text-green-700' },
+  MORTGAGE:     { label: 'Mortgage',     type: 'expense', icon: '🏦', colorClass: 'bg-red-100 text-red-700' },
+  TAXES:        { label: 'Taxes',        type: 'expense', icon: '📋', colorClass: 'bg-orange-100 text-orange-700' },
+  MAINTENANCE:  { label: 'Maintenance',  type: 'expense', icon: '🔧', colorClass: 'bg-yellow-100 text-yellow-700' },
+  INSURANCE:    { label: 'Insurance',    type: 'expense', icon: '🛡️', colorClass: 'bg-purple-100 text-purple-700' },
+};
+
 export default function PropertyModule({ user }: PropertyModuleProps) {
   const [properties, setProperties] = useState<any[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
-  const [selectedProperty, setSelectedProperty] = useState<any>(null);
-  const [propertyForm, setPropertyForm] = useState({
-    name: '',
-    address: '',
-    type: '',
-  });
+  const [propertyForm, setPropertyForm] = useState({ name: '', address: '' });
   const [transactionForm, setTransactionForm] = useState({
-    type: 'income' as 'income' | 'expense',
+    category: 'RENT_INCOME' as CategoryKey,
     amount: '',
     description: '',
-    date: '',
-    category: '',
+    date: new Date().toISOString().split('T')[0],
   });
 
   useEffect(() => {
-    fetchProperties();
+    fetchAllData();
   }, []);
 
-  const fetchProperties = async () => {
+  const fetchAllData = async () => {
     try {
-      const { data } = await client.models.Property.list();
-      setProperties(data);
+      const [{ data: props }, { data: txns }] = await Promise.all([
+        client.models.Property.list(),
+        client.models.PropertyTransaction.list(),
+      ]);
+      setProperties(props);
+      setAllTransactions(txns);
     } catch (error) {
-      console.error('Error fetching properties:', error);
+      console.error('Error fetching data:', error);
     }
   };
 
-  const fetchTransactions = async (propertyId: string) => {
-    try {
-      const { data } = await client.models.PropertyTransaction.list({
-        filter: { propertyId: { eq: propertyId } },
-      });
-      setTransactions(data);
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-    }
-  };
-
-  const handleCreateProperty = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await client.models.Property.create(propertyForm);
-      setPropertyForm({
-        name: '',
-        address: '',
-        type: '',
-      });
-      setShowPropertyForm(false);
-      fetchProperties();
-    } catch (error) {
-      console.error('Error creating property:', error);
-    }
-  };
-
-  const handleCreateTransaction = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProperty) return;
-    try {
-      await client.models.PropertyTransaction.create({
-        ...transactionForm,
-        propertyId: selectedProperty.id,
-        amount: parseFloat(transactionForm.amount),
-      });
-      setTransactionForm({
-        type: 'income',
-        amount: '',
-        description: '',
-        date: '',
-        category: '',
-      });
-      setShowTransactionForm(false);
-      fetchTransactions(selectedProperty.id);
-    } catch (error) {
-      console.error('Error creating transaction:', error);
-    }
-  };
-
-  const handleDeleteProperty = async (id: string) => {
-    if (confirm('Are you sure you want to delete this property?')) {
-      try {
-        await client.models.Property.delete({ id });
-        fetchProperties();
-      } catch (error) {
-        console.error('Error deleting property:', error);
-      }
-    }
-  };
+  const getPropertyTransactions = (propertyId: string) =>
+    allTransactions.filter((t) => t.propertyId === propertyId);
 
   const calculateTotals = (transactions: any[]) => {
     const income = transactions
@@ -111,28 +62,85 @@ export default function PropertyModule({ user }: PropertyModuleProps) {
     return { income, expenses, net: income - expenses };
   };
 
+  const handleCreateProperty = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await client.models.Property.create(propertyForm);
+      setPropertyForm({ name: '', address: '' });
+      setShowPropertyForm(false);
+      fetchAllData();
+    } catch (error) {
+      console.error('Error creating property:', error);
+    }
+  };
+
+  const handleCreateTransaction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProperty) return;
+    const categoryInfo = CATEGORIES[transactionForm.category];
+    try {
+      await client.models.PropertyTransaction.create({
+        propertyId: selectedProperty.id,
+        type: categoryInfo.type,
+        amount: parseFloat(transactionForm.amount),
+        description: transactionForm.description,
+        date: transactionForm.date,
+        category: transactionForm.category,
+      });
+      setTransactionForm({
+        category: 'RENT_INCOME',
+        amount: '',
+        description: '',
+        date: new Date().toISOString().split('T')[0],
+      });
+      setShowTransactionForm(false);
+      fetchAllData();
+    } catch (error) {
+      console.error('Error creating transaction:', error);
+    }
+  };
+
+  const handleDeleteProperty = async (id: string) => {
+    if (confirm('Are you sure you want to delete this property?')) {
+      try {
+        await client.models.Property.delete({ id });
+        if (selectedProperty?.id === id) setSelectedProperty(null);
+        fetchAllData();
+      } catch (error) {
+        console.error('Error deleting property:', error);
+      }
+    }
+  };
+
   return (
     <div>
+      {/* Header */}
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-800">Property Management</h2>
+        <div>
+          <h2 className="text-3xl font-bold text-gray-800">Property P&amp;L Tracker</h2>
+          <p className="text-gray-500 mt-1">Track rental income and expenses for each property</p>
+        </div>
         <button
           onClick={() => setShowPropertyForm(true)}
-          className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-6 py-2 rounded-lg transition"
+          className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-5 py-2 rounded-lg transition flex items-center gap-2"
         >
-          Add Property
+          <span className="text-lg leading-none">+</span> Add Property
         </button>
       </div>
 
-      {/* Property Form Modal */}
+      {/* Add Property Modal */}
       {showPropertyForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-2xl w-full">
-            <h3 className="text-2xl font-bold mb-4">Add New Property</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-lg">
+            <h3 className="text-2xl font-bold mb-6 text-gray-800">Add New Property</h3>
             <form onSubmit={handleCreateProperty} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Property Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Property Name <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
+                  placeholder='e.g., "Steps to the Sea"'
                   value={propertyForm.name}
                   onChange={(e) => setPropertyForm({ ...propertyForm, name: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
@@ -143,32 +151,120 @@ export default function PropertyModule({ user }: PropertyModuleProps) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
                 <input
                   type="text"
+                  placeholder="123 Ocean Drive, Miami, FL"
                   value={propertyForm.address}
                   onChange={(e) => setPropertyForm({ ...propertyForm, address: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Property Type</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Residential, Commercial, Rental"
-                  value={propertyForm.type}
-                  onChange={(e) => setPropertyForm({ ...propertyForm, type: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div className="flex gap-4">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-6 py-2 rounded-lg transition"
+                  className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-6 py-2 rounded-lg transition font-medium"
                 >
                   Create Property
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowPropertyForm(false)}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg transition"
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2 rounded-lg transition font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Transaction Modal */}
+      {showTransactionForm && selectedProperty && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-xl shadow-xl p-8 w-full max-w-lg">
+            <h3 className="text-2xl font-bold mb-1 text-gray-800">Log Transaction</h3>
+            <p className="text-gray-500 mb-6 text-sm">{selectedProperty.name}</p>
+            <form onSubmit={handleCreateTransaction} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={transactionForm.category}
+                  onChange={(e) =>
+                    setTransactionForm({ ...transactionForm, category: e.target.value as CategoryKey })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
+                >
+                  {(Object.keys(CATEGORIES) as CategoryKey[]).map((key) => (
+                    <option key={key} value={key}>
+                      {CATEGORIES[key].icon} {CATEGORIES[key].label} ({CATEGORIES[key].type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Amount ($) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={transactionForm.amount}
+                    onChange={(e) => setTransactionForm({ ...transactionForm, amount: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Date <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={transactionForm.date}
+                    onChange={(e) => setTransactionForm({ ...transactionForm, date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <input
+                  type="text"
+                  placeholder="Optional notes"
+                  value={transactionForm.description}
+                  onChange={(e) => setTransactionForm({ ...transactionForm, description: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
+                />
+              </div>
+              {/* Type preview */}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-500">This will be recorded as:</span>
+                <span
+                  className={`px-3 py-1 rounded-full font-medium ${
+                    CATEGORIES[transactionForm.category].type === 'income'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {CATEGORIES[transactionForm.category].type === 'income' ? '▲ Income' : '▼ Expense'}
+                </span>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-6 py-2 rounded-lg transition font-medium"
+                >
+                  Save Transaction
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowTransactionForm(false)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-2 rounded-lg transition font-medium"
                 >
                   Cancel
                 </button>
@@ -181,193 +277,119 @@ export default function PropertyModule({ user }: PropertyModuleProps) {
       {/* Properties List */}
       <div className="grid gap-6">
         {properties.map((property) => {
-          const totals = selectedProperty?.id === property.id ? calculateTotals(transactions) : null;
+          const txns = getPropertyTransactions(property.id);
+          const totals = calculateTotals(txns);
+          const isSelected = selectedProperty?.id === property.id;
 
           return (
-            <div key={property.id} className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-800">{property.name}</h3>
-                  {property.address && <p className="text-gray-600 mt-1">📍 {property.address}</p>}
-                  {property.type && <p className="text-sm text-gray-500 mt-1">Type: {property.type}</p>}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedProperty(property);
-                      fetchTransactions(property.id);
-                    }}
-                    className="bg-royal-blue-100 hover:bg-royal-blue-200 text-royal-blue-700 px-4 py-2 rounded-lg transition text-sm"
-                  >
-                    View Transactions
-                  </button>
+            <div key={property.id} className="bg-white rounded-xl shadow-md overflow-hidden">
+              {/* Property Header */}
+              <div className="bg-royal-blue-700 px-6 py-4 text-white">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-xl font-bold">{property.name}</h3>
+                    {property.address && (
+                      <p className="text-royal-blue-200 text-sm mt-1">📍 {property.address}</p>
+                    )}
+                  </div>
                   <button
                     onClick={() => handleDeleteProperty(property.id)}
-                    className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg transition text-sm"
+                    className="text-royal-blue-300 hover:text-white transition text-sm"
+                    title="Delete property"
                   >
-                    Delete
+                    🗑️
                   </button>
                 </div>
               </div>
 
-              {/* Transactions Section */}
-              {selectedProperty?.id === property.id && (
-                <div className="mt-6 border-t pt-6">
-                  {totals && (
-                    <div className="grid grid-cols-3 gap-4 mb-6">
-                      <div className="bg-green-50 p-4 rounded-lg">
-                        <p className="text-sm text-green-600 font-medium">Total Income</p>
-                        <p className="text-2xl font-bold text-green-700">${totals.income.toFixed(2)}</p>
-                      </div>
-                      <div className="bg-red-50 p-4 rounded-lg">
-                        <p className="text-sm text-red-600 font-medium">Total Expenses</p>
-                        <p className="text-2xl font-bold text-red-700">${totals.expenses.toFixed(2)}</p>
-                      </div>
-                      <div className={`p-4 rounded-lg ${totals.net >= 0 ? 'bg-blue-50' : 'bg-orange-50'}`}>
-                        <p className={`text-sm font-medium ${totals.net >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                          Net Income
-                        </p>
-                        <p className={`text-2xl font-bold ${totals.net >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>
-                          ${totals.net.toFixed(2)}
-                        </p>
-                      </div>
+              {/* P&L Summary Cards */}
+              <div className="grid grid-cols-3 gap-px bg-gray-200">
+                <div className="bg-white px-4 py-4 text-center">
+                  <p className="text-xs font-medium text-green-600 uppercase tracking-wide">Total Income</p>
+                  <p className="text-2xl font-bold text-green-700 mt-1">${totals.income.toFixed(2)}</p>
+                </div>
+                <div className="bg-white px-4 py-4 text-center">
+                  <p className="text-xs font-medium text-red-600 uppercase tracking-wide">Total Expenses</p>
+                  <p className="text-2xl font-bold text-red-700 mt-1">${totals.expenses.toFixed(2)}</p>
+                </div>
+                <div className={`px-4 py-4 text-center ${totals.net >= 0 ? 'bg-royal-blue-50' : 'bg-orange-50'}`}>
+                  <p className={`text-xs font-medium uppercase tracking-wide ${totals.net >= 0 ? 'text-royal-blue-600' : 'text-orange-600'}`}>
+                    Net Income
+                  </p>
+                  <p className={`text-2xl font-bold mt-1 ${totals.net >= 0 ? 'text-royal-blue-700' : 'text-orange-700'}`}>
+                    {totals.net >= 0 ? '+' : ''}${totals.net.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Transaction Ledger Toggle */}
+              <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-between bg-gray-50">
+                <button
+                  onClick={() => setSelectedProperty(isSelected ? null : property)}
+                  className="text-sm text-royal-blue-600 hover:text-royal-blue-800 font-medium flex items-center gap-1 transition"
+                >
+                  {isSelected ? '▲ Hide Ledger' : '▼ View Ledger'} ({txns.length} transaction{txns.length !== 1 ? 's' : ''})
+                </button>
+                {isSelected && (
+                  <button
+                    onClick={() => {
+                      setSelectedProperty(property);
+                      setShowTransactionForm(true);
+                    }}
+                    className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-4 py-1.5 rounded-lg transition text-sm font-medium"
+                  >
+                    + Log Transaction
+                  </button>
+                )}
+              </div>
+
+              {/* Transaction Ledger */}
+              {isSelected && (
+                <div className="px-6 pb-6">
+                  {txns.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <p className="text-3xl mb-2">📊</p>
+                      <p>No transactions yet. Log your first transaction to start tracking P&amp;L.</p>
                     </div>
-                  )}
-
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-lg font-semibold">Transactions</h4>
-                    <button
-                      onClick={() => setShowTransactionForm(true)}
-                      className="bg-royal-blue-500 hover:bg-royal-blue-600 text-white px-4 py-2 rounded-lg transition text-sm"
-                    >
-                      Add Transaction
-                    </button>
-                  </div>
-
-                  {/* Transaction Form */}
-                  {showTransactionForm && (
-                    <div className="mb-4 bg-gray-50 p-4 rounded-lg">
-                      <form onSubmit={handleCreateTransaction} className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                            <select
-                              value={transactionForm.type}
-                              onChange={(e) =>
-                                setTransactionForm({
-                                  ...transactionForm,
-                                  type: e.target.value as 'income' | 'expense',
-                                })
-                              }
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                            >
-                              <option value="income">Income</option>
-                              <option value="expense">Expense</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={transactionForm.amount}
-                              onChange={(e) => setTransactionForm({ ...transactionForm, amount: e.target.value })}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                              required
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                          <input
-                            type="text"
-                            value={transactionForm.description}
-                            onChange={(e) => setTransactionForm({ ...transactionForm, description: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                            <input
-                              type="date"
-                              value={transactionForm.date}
-                              onChange={(e) => setTransactionForm({ ...transactionForm, date: e.target.value })}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                              required
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                            <input
-                              type="text"
-                              placeholder="e.g., Rent, Maintenance"
-                              value={transactionForm.category}
-                              onChange={(e) => setTransactionForm({ ...transactionForm, category: e.target.value })}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            type="submit"
-                            className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-4 py-2 rounded-lg transition text-sm"
-                          >
-                            Add
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setShowTransactionForm(false)}
-                            className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg transition text-sm"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  )}
-
-                  {/* Transactions List */}
-                  <div className="space-y-2">
-                    {transactions.map((transaction) => (
-                      <div
-                        key={transaction.id}
-                        className={`p-4 rounded-lg border ${
-                          transaction.type === 'income'
-                            ? 'bg-green-50 border-green-200'
-                            : 'bg-red-50 border-red-200'
-                        }`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex gap-3 items-center">
+                  ) : (
+                    <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto rounded-lg border border-gray-100 mt-2">
+                      {[...txns]
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                        .map((txn) => {
+                          const catKey = txn.category as CategoryKey;
+                          // CATEGORIES lookup handles all enum values; the fallback supports
+                          // any legacy records that pre-date the enum schema migration.
+                          const cat = CATEGORIES[catKey] || {
+                            label: txn.category || txn.type,
+                            icon: txn.type === 'income' ? '💰' : '💸',
+                            colorClass: txn.type === 'income' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700',
+                          };
+                          return (
+                            <div key={txn.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition">
+                              <span className="text-2xl">{cat.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cat.colorClass}`}>
+                                    {cat.label}
+                                  </span>
+                                  {txn.description && (
+                                    <span className="text-sm text-gray-600 truncate">{txn.description}</span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-400 mt-0.5">📅 {txn.date}</p>
+                              </div>
                               <span
-                                className={`font-semibold ${
-                                  transaction.type === 'income' ? 'text-green-700' : 'text-red-700'
+                                className={`text-base font-bold whitespace-nowrap ${
+                                  txn.type === 'income' ? 'text-green-600' : 'text-red-600'
                                 }`}
                               >
-                                ${transaction.amount?.toFixed(2)}
+                                {txn.type === 'income' ? '+' : '-'}${txn.amount?.toFixed(2)}
                               </span>
-                              <span className="text-sm text-gray-600">{transaction.description}</span>
                             </div>
-                            <div className="flex gap-3 mt-1 text-xs text-gray-500">
-                              <span>📅 {transaction.date}</span>
-                              {transaction.category && <span>🏷️ {transaction.category}</span>}
-                            </div>
-                          </div>
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${
-                              transaction.type === 'income'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-red-100 text-red-700'
-                            }`}
-                          >
-                            {transaction.type}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                          );
+                        })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -375,11 +397,14 @@ export default function PropertyModule({ user }: PropertyModuleProps) {
         })}
 
         {properties.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <p>No properties yet. Add your first property to get started!</p>
+          <div className="text-center py-16 text-gray-400">
+            <p className="text-5xl mb-4">🏠</p>
+            <p className="text-lg font-medium text-gray-500">No properties yet</p>
+            <p className="mt-1">Add your first property to start tracking P&amp;L.</p>
           </div>
         )}
       </div>
     </div>
   );
 }
+
