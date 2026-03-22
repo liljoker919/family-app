@@ -72,6 +72,13 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
   const [excursionOptions, setExcursionOptions] = useState<any[]>([]);
   const [votesByExcursion, setVotesByExcursion] = useState<Record<string, any[]>>({});
   const [excursionComments, setExcursionComments] = useState<any[]>([]);
+  const [feedbacksByTarget, setFeedbacksByTarget] = useState<Record<string, any[]>>({});
+  const [selectedFeedbackTargetId, setSelectedFeedbackTargetId] = useState<string | null>(null);
+  const [tripFeedbackForm, setTripFeedbackForm] = useState<{
+    rating: number;
+    comment: string;
+    recommend: boolean | null;
+  }>({ rating: 5, comment: '', recommend: null });
 
   const [showVacationForm, setShowVacationForm] = useState(false);
   const [showActivityForm, setShowActivityForm] = useState(false);
@@ -329,6 +336,65 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
     } catch (error) {
       console.error("Error fetching flight segments:", error);
     }
+  };
+
+  const fetchFeedbacksForTarget = async (targetId: string): Promise<any[]> => {
+    try {
+      const { data } = await client.models.TripFeedback.list({
+        filter: { targetId: { eq: targetId } },
+      });
+      setFeedbacksByTarget((prev) => ({ ...prev, [targetId]: data }));
+      return data;
+    } catch (error) {
+      console.error("Error fetching trip feedbacks:", error);
+      return [];
+    }
+  };
+
+  const handleSubmitTripFeedback = async (
+    e: React.FormEvent,
+    targetType: 'ACCOMMODATION' | 'EXCURSION',
+    targetId: string,
+    vacationId: string
+  ) => {
+    e.preventDefault();
+    const clampedRating = Math.min(5, Math.max(1, tripFeedbackForm.rating));
+    const userId = user?.signInDetails?.loginId || "unknown";
+    const existing = (feedbacksByTarget[targetId] ?? []).find((f) => f.userId === userId);
+    try {
+      if (existing) {
+        await client.models.TripFeedback.update({
+          id: existing.id,
+          rating: clampedRating,
+          comment: tripFeedbackForm.comment || undefined,
+          recommend: tripFeedbackForm.recommend ?? undefined,
+        });
+      } else {
+        await client.models.TripFeedback.create({
+          vacationId,
+          targetType,
+          targetId,
+          userId,
+          rating: clampedRating,
+          comment: tripFeedbackForm.comment || undefined,
+          recommend: tripFeedbackForm.recommend ?? undefined,
+        });
+      }
+      setTripFeedbackForm({ rating: 5, comment: '', recommend: null });
+      setSelectedFeedbackTargetId(null);
+      fetchFeedbacksForTarget(targetId);
+    } catch (error) {
+      console.error("Error saving trip feedback:", error);
+    }
+  };
+
+  const computeFeedbackAggregate = (feedbacks: any[]) => {
+    if (!feedbacks || feedbacks.length === 0) return null;
+    const valid = feedbacks.filter((f) => typeof f.rating === 'number' && f.rating >= 1);
+    if (valid.length === 0) return null;
+    const avg = valid.reduce((sum, f) => sum + f.rating, 0) / valid.length;
+    const recommendCount = feedbacks.filter((f) => f.recommend === true).length;
+    return { avg: Math.round(avg * 10) / 10, count: valid.length, recommendCount };
   };
 
   const handleCreateVacation = async (e: React.FormEvent) => {
@@ -621,6 +687,66 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
   };
 
   const uid = user?.signInDetails?.loginId || "unknown";
+
+  const openFeedbackForm = (targetId: string, feedbacks: any[]) => {
+    const existing = feedbacks.find((f) => f.userId === uid);
+    if (existing) {
+      setTripFeedbackForm({
+        rating: existing.rating ?? 5,
+        comment: existing.comment ?? '',
+        recommend: existing.recommend ?? null,
+      });
+    } else {
+      setTripFeedbackForm({ rating: 5, comment: '', recommend: null });
+    }
+    setSelectedFeedbackTargetId(targetId);
+  };
+
+  const renderStarSelector = () => (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-gray-600 mr-1">Rating:</span>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => setTripFeedbackForm((prev) => ({ ...prev, rating: star }))}
+          className="text-xl focus:outline-none"
+        >
+          {star <= tripFeedbackForm.rating ? '⭐' : '☆'}
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderRecommendToggle = () => (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="text-gray-600">Would you recommend?</span>
+      <button
+        type="button"
+        onClick={() => setTripFeedbackForm((prev) => ({ ...prev, recommend: true }))}
+        className={`px-2 py-1 rounded transition ${tripFeedbackForm.recommend === true ? 'bg-green-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+      >
+        👍 Yes
+      </button>
+      <button
+        type="button"
+        onClick={() => setTripFeedbackForm((prev) => ({ ...prev, recommend: false }))}
+        className={`px-2 py-1 rounded transition ${tripFeedbackForm.recommend === false ? 'bg-red-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+      >
+        👎 No
+      </button>
+    </div>
+  );
+
+  const renderFeedbackComments = (targetFeedbacks: any[]) => {
+    const withComments = targetFeedbacks.filter((f) => f.comment);
+    if (withComments.length === 0) return null;
+    return withComments.slice(-2).map((f) => (
+      <div key={f.id} className="text-xs text-gray-500 italic">
+        "{f.comment}" — {f.userId}
+      </div>
+    ));
+  };
 
   return (
     <div>
@@ -1401,7 +1527,11 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                   <p className="text-xs text-gray-400 italic">No accommodation stays yet.</p>
                                 ) : (
                                   <div className="space-y-2">
-                                    {accommodationStays.map((stay) => (
+                                    {accommodationStays.map((stay) => {
+                                      const stayFeedbacks = feedbacksByTarget[stay.id] ?? [];
+                                      const stayAggregate = computeFeedbackAggregate(stayFeedbacks);
+                                      const myStayFeedback = stayFeedbacks.find((f) => f.userId === uid);
+                                      return (
                                       <div key={stay.id} className="bg-purple-50 p-3 rounded text-sm">
                                         <div className="font-medium">{stay.name}</div>
                                         {stay.address && <div className="text-gray-500 text-xs">📍 {stay.address}</div>}
@@ -1411,8 +1541,63 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                         {stay.confirmationCode && (
                                           <div className="text-xs text-gray-500">Conf: {stay.confirmationCode}</div>
                                         )}
+                                        {/* Feedback aggregate */}
+                                        {stayAggregate && (
+                                          <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                                            <span className="font-medium">⭐ {stayAggregate.avg}</span>
+                                            <span className="text-gray-400">({stayAggregate.count} {stayAggregate.count === 1 ? 'rating' : 'ratings'})</span>
+                                            {stayAggregate.recommendCount > 0 && (
+                                              <span className="text-green-600">👍 {stayAggregate.recommendCount} recommend</span>
+                                            )}
+                                          </div>
+                                        )}
+                                        {/* Recent comments */}
+                                        <div className="mt-1 space-y-0.5">
+                                          {renderFeedbackComments(stayFeedbacks)}
+                                        </div>
+                                        {/* Feedback button */}
+                                        <button
+                                          onClick={() => {
+                                            if (selectedFeedbackTargetId === stay.id) {
+                                              setSelectedFeedbackTargetId(null);
+                                            } else {
+                                              fetchFeedbacksForTarget(stay.id).then((freshData) => {
+                                                openFeedbackForm(stay.id, freshData);
+                                              });
+                                            }
+                                          }}
+                                          className="mt-2 text-xs text-purple-700 hover:text-purple-900 underline"
+                                        >
+                                          {myStayFeedback ? '✏️ Edit My Rating' : '⭐ Rate This Stay'}
+                                        </button>
+                                        {/* Inline feedback form */}
+                                        {selectedFeedbackTargetId === stay.id && (
+                                          <form
+                                            onSubmit={(e) => handleSubmitTripFeedback(e, 'ACCOMMODATION', stay.id, selectedVacation.id)}
+                                            className="mt-3 bg-white border border-purple-200 rounded p-3 space-y-2"
+                                          >
+                                            {renderStarSelector()}
+                                            <textarea
+                                              placeholder="Share your opinion (optional)…"
+                                              value={tripFeedbackForm.comment}
+                                              onChange={(e) => setTripFeedbackForm({ ...tripFeedbackForm, comment: e.target.value })}
+                                              className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                                              rows={2}
+                                            />
+                                            {renderRecommendToggle()}
+                                            <div className="flex gap-2">
+                                              <button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs">
+                                                {myStayFeedback ? 'Update' : 'Submit'}
+                                              </button>
+                                              <button type="button" onClick={() => setSelectedFeedbackTargetId(null)} className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs">
+                                                Cancel
+                                              </button>
+                                            </div>
+                                          </form>
+                                        )}
                                       </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>
@@ -1837,6 +2022,9 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                   const excUpCount = excVotes.filter((v) => v.vote === "UP").length;
                                   const excDownCount = excVotes.filter((v) => v.vote === "DOWN").length;
                                   const excMyVote = excVotes.find((v) => v.userId === uid)?.vote;
+                                  const excFeedbacks = feedbacksByTarget[excursion.id] ?? [];
+                                  const excAggregate = computeFeedbackAggregate(excFeedbacks);
+                                  const myExcFeedback = excFeedbacks.find((f) => f.userId === uid);
                                   return (
                                   <div key={excursion.id} className="border border-orange-200 rounded-lg p-4">
                                     <div className="flex items-center gap-2 mb-1">
@@ -1856,7 +2044,21 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                       )}
                                       {excursion.proposedBy && <span>👤 {excursion.proposedBy}</span>}
                                     </div>
-                                    <div className="flex items-center gap-4">
+                                    {/* Aggregate feedback summary */}
+                                    {excAggregate && (
+                                      <div className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+                                        <span className="font-medium">⭐ {excAggregate.avg}</span>
+                                        <span className="text-gray-400">({excAggregate.count} {excAggregate.count === 1 ? 'rating' : 'ratings'})</span>
+                                        {excAggregate.recommendCount > 0 && (
+                                          <span className="text-green-600">👍 {excAggregate.recommendCount} recommend</span>
+                                        )}
+                                      </div>
+                                    )}
+                                    {/* Recent feedback comments */}
+                                    <div className="mb-1 space-y-0.5">
+                                      {renderFeedbackComments(excFeedbacks)}
+                                    </div>
+                                    <div className="flex items-center gap-4 mt-2">
                                       <button
                                         onClick={() => {
                                           setSelectedExcursion(excursion);
@@ -1893,7 +2095,46 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                       >
                                         💬 Comments
                                       </button>
+                                      <button
+                                        onClick={() => {
+                                          if (selectedFeedbackTargetId === excursion.id) {
+                                            setSelectedFeedbackTargetId(null);
+                                          } else {
+                                            fetchFeedbacksForTarget(excursion.id).then((freshData) => {
+                                              openFeedbackForm(excursion.id, freshData);
+                                            });
+                                          }
+                                        }}
+                                        className="text-sm text-orange-600 hover:text-orange-800 underline"
+                                      >
+                                        {myExcFeedback ? '✏️ Edit Rating' : '⭐ Rate'}
+                                      </button>
                                     </div>
+                                    {/* Star-rating feedback form for excursion */}
+                                    {selectedFeedbackTargetId === excursion.id && (
+                                      <form
+                                        onSubmit={(e) => handleSubmitTripFeedback(e, 'EXCURSION', excursion.id, selectedVacation.id)}
+                                        className="mt-3 bg-orange-50 border border-orange-200 rounded p-3 space-y-2"
+                                      >
+                                        {renderStarSelector()}
+                                        <textarea
+                                          placeholder="Share your opinion (optional)…"
+                                          value={tripFeedbackForm.comment}
+                                          onChange={(e) => setTripFeedbackForm({ ...tripFeedbackForm, comment: e.target.value })}
+                                          className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                                          rows={2}
+                                        />
+                                        {renderRecommendToggle()}
+                                        <div className="flex gap-2">
+                                          <button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-xs">
+                                            {myExcFeedback ? 'Update' : 'Submit'}
+                                          </button>
+                                          <button type="button" onClick={() => setSelectedFeedbackTargetId(null)} className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs">
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </form>
+                                    )}
                                     {selectedExcursion?.id === excursion.id && (
                                       <div className="mt-4 border-t pt-3">
                                         {showCommentForm && (

@@ -198,6 +198,21 @@ const schema = a.schema({
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
+  TripFeedback: a
+    .model({
+      vacationId: a.id().required(),
+      targetType: a.enum(['ACCOMMODATION', 'EXCURSION']),
+      targetId: a.string().required(),
+      userId: a.string().required(),
+      rating: a.integer().required(),
+      comment: a.string(),
+      recommend: a.boolean(),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
   TripPlan: a
     .model({
       title: a.string().required(),
