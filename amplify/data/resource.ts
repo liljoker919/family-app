@@ -190,6 +190,14 @@ const schema = a.schema({
       allow.group('ADMIN'),
     ]),
 
+  PropertyTransactionCategory: a.enum([
+    'RENT_INCOME',
+    'MORTGAGE',
+    'TAXES',
+    'MAINTENANCE',
+    'INSURANCE',
+  ]),
+
   PropertyTransaction: a
     .model({
       propertyId: a.id().required(),
@@ -198,7 +206,7 @@ const schema = a.schema({
       amount: a.float().required(),
       description: a.string(),
       date: a.date().required(),
-      category: a.string(),
+      category: a.ref('PropertyTransactionCategory').required(),
     })
     .authorization((allow) => [
       allow.group('ADMIN'),

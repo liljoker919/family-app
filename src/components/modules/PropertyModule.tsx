@@ -8,6 +8,14 @@ interface PropertyModuleProps {
   user: any;
 }
 
+const TRANSACTION_CATEGORIES = [
+  'RENT_INCOME',
+  'MORTGAGE',
+  'TAXES',
+  'MAINTENANCE',
+  'INSURANCE',
+] as const;
+
 export default function PropertyModule({ user }: PropertyModuleProps) {
   const [properties, setProperties] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -24,7 +32,7 @@ export default function PropertyModule({ user }: PropertyModuleProps) {
     amount: '',
     description: '',
     date: '',
-    category: '',
+    category: 'RENT_INCOME' as (typeof TRANSACTION_CATEGORIES)[number],
   });
 
   useEffect(() => {
@@ -81,7 +89,7 @@ export default function PropertyModule({ user }: PropertyModuleProps) {
         amount: '',
         description: '',
         date: '',
-        category: '',
+        category: 'RENT_INCOME',
       });
       setShowTransactionForm(false);
       fetchTransactions(selectedProperty.id);
@@ -299,13 +307,23 @@ export default function PropertyModule({ user }: PropertyModuleProps) {
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                            <input
-                              type="text"
-                              placeholder="e.g., Rent, Maintenance"
+                            <select
                               value={transactionForm.category}
-                              onChange={(e) => setTransactionForm({ ...transactionForm, category: e.target.value })}
+                              onChange={(e) =>
+                                setTransactionForm({
+                                  ...transactionForm,
+                                  category: e.target.value as (typeof TRANSACTION_CATEGORIES)[number],
+                                })
+                              }
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                            />
+                              required
+                            >
+                              {TRANSACTION_CATEGORIES.map((category) => (
+                                <option key={category} value={category}>
+                                  {category.replace(/_/g, ' ')}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         </div>
                         <div className="flex gap-2">
