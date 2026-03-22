@@ -272,6 +272,8 @@ const schema = a.schema({
       vin: a.string().required(),
       currentMileage: a.integer(),
       color: a.string(),
+      licensePlate: a.string(),
+      registrationExpiry: a.date(),
       services: a.hasMany('CarService', 'carId'),
     })
     .authorization((allow) => [
@@ -285,10 +287,10 @@ const schema = a.schema({
       car: a.belongsTo('Car', 'carId'),
       serviceType: a.string().required(),
       description: a.string(),
-      mileage: a.integer(),
+      mileageAtService: a.integer(),
       date: a.date().required(),
       cost: a.float(),
-      serviceProvider: a.string(),
+      provider: a.string(),
     })
     .authorization((allow) => [
       allow.group('ADMIN'),
