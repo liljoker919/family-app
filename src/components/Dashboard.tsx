@@ -6,10 +6,11 @@ import VacationsModule from './modules/VacationsModule';
 import PropertyModule from './modules/PropertyModule';
 import CarsModule from './modules/CarsModule';
 import CalendarModule from './modules/CalendarModule';
+import PlanningModule from './modules/PlanningModule';
 
 Amplify.configure(outputs);
 
-type ActiveModule = 'vacations' | 'property' | 'cars' | 'calendar';
+type ActiveModule = 'vacations' | 'planning' | 'property' | 'cars' | 'calendar';
 
 export default function Dashboard() {
   const [activeModule, setActiveModule] = useState<ActiveModule>('vacations');
@@ -57,6 +58,23 @@ export default function Dashboard() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         Vacations
+                      </span>
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      onClick={() => setActiveModule('planning')}
+                      className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                        activeModule === 'planning'
+                          ? 'bg-royal-blue-600 text-white'
+                          : 'text-gray-700 hover:bg-royal-blue-50'
+                      }`}
+                    >
+                      <span className="flex items-center">
+                        <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                        Trip Planning
                       </span>
                     </button>
                   </li>
@@ -118,6 +136,7 @@ export default function Dashboard() {
             {/* Main Content */}
             <main className="flex-1 p-8">
               {activeModule === 'vacations' && <VacationsModule user={user} />}
+              {activeModule === 'planning' && <PlanningModule user={user} />}
               {activeModule === 'property' && <PropertyModule user={user} />}
               {activeModule === 'cars' && <CarsModule user={user} />}
               {activeModule === 'calendar' && <CalendarModule />}
