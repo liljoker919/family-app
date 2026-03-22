@@ -198,6 +198,24 @@ const schema = a.schema({
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
+  TripPlan: a
+    .model({
+      title: a.string().required(),
+      destination: a.string().required(),
+      startDate: a.date(),
+      endDate: a.date(),
+      description: a.string(),
+      planningNotes: a.string(),
+      status: a.enum(['PROPOSED', 'PLANNING', 'BOOKED', 'CANCELED']),
+      bookedAt: a.datetime(),
+      createdBy: a.string().required(),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.group('PLANNER').to(['read', 'create', 'update']),
+      allow.authenticated().to(['read']),
+    ]),
+
   Property: a
     .model({
       name: a.string().required(),
