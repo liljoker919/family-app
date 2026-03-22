@@ -26,10 +26,29 @@ const schema = a.schema({
       tripType: a.enum(['SINGLE_LOCATION', 'MULTI_LOCATION', 'CRUISE']),
       activities: a.hasMany('Activity', 'vacationId'),
       legs: a.hasMany('TripLeg', 'vacationId'),
+      flightSegments: a.hasMany('FlightSegment', 'vacationId'),
     })
     .authorization((allow) => [
       allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  FlightSegment: a
+    .model({
+      vacationId: a.id().required(),
+      vacation: a.belongsTo('Vacation', 'vacationId'),
+      airline: a.string().required(),
+      flightNumber: a.string().required(),
+      departureAirport: a.string().required(),
+      arrivalAirport: a.string().required(),
+      departureDateTime: a.datetime().required(),
+      arrivalDateTime: a.datetime().required(),
+      confirmationNumber: a.string(),
+      notes: a.string(),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
   TripLeg: a
@@ -177,6 +196,39 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  TripFeedback: a
+    .model({
+      vacationId: a.id().required(),
+      targetType: a.enum(['ACCOMMODATION', 'EXCURSION']),
+      targetId: a.string().required(),
+      userId: a.string().required(),
+      rating: a.integer().required(),
+      comment: a.string(),
+      recommend: a.boolean(),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  TripPlan: a
+    .model({
+      title: a.string().required(),
+      destination: a.string().required(),
+      startDate: a.date(),
+      endDate: a.date(),
+      description: a.string(),
+      planningNotes: a.string(),
+      status: a.enum(['PROPOSED', 'PLANNING', 'BOOKED', 'CANCELED']),
+      bookedAt: a.datetime(),
+      createdBy: a.string().required(),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.group('PLANNER').to(['read', 'create', 'update']),
+      allow.authenticated().to(['read']),
     ]),
 
   Property: a

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../../amplify/data/resource";
 
@@ -58,9 +58,10 @@ interface VacationsModuleProps {
   user: any;
 }
 
-type ActiveTab = "activities" | "itinerary" | "excursions";
+type ActiveTab = "activities" | "itinerary" | "excursions" | "flights";
 
 export default function VacationsModule({ user }: VacationsModuleProps) {
+  const segmentIdCounter = React.useRef(0);
   const [vacations, setVacations] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
@@ -71,6 +72,13 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
   const [excursionOptions, setExcursionOptions] = useState<any[]>([]);
   const [votesByExcursion, setVotesByExcursion] = useState<Record<string, any[]>>({});
   const [excursionComments, setExcursionComments] = useState<any[]>([]);
+  const [feedbacksByTarget, setFeedbacksByTarget] = useState<Record<string, any[]>>({});
+  const [selectedFeedbackTargetId, setSelectedFeedbackTargetId] = useState<string | null>(null);
+  const [tripFeedbackForm, setTripFeedbackForm] = useState<{
+    rating: number;
+    comment: string;
+    recommend: boolean | null;
+  }>({ rating: 5, comment: '', recommend: null });
 
   const [showVacationForm, setShowVacationForm] = useState(false);
   const [showActivityForm, setShowActivityForm] = useState(false);
@@ -87,6 +95,21 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
   const [selectedExcursion, setSelectedExcursion] = useState<any>(null);
   const [selectedPortStop, setSelectedPortStop] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>("activities");
+
+  const [flightSegments, setFlightSegments] = useState<any[]>([]);
+  const [pendingFlightSegments, setPendingFlightSegments] = useState<Array<{
+    localId: string;
+    airline: string;
+    flightNumber: string;
+    departureAirport: string;
+    arrivalAirport: string;
+    departureDateTime: string;
+    arrivalDateTime: string;
+    confirmationNumber: string;
+    notes: string;
+  }>>([]);
+  const [showFlightSegmentForm, setShowFlightSegmentForm] = useState(false);
+  const [flightSegmentFormError, setFlightSegmentFormError] = useState("");
 
   const [vacationForm, setVacationForm] = useState({
     title: "",
@@ -156,6 +179,17 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
     duration: "",
     category: "",
     status: "PROPOSED" as "PROPOSED" | "UNDER_REVIEW" | "SELECTED" | "BOOKED" | "REJECTED",
+  });
+
+  const [flightSegmentForm, setFlightSegmentForm] = useState({
+    airline: "",
+    flightNumber: "",
+    departureAirport: "",
+    arrivalAirport: "",
+    departureDateTime: "",
+    arrivalDateTime: "",
+    confirmationNumber: "",
+    notes: "",
   });
 
   const [commentText, setCommentText] = useState("");
@@ -293,14 +327,104 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
     }
   };
 
+  const fetchFlightSegments = async (vacationId: string) => {
+    try {
+      const { data } = await client.models.FlightSegment.list({
+        filter: { vacationId: { eq: vacationId } },
+      });
+      setFlightSegments(data ?? []);
+    } catch (error) {
+      console.error("Error fetching flight segments:", error);
+    }
+  };
+
+  const fetchFeedbacksForTarget = async (targetId: string): Promise<any[]> => {
+    try {
+      const { data } = await client.models.TripFeedback.list({
+        filter: { targetId: { eq: targetId } },
+      });
+      setFeedbacksByTarget((prev) => ({ ...prev, [targetId]: data }));
+      return data;
+    } catch (error) {
+      console.error("Error fetching trip feedbacks:", error);
+      return [];
+    }
+  };
+
+  const handleSubmitTripFeedback = async (
+    e: React.FormEvent,
+    targetType: 'ACCOMMODATION' | 'EXCURSION',
+    targetId: string,
+    vacationId: string
+  ) => {
+    e.preventDefault();
+    const clampedRating = Math.min(5, Math.max(1, tripFeedbackForm.rating));
+    const userId = user?.signInDetails?.loginId || "unknown";
+    const existing = (feedbacksByTarget[targetId] ?? []).find((f) => f.userId === userId);
+    try {
+      if (existing) {
+        await client.models.TripFeedback.update({
+          id: existing.id,
+          rating: clampedRating,
+          comment: tripFeedbackForm.comment || undefined,
+          recommend: tripFeedbackForm.recommend ?? undefined,
+        });
+      } else {
+        await client.models.TripFeedback.create({
+          vacationId,
+          targetType,
+          targetId,
+          userId,
+          rating: clampedRating,
+          comment: tripFeedbackForm.comment || undefined,
+          recommend: tripFeedbackForm.recommend ?? undefined,
+        });
+      }
+      setTripFeedbackForm({ rating: 5, comment: '', recommend: null });
+      setSelectedFeedbackTargetId(null);
+      fetchFeedbacksForTarget(targetId);
+    } catch (error) {
+      console.error("Error saving trip feedback:", error);
+    }
+  };
+
+  const computeFeedbackAggregate = (feedbacks: any[]) => {
+    if (!feedbacks || feedbacks.length === 0) return null;
+    const valid = feedbacks.filter((f) => typeof f.rating === 'number' && f.rating >= 1);
+    if (valid.length === 0) return null;
+    const avg = valid.reduce((sum, f) => sum + f.rating, 0) / valid.length;
+    const recommendCount = feedbacks.filter((f) => f.recommend === true).length;
+    return { avg: Math.round(avg * 10) / 10, count: valid.length, recommendCount };
+  };
+
   const handleCreateVacation = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await client.models.Vacation.create({
+      const { data: newVacation } = await client.models.Vacation.create({
         ...vacationForm,
         createdBy: user?.signInDetails?.loginId || "unknown",
       });
+      if (newVacation && pendingFlightSegments.length > 0) {
+        await Promise.all(
+          pendingFlightSegments.map((seg) =>
+            client.models.FlightSegment.create({
+              vacationId: newVacation.id,
+              airline: seg.airline,
+              flightNumber: seg.flightNumber,
+              departureAirport: seg.departureAirport,
+              arrivalAirport: seg.arrivalAirport,
+              departureDateTime: new Date(seg.departureDateTime).toISOString(),
+              arrivalDateTime: new Date(seg.arrivalDateTime).toISOString(),
+              confirmationNumber: seg.confirmationNumber || undefined,
+              notes: seg.notes || undefined,
+            })
+          )
+        );
+      }
       setVacationForm({ title: "", description: "", startDate: "", endDate: "", transportation: "flight", accommodations: "", tripType: "SINGLE_LOCATION" });
+      setPendingFlightSegments([]);
+      setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
+      setFlightSegmentFormError("");
       setShowVacationForm(false);
       fetchVacations();
     } catch (error) {
@@ -473,6 +597,82 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
     }
   };
 
+  const validateFlightSegmentForm = (form: typeof flightSegmentForm): string => {
+    if (!form.airline.trim()) return "Airline is required.";
+    if (!form.flightNumber.trim()) return "Flight number is required.";
+    if (!form.departureAirport.trim()) return "Departure airport is required.";
+    if (!form.arrivalAirport.trim()) return "Arrival airport is required.";
+    if (!form.departureDateTime) return "Departure date/time is required.";
+    if (!form.arrivalDateTime) return "Arrival date/time is required.";
+    if (new Date(form.arrivalDateTime) <= new Date(form.departureDateTime)) {
+      return "Arrival date/time must be after departure date/time.";
+    }
+    return "";
+  };
+
+  const handleAddPendingFlightSegment = () => {
+    const error = validateFlightSegmentForm(flightSegmentForm);
+    if (error) {
+      setFlightSegmentFormError(error);
+      return;
+    }
+    setPendingFlightSegments((prev) => [
+      ...prev,
+      { ...flightSegmentForm, localId: String(++segmentIdCounter.current) },
+    ]);
+    setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
+    setFlightSegmentFormError("");
+  };
+
+  const handleRemovePendingFlightSegment = (localId: string) => {
+    setPendingFlightSegments((prev) => prev.filter((s) => s.localId !== localId));
+  };
+
+  const handleCreateFlightSegment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedVacation) return;
+    const error = validateFlightSegmentForm(flightSegmentForm);
+    if (error) {
+      setFlightSegmentFormError(error);
+      return;
+    }
+    try {
+      const { data: created, errors } = await client.models.FlightSegment.create({
+        vacationId: selectedVacation.id,
+        airline: flightSegmentForm.airline,
+        flightNumber: flightSegmentForm.flightNumber,
+        departureAirport: flightSegmentForm.departureAirport,
+        arrivalAirport: flightSegmentForm.arrivalAirport,
+        departureDateTime: new Date(flightSegmentForm.departureDateTime).toISOString(),
+        arrivalDateTime: new Date(flightSegmentForm.arrivalDateTime).toISOString(),
+        confirmationNumber: flightSegmentForm.confirmationNumber || undefined,
+        notes: flightSegmentForm.notes || undefined,
+      });
+      if (errors || !created) {
+        console.error("Error creating flight segment:", errors);
+        setFlightSegmentFormError("Failed to save flight segment. Please try again.");
+        return;
+      }
+      setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
+      setFlightSegmentFormError("");
+      setShowFlightSegmentForm(false);
+      fetchFlightSegments(selectedVacation.id);
+    } catch (error) {
+      console.error("Error creating flight segment:", error);
+      setFlightSegmentFormError("An unexpected error occurred. Please try again.");
+    }
+  };
+
+  const handleDeleteFlightSegment = async (id: string) => {
+    if (!selectedVacation) return;
+    try {
+      await client.models.FlightSegment.delete({ id });
+      fetchFlightSegments(selectedVacation.id);
+    } catch (error) {
+      console.error("Error deleting flight segment:", error);
+    }
+  };
+
   const openVacationDetail = (vacation: any, tab: ActiveTab = "activities") => {
     setSelectedVacation(vacation);
     setSelectedLeg(null);
@@ -483,9 +683,70 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
     if (tab === "activities") fetchActivities(vacation.id);
     if (tab === "itinerary") fetchLegs(vacation.id);
     if (tab === "excursions") fetchLegs(vacation.id);
+    if (tab === "flights") fetchFlightSegments(vacation.id);
   };
 
   const uid = user?.signInDetails?.loginId || "unknown";
+
+  const openFeedbackForm = (targetId: string, feedbacks: any[]) => {
+    const existing = feedbacks.find((f) => f.userId === uid);
+    if (existing) {
+      setTripFeedbackForm({
+        rating: existing.rating ?? 5,
+        comment: existing.comment ?? '',
+        recommend: existing.recommend ?? null,
+      });
+    } else {
+      setTripFeedbackForm({ rating: 5, comment: '', recommend: null });
+    }
+    setSelectedFeedbackTargetId(targetId);
+  };
+
+  const renderStarSelector = () => (
+    <div className="flex items-center gap-1">
+      <span className="text-xs text-gray-600 mr-1">Rating:</span>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => setTripFeedbackForm((prev) => ({ ...prev, rating: star }))}
+          className="text-xl focus:outline-none"
+        >
+          {star <= tripFeedbackForm.rating ? '⭐' : '☆'}
+        </button>
+      ))}
+    </div>
+  );
+
+  const renderRecommendToggle = () => (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="text-gray-600">Would you recommend?</span>
+      <button
+        type="button"
+        onClick={() => setTripFeedbackForm((prev) => ({ ...prev, recommend: true }))}
+        className={`px-2 py-1 rounded transition ${tripFeedbackForm.recommend === true ? 'bg-green-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+      >
+        👍 Yes
+      </button>
+      <button
+        type="button"
+        onClick={() => setTripFeedbackForm((prev) => ({ ...prev, recommend: false }))}
+        className={`px-2 py-1 rounded transition ${tripFeedbackForm.recommend === false ? 'bg-red-500 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+      >
+        👎 No
+      </button>
+    </div>
+  );
+
+  const renderFeedbackComments = (targetFeedbacks: any[]) => {
+    const withComments = targetFeedbacks.filter((f) => f.comment);
+    if (withComments.length === 0) return null;
+    return withComments.slice(-2).map((f) => (
+      <div key={f.id} className="text-xs text-gray-500 italic">
+        "{f.comment}" — {f.userId}
+      </div>
+    ));
+  };
 
   return (
     <div>
@@ -579,11 +840,141 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
                 />
               </div>
+
+              {/* Flight Itinerary Section — shown only when transportation is flight */}
+              {vacationForm.transportation === "flight" && (
+                <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                  <h4 className="text-sm font-semibold text-blue-800 mb-3">✈️ Flight Itinerary</h4>
+
+                  {/* Pending flight segments list */}
+                  {pendingFlightSegments.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {pendingFlightSegments.map((seg) => (
+                        <div key={seg.localId} className="bg-white border border-blue-100 rounded p-3 text-sm flex justify-between items-start">
+                          <div>
+                            <div className="font-medium text-gray-800">
+                              ✈️ {seg.airline} {seg.flightNumber}
+                            </div>
+                            <div className="text-gray-600 mt-0.5">
+                              {seg.departureAirport} → {seg.arrivalAirport}
+                            </div>
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              {new Date(seg.departureDateTime).toLocaleString()} → {new Date(seg.arrivalDateTime).toLocaleString()}
+                            </div>
+                            {seg.confirmationNumber && (
+                              <div className="text-xs text-gray-500">Conf: {seg.confirmationNumber}</div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePendingFlightSegment(seg.localId)}
+                            className="text-red-500 hover:text-red-700 text-xs ml-2"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add flight segment inline form */}
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Airline *"
+                        value={flightSegmentForm.airline}
+                        onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, airline: e.target.value })}
+                        className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Flight Number *"
+                        value={flightSegmentForm.flightNumber}
+                        onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, flightNumber: e.target.value })}
+                        className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Departure Airport *"
+                        value={flightSegmentForm.departureAirport}
+                        onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, departureAirport: e.target.value })}
+                        className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Arrival Airport *"
+                        value={flightSegmentForm.arrivalAirport}
+                        onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, arrivalAirport: e.target.value })}
+                        className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-500">Departure Date/Time *</label>
+                        <input
+                          type="datetime-local"
+                          value={flightSegmentForm.departureDateTime}
+                          onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, departureDateTime: e.target.value })}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Arrival Date/Time *</label>
+                        <input
+                          type="datetime-local"
+                          value={flightSegmentForm.arrivalDateTime}
+                          onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, arrivalDateTime: e.target.value })}
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Confirmation Number"
+                        value={flightSegmentForm.confirmationNumber}
+                        onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, confirmationNumber: e.target.value })}
+                        className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Notes"
+                        value={flightSegmentForm.notes}
+                        onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, notes: e.target.value })}
+                        className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                      />
+                    </div>
+                    {flightSegmentFormError && (
+                      <p className="text-xs text-red-600">{flightSegmentFormError}</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleAddPendingFlightSegment}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm"
+                    >
+                      + Add Flight Segment
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex gap-4">
                 <button type="submit" className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-6 py-2 rounded-lg transition">
                   Create Vacation
                 </button>
-                <button type="button" onClick={() => setShowVacationForm(false)} className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg transition">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVacationForm(false);
+                    setPendingFlightSegments([]);
+                    setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
+                    setFlightSegmentFormError("");
+                  }}
+                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-6 py-2 rounded-lg transition"
+                >
                   Cancel
                 </button>
               </div>
@@ -622,6 +1013,14 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                 >
                   Itinerary
                 </button>
+                {vacation.transportation === "flight" && (
+                  <button
+                    onClick={() => openVacationDetail(vacation, "flights")}
+                    className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-lg transition text-sm"
+                  >
+                    ✈️ Flights
+                  </button>
+                )}
                 <button
                   onClick={() => openVacationDetail(vacation, "excursions")}
                   className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-4 py-2 rounded-lg transition text-sm"
@@ -640,8 +1039,15 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
             {selectedVacation?.id === vacation.id && (
               <div className="mt-6 border-t pt-6">
                 {/* Tab Bar */}
-                <div className="flex gap-2 mb-4 border-b">
-                  {(["activities", "itinerary", "excursions"] as ActiveTab[]).map((tab) => (
+                <div className="flex gap-2 mb-4 border-b flex-wrap">
+                  {(
+                    [
+                      "activities",
+                      "itinerary",
+                      ...(vacation.transportation === "flight" ? ["flights"] : []),
+                      "excursions",
+                    ] as ActiveTab[]
+                  ).map((tab) => (
                     <button
                       key={tab}
                       onClick={() => {
@@ -649,18 +1055,27 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                         if (tab === "activities") fetchActivities(vacation.id);
                         if (tab === "itinerary") fetchLegs(vacation.id);
                         if (tab === "excursions") fetchLegs(vacation.id);
+                        if (tab === "flights") fetchFlightSegments(vacation.id);
                       }}
-                      className={`px-4 py-2 text-sm font-medium capitalize border-b-2 -mb-px transition ${
+                      className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
                         activeTab === tab
                           ? tab === "activities"
                             ? "border-royal-blue-600 text-royal-blue-700"
                             : tab === "itinerary"
                             ? "border-green-600 text-green-700"
+                            : tab === "flights"
+                            ? "border-blue-600 text-blue-700"
                             : "border-orange-600 text-orange-700"
                           : "border-transparent text-gray-500 hover:text-gray-700"
                       }`}
                     >
-                      {tab === "activities" ? "✅ Activities" : tab === "itinerary" ? "🗺️ Itinerary" : "🎯 Excursions"}
+                      {tab === "activities"
+                        ? "✅ Activities"
+                        : tab === "itinerary"
+                        ? "🗺️ Itinerary"
+                        : tab === "flights"
+                        ? "✈️ Flights"
+                        : "🎯 Excursions"}
                     </button>
                   ))}
                 </div>
@@ -1112,7 +1527,11 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                   <p className="text-xs text-gray-400 italic">No accommodation stays yet.</p>
                                 ) : (
                                   <div className="space-y-2">
-                                    {accommodationStays.map((stay) => (
+                                    {accommodationStays.map((stay) => {
+                                      const stayFeedbacks = feedbacksByTarget[stay.id] ?? [];
+                                      const stayAggregate = computeFeedbackAggregate(stayFeedbacks);
+                                      const myStayFeedback = stayFeedbacks.find((f) => f.userId === uid);
+                                      return (
                                       <div key={stay.id} className="bg-purple-50 p-3 rounded text-sm">
                                         <div className="font-medium">{stay.name}</div>
                                         {stay.address && <div className="text-gray-500 text-xs">📍 {stay.address}</div>}
@@ -1122,8 +1541,63 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                         {stay.confirmationCode && (
                                           <div className="text-xs text-gray-500">Conf: {stay.confirmationCode}</div>
                                         )}
+                                        {/* Feedback aggregate */}
+                                        {stayAggregate && (
+                                          <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                                            <span className="font-medium">⭐ {stayAggregate.avg}</span>
+                                            <span className="text-gray-400">({stayAggregate.count} {stayAggregate.count === 1 ? 'rating' : 'ratings'})</span>
+                                            {stayAggregate.recommendCount > 0 && (
+                                              <span className="text-green-600">👍 {stayAggregate.recommendCount} recommend</span>
+                                            )}
+                                          </div>
+                                        )}
+                                        {/* Recent comments */}
+                                        <div className="mt-1 space-y-0.5">
+                                          {renderFeedbackComments(stayFeedbacks)}
+                                        </div>
+                                        {/* Feedback button */}
+                                        <button
+                                          onClick={() => {
+                                            if (selectedFeedbackTargetId === stay.id) {
+                                              setSelectedFeedbackTargetId(null);
+                                            } else {
+                                              fetchFeedbacksForTarget(stay.id).then((freshData) => {
+                                                openFeedbackForm(stay.id, freshData);
+                                              });
+                                            }
+                                          }}
+                                          className="mt-2 text-xs text-purple-700 hover:text-purple-900 underline"
+                                        >
+                                          {myStayFeedback ? '✏️ Edit My Rating' : '⭐ Rate This Stay'}
+                                        </button>
+                                        {/* Inline feedback form */}
+                                        {selectedFeedbackTargetId === stay.id && (
+                                          <form
+                                            onSubmit={(e) => handleSubmitTripFeedback(e, 'ACCOMMODATION', stay.id, selectedVacation.id)}
+                                            className="mt-3 bg-white border border-purple-200 rounded p-3 space-y-2"
+                                          >
+                                            {renderStarSelector()}
+                                            <textarea
+                                              placeholder="Share your opinion (optional)…"
+                                              value={tripFeedbackForm.comment}
+                                              onChange={(e) => setTripFeedbackForm({ ...tripFeedbackForm, comment: e.target.value })}
+                                              className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                                              rows={2}
+                                            />
+                                            {renderRecommendToggle()}
+                                            <div className="flex gap-2">
+                                              <button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs">
+                                                {myStayFeedback ? 'Update' : 'Submit'}
+                                              </button>
+                                              <button type="button" onClick={() => setSelectedFeedbackTargetId(null)} className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs">
+                                                Cancel
+                                              </button>
+                                            </div>
+                                          </form>
+                                        )}
                                       </div>
-                                    ))}
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>
@@ -1233,6 +1707,160 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                         <p className="text-center text-gray-500 py-6 text-sm">No trip legs yet. Add one to build your itinerary!</p>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* FLIGHTS TAB */}
+                {activeTab === "flights" && (
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="text-lg font-semibold">✈️ Flight Itinerary</h4>
+                      <button
+                        onClick={() => {
+                          setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
+                          setFlightSegmentFormError("");
+                          setShowFlightSegmentForm(true);
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition text-sm"
+                      >
+                        + Add Flight Segment
+                      </button>
+                    </div>
+
+                    {showFlightSegmentForm && (
+                      <div className="mb-4 bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                        <h5 className="font-medium mb-3 text-blue-800">New Flight Segment</h5>
+                        <form onSubmit={handleCreateFlightSegment} className="space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder="Airline *"
+                              value={flightSegmentForm.airline}
+                              onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, airline: e.target.value })}
+                              className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Flight Number *"
+                              value={flightSegmentForm.flightNumber}
+                              onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, flightNumber: e.target.value })}
+                              className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder="Departure Airport *"
+                              value={flightSegmentForm.departureAirport}
+                              onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, departureAirport: e.target.value })}
+                              className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Arrival Airport *"
+                              value={flightSegmentForm.arrivalAirport}
+                              onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, arrivalAirport: e.target.value })}
+                              className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-gray-500">Departure Date/Time *</label>
+                              <input
+                                type="datetime-local"
+                                value={flightSegmentForm.departureDateTime}
+                                onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, departureDateTime: e.target.value })}
+                                className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500">Arrival Date/Time *</label>
+                              <input
+                                type="datetime-local"
+                                value={flightSegmentForm.arrivalDateTime}
+                                onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, arrivalDateTime: e.target.value })}
+                                className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              placeholder="Confirmation Number"
+                              value={flightSegmentForm.confirmationNumber}
+                              onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, confirmationNumber: e.target.value })}
+                              className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Notes"
+                              value={flightSegmentForm.notes}
+                              onChange={(e) => setFlightSegmentForm({ ...flightSegmentForm, notes: e.target.value })}
+                              className="px-3 py-1.5 border border-gray-300 rounded text-sm"
+                            />
+                          </div>
+                          {flightSegmentFormError && (
+                            <p className="text-xs text-red-600">{flightSegmentFormError}</p>
+                          )}
+                          <div className="flex gap-2">
+                            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm">
+                              Save
+                            </button>
+                            <button type="button" onClick={() => { setShowFlightSegmentForm(false); setFlightSegmentFormError(""); }} className="bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-1.5 rounded text-sm">
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    )}
+
+                    {flightSegments.length === 0 ? (
+                      <p className="text-center text-gray-500 py-6 text-sm">No flight segments yet. Add one to build your flight itinerary!</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {flightSegments.map((seg, idx) => (
+                          <div key={seg.id} className="border border-blue-200 rounded-lg p-4 bg-white">
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-3">
+                                <span className="bg-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">
+                                  {idx + 1}
+                                </span>
+                                <div>
+                                  <div className="font-semibold text-gray-800">
+                                    ✈️ {seg.airline} · {seg.flightNumber}
+                                  </div>
+                                  <div className="text-gray-600 text-sm mt-0.5">
+                                    {seg.departureAirport} → {seg.arrivalAirport}
+                                  </div>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleDeleteFlightSegment(seg.id)}
+                                className="text-red-400 hover:text-red-600 text-xs"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                            <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-gray-600">
+                              <div>
+                                <span className="text-xs text-gray-400 block">Departs</span>
+                                {new Date(seg.departureDateTime).toLocaleString()}
+                              </div>
+                              <div>
+                                <span className="text-xs text-gray-400 block">Arrives</span>
+                                {new Date(seg.arrivalDateTime).toLocaleString()}
+                              </div>
+                            </div>
+                            {(seg.confirmationNumber || seg.notes) && (
+                              <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
+                                {seg.confirmationNumber && <span>🔖 Conf: {seg.confirmationNumber}</span>}
+                                {seg.notes && <span>📝 {seg.notes}</span>}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1394,6 +2022,9 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                   const excUpCount = excVotes.filter((v) => v.vote === "UP").length;
                                   const excDownCount = excVotes.filter((v) => v.vote === "DOWN").length;
                                   const excMyVote = excVotes.find((v) => v.userId === uid)?.vote;
+                                  const excFeedbacks = feedbacksByTarget[excursion.id] ?? [];
+                                  const excAggregate = computeFeedbackAggregate(excFeedbacks);
+                                  const myExcFeedback = excFeedbacks.find((f) => f.userId === uid);
                                   return (
                                   <div key={excursion.id} className="border border-orange-200 rounded-lg p-4">
                                     <div className="flex items-center gap-2 mb-1">
@@ -1413,7 +2044,21 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                       )}
                                       {excursion.proposedBy && <span>👤 {excursion.proposedBy}</span>}
                                     </div>
-                                    <div className="flex items-center gap-4">
+                                    {/* Aggregate feedback summary */}
+                                    {excAggregate && (
+                                      <div className="flex items-center gap-2 text-xs text-gray-600 mb-2">
+                                        <span className="font-medium">⭐ {excAggregate.avg}</span>
+                                        <span className="text-gray-400">({excAggregate.count} {excAggregate.count === 1 ? 'rating' : 'ratings'})</span>
+                                        {excAggregate.recommendCount > 0 && (
+                                          <span className="text-green-600">👍 {excAggregate.recommendCount} recommend</span>
+                                        )}
+                                      </div>
+                                    )}
+                                    {/* Recent feedback comments */}
+                                    <div className="mb-1 space-y-0.5">
+                                      {renderFeedbackComments(excFeedbacks)}
+                                    </div>
+                                    <div className="flex items-center gap-4 mt-2">
                                       <button
                                         onClick={() => {
                                           setSelectedExcursion(excursion);
@@ -1450,7 +2095,46 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
                                       >
                                         💬 Comments
                                       </button>
+                                      <button
+                                        onClick={() => {
+                                          if (selectedFeedbackTargetId === excursion.id) {
+                                            setSelectedFeedbackTargetId(null);
+                                          } else {
+                                            fetchFeedbacksForTarget(excursion.id).then((freshData) => {
+                                              openFeedbackForm(excursion.id, freshData);
+                                            });
+                                          }
+                                        }}
+                                        className="text-sm text-orange-600 hover:text-orange-800 underline"
+                                      >
+                                        {myExcFeedback ? '✏️ Edit Rating' : '⭐ Rate'}
+                                      </button>
                                     </div>
+                                    {/* Star-rating feedback form for excursion */}
+                                    {selectedFeedbackTargetId === excursion.id && (
+                                      <form
+                                        onSubmit={(e) => handleSubmitTripFeedback(e, 'EXCURSION', excursion.id, selectedVacation.id)}
+                                        className="mt-3 bg-orange-50 border border-orange-200 rounded p-3 space-y-2"
+                                      >
+                                        {renderStarSelector()}
+                                        <textarea
+                                          placeholder="Share your opinion (optional)…"
+                                          value={tripFeedbackForm.comment}
+                                          onChange={(e) => setTripFeedbackForm({ ...tripFeedbackForm, comment: e.target.value })}
+                                          className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs"
+                                          rows={2}
+                                        />
+                                        {renderRecommendToggle()}
+                                        <div className="flex gap-2">
+                                          <button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1 rounded text-xs">
+                                            {myExcFeedback ? 'Update' : 'Submit'}
+                                          </button>
+                                          <button type="button" onClick={() => setSelectedFeedbackTargetId(null)} className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-xs">
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </form>
+                                    )}
                                     {selectedExcursion?.id === excursion.id && (
                                       <div className="mt-4 border-t pt-3">
                                         {showCommentForm && (
