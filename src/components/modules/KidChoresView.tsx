@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { buildKidChoresBuckets } from '../../utils/kidChoresBuckets';
-import type { KidChoreEntry } from '../../utils/kidChoresBuckets';
+import type { KidChoreEntry, KidChoreItem } from '../../utils/kidChoresBuckets';
 
 const client = generateClient<Schema>();
 
@@ -109,6 +109,7 @@ export default function KidChoresView({ user }: KidChoresViewProps) {
   const [showCompleteForm, setShowCompleteForm] = useState(false);
   const [completingChore, setCompletingChore] = useState<KidChoreItem | null>(null);
   const [completeNotes, setCompleteNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const currentUser = user?.signInDetails?.loginId || 'Unknown';
 
@@ -147,20 +148,62 @@ export default function KidChoresView({ user }: KidChoresViewProps) {
 
   const handleCompleteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!completingChore) return;
-    try {
-      await client.models.ChoreCompletion.create({
-        choreId: completingChore.id,
-        completedBy: currentUser,
-        completedAt: new Date().toISOString(),
-        notes: completeNotes || undefined,
-        pointsEarned: completingChore.pointValue ?? undefined,
-      });
+    if (!completingChore || submitting) return;
+
+    // Lock immediately to prevent any re-entry before React re-renders.
+    setSubmitting(true);
+
+    // Prevent duplicate completion for the same due window.
+    const inToday = todayChores.find((entry) => entry.chore.id === completingChore.id);
+    const inWeek = weekChores.find((entry) => entry.chore.id === completingChore.id);
+    if (inToday?.isDone || inWeek?.isDone) {
       setShowCompleteForm(false);
       setCompletingChore(null);
+      setSubmitting(false);
+      return;
+    }
+
+    // Capture values before closing the modal so the closure is stable.
+    const choreToComplete = completingChore;
+    const notes = completeNotes;
+    const completedAt = new Date().toISOString();
+    // Unique key used to identify and revert this specific optimistic record.
+    const optimisticId = `${choreToComplete.id}-${completedAt}`;
+
+    // Optimistically update the UI immediately so the chore shows as done
+    // without waiting for the network round-trip.
+    setCompletions((prev) => [
+      ...prev,
+      {
+        choreId: choreToComplete.id,
+        completedBy: currentUser,
+        completedAt,
+        notes: notes || undefined,
+        pointsEarned: choreToComplete.pointValue ?? undefined,
+        _optimisticId: optimisticId,
+      },
+    ]);
+    setShowCompleteForm(false);
+    setCompletingChore(null);
+
+    try {
+      await client.models.ChoreCompletion.create({
+        choreId: choreToComplete.id,
+        completedBy: currentUser,
+        completedAt,
+        notes: notes || undefined,
+        pointsEarned: choreToComplete.pointValue ?? undefined,
+      });
+      // Sync full state in the background to pick up any other changes.
       loadData();
     } catch (error) {
       console.error('Error logging completion:', error);
+      // Revert the optimistic update so the user can try again.
+      setCompletions((prev) =>
+        prev.filter((c) => (c as any)._optimisticId !== optimisticId)
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -277,9 +320,10 @@ export default function KidChoresView({ user }: KidChoresViewProps) {
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition font-medium"
+                  disabled={submitting}
+                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white py-2 rounded-lg transition font-medium"
                 >
-                  Done! ✓
+                  {submitting ? 'Saving…' : 'Done! ✓'}
                 </button>
                 <button
                   type="button"
