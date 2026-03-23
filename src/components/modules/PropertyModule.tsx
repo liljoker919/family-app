@@ -39,12 +39,23 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
 
   const fetchAllData = async () => {
     try {
-      const [{ data: props }, { data: txns }] = await Promise.all([
-        client.models.Property.list({ filter: { familyId: { eq: familyId } } }),
-        client.models.PropertyTransaction.list(),
-      ]);
+      const { data: props } = await client.models.Property.list({
+        filter: { familyId: { eq: familyId } },
+      });
       setProperties(props);
-      setAllTransactions(txns);
+
+      // Fetch only transactions for this family's properties
+      if (props.length > 0) {
+        const propertyIds = props.map((p: any) => p.id);
+        const txnFetches = propertyIds.map((id: string) =>
+          client.models.PropertyTransaction.list({ filter: { propertyId: { eq: id } } })
+        );
+        const results = await Promise.all(txnFetches);
+        const allTxns = results.flatMap((r) => r.data);
+        setAllTransactions(allTxns);
+      } else {
+        setAllTransactions([]);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     }

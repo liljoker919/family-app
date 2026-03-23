@@ -17,7 +17,7 @@ export interface FamilyMembership {
   familyId: string;
   role: FamilyRole;
   displayName: string | null | undefined;
-  familyName: string | null | undefined;
+  familyName: string | null;
 }
 
 /**
@@ -44,17 +44,17 @@ export async function getFamilyMembership(
       filter: { userId: { eq: userId } },
     });
 
-    if (!members || members.length === 0) {
+    if (members.length === 0) {
       return null;
     }
 
     const member = members[0];
 
     // Fetch the family name for display purposes
-    let familyName: string | null | undefined = undefined;
+    let familyName: string | null = null;
     try {
       const { data: family } = await client.models.Family.get({ id: member.familyId });
-      familyName = family?.name;
+      familyName = family?.name ?? null;
     } catch {
       // Family lookup is best-effort
     }

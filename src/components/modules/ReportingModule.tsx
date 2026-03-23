@@ -46,14 +46,19 @@ export default function ReportingModule({ user, familyId }: ReportingModuleProps
 
   const fetchData = async () => {
     try {
-      const [choresRes, completionsRes, assignmentsRes] = await Promise.all([
-        client.models.Chore.list({ filter: { familyId: { eq: familyId } } }),
+      // Fetch chores scoped to this family first
+      const { data: familyChores } = await client.models.Chore.list({
+        filter: { familyId: { eq: familyId } },
+      });
+      const choreIds = new Set(familyChores.map((c: any) => c.id));
+      setChores(familyChores);
+
+      // ChoreCompletion and ChoreAssignment do not carry familyId directly;
+      // isolate them by retaining only records tied to this family's chores.
+      const [completionsRes, assignmentsRes] = await Promise.all([
         client.models.ChoreCompletion.list(),
         client.models.ChoreAssignment.list(),
       ]);
-      const familyChores = choresRes.data;
-      const choreIds = new Set(familyChores.map((c: any) => c.id));
-      setChores(familyChores);
       setCompletions(completionsRes.data.filter((c: any) => choreIds.has(c.choreId)));
       setAssignments(assignmentsRes.data.filter((a: any) => choreIds.has(a.choreId)));
     } catch (error) {
