@@ -312,6 +312,53 @@ const schema = a.schema({
       allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
+
+  Chore: a
+    .model({
+      title: a.string().required(),
+      description: a.string(),
+      recurrence: a.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'ONE_TIME']),
+      daysOfWeek: a.string().array(),
+      category: a.enum(['CLEANING', 'LAUNDRY', 'COOKING', 'YARD', 'PETS', 'ERRANDS', 'OTHER']),
+      pointValue: a.integer(),
+      isActive: a.boolean(),
+      createdBy: a.string().required(),
+      assignments: a.hasMany('ChoreAssignment', 'choreId'),
+      completions: a.hasMany('ChoreCompletion', 'choreId'),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+    ]),
+
+  ChoreAssignment: a
+    .model({
+      choreId: a.id().required(),
+      chore: a.belongsTo('Chore', 'choreId'),
+      assignedTo: a.string().required(),
+      assignedBy: a.string().required(),
+      startDate: a.date(),
+      endDate: a.date(),
+      notes: a.string(),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+    ]),
+
+  ChoreCompletion: a
+    .model({
+      choreId: a.id().required(),
+      chore: a.belongsTo('Chore', 'choreId'),
+      completedBy: a.string().required(),
+      completedAt: a.datetime().required(),
+      notes: a.string(),
+      pointsEarned: a.integer(),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+    ]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
