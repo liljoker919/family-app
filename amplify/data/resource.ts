@@ -264,6 +264,22 @@ const schema = a.schema({
       allow.group('ADMIN'),
     ]),
 
+  Recipe: a
+    .model({
+      title: a.string().required(),
+      description: a.string(),
+      ingredients: a.string().array(),
+      instructions: a.string(),
+      prepTime: a.string(),
+      category: a.enum(['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'DESSERT', 'APPETIZER', 'SIDE_DISH', 'BEVERAGE', 'OTHER']),
+      contributor: a.string(),
+      imageUrl: a.string(),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+    ]),
+
   Car: a
     .model({
       make: a.string().required(),

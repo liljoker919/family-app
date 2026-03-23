@@ -7,10 +7,11 @@ import PropertyModule from './modules/PropertyModule';
 import CarsModule from './modules/CarsModule';
 import CalendarModule from './modules/CalendarModule';
 import PlanningModule from './modules/PlanningModule';
+import CookbookModule from './modules/CookbookModule';
 
 Amplify.configure(outputs);
 
-type ActiveModule = 'vacations' | 'planning' | 'property' | 'cars' | 'calendar';
+type ActiveModule = 'vacations' | 'planning' | 'property' | 'cars' | 'calendar' | 'cookbook';
 
 export default function Dashboard() {
   const [activeModule, setActiveModule] = useState<ActiveModule>('vacations');
@@ -129,6 +130,23 @@ export default function Dashboard() {
                       </span>
                     </button>
                   </li>
+                  <li>
+                    <button
+                      onClick={() => setActiveModule('cookbook')}
+                      className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                        activeModule === 'cookbook'
+                          ? 'bg-royal-blue-600 text-white'
+                          : 'text-gray-700 hover:bg-royal-blue-50'
+                      }`}
+                    >
+                      <span className="flex items-center">
+                        <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                        Cookbook
+                      </span>
+                    </button>
+                  </li>
                 </ul>
               </nav>
             </aside>
@@ -140,6 +158,7 @@ export default function Dashboard() {
               {activeModule === 'property' && <PropertyModule user={user} />}
               {activeModule === 'cars' && <CarsModule user={user} />}
               {activeModule === 'calendar' && <CalendarModule />}
+              {activeModule === 'cookbook' && <CookbookModule user={user} />}
             </main>
           </div>
         </div>
