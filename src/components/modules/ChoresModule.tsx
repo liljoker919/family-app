@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { generateClient } from 'aws-amplify/data';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import type { Schema } from '../../../amplify/data/resource';
 
 const client = generateClient<Schema>();
+
+const MANAGER_GROUPS = ['ADMIN', 'PLANNER'] as const;
 
 interface ChoresModuleProps {
   user: any;
@@ -56,6 +59,8 @@ type ActiveTab = 'chores' | 'completions';
 export default function ChoresModule({ user }: ChoresModuleProps) {
   const [chores, setChores] = useState<any[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [userGroups, setUserGroups] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<ActiveTab>('chores');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [filterRecurrence, setFilterRecurrence] = useState<string>('ALL');
@@ -95,9 +100,27 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
   const currentUser = user?.signInDetails?.loginId || 'Unknown';
 
   useEffect(() => {
+    loadUserGroups();
     fetchChores();
     fetchCompletions();
+    fetchAssignments();
   }, []);
+
+  const loadUserGroups = async () => {
+    try {
+      const session = await fetchAuthSession();
+      const groups =
+        (session.tokens?.idToken?.payload?.['cognito:groups'] as string[]) ?? [];
+      setUserGroups(groups);
+    } catch {
+      setUserGroups([]);
+    }
+  };
+
+  const canManage = useMemo(
+    () => userGroups.some((g) => MANAGER_GROUPS.includes(g as typeof MANAGER_GROUPS[number])),
+    [userGroups]
+  );
 
   const fetchChores = async () => {
     try {
@@ -114,6 +137,15 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
       setCompletions(data);
     } catch (error) {
       console.error('Error fetching completions:', error);
+    }
+  };
+
+  const fetchAssignments = async () => {
+    try {
+      const { data } = await client.models.ChoreAssignment.list();
+      setAssignments(data);
+    } catch (error) {
+      console.error('Error fetching assignments:', error);
     }
   };
 
@@ -272,9 +304,24 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
     return catMatch && recMatch;
   });
 
+  // Set of choreIds assigned to the current user
+  const myAssignedChoreIds = useMemo(
+    () => new Set(
+      assignments
+        .filter((a) => a.assignedTo === currentUser)
+        .map((a) => a.choreId)
+    ),
+    [assignments, currentUser]
+  );
+
   const sortedCompletions = [...completions].sort(
     (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
   );
+
+  // Members only see their own completions
+  const visibleCompletions = canManage
+    ? sortedCompletions
+    : sortedCompletions.filter((c) => c.completedBy === currentUser);
 
   const choreMap: Record<string, any> = {};
   chores.forEach((c) => { choreMap[c.id] = c; });
@@ -283,12 +330,14 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-gray-800">Chores</h2>
-        <button
-          onClick={openCreateChoreForm}
-          className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-6 py-2 rounded-lg transition"
-        >
-          Add Chore
-        </button>
+        {canManage && (
+          <button
+            onClick={openCreateChoreForm}
+            className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-6 py-2 rounded-lg transition"
+          >
+            Add Chore
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -413,30 +462,36 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
                     )}
                   </div>
                   <div className="flex gap-2 shrink-0 flex-wrap justify-end">
-                    <button
-                      onClick={() => openCompleteForm(chore)}
-                      className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1.5 rounded-lg transition text-sm font-medium"
-                    >
-                      ✓ Log Done
-                    </button>
-                    <button
-                      onClick={() => openAssignForm(chore)}
-                      className="bg-royal-blue-50 hover:bg-royal-blue-100 text-royal-blue-700 px-3 py-1.5 rounded-lg transition text-sm"
-                    >
-                      Assign
-                    </button>
-                    <button
-                      onClick={() => openEditChoreForm(chore)}
-                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg transition text-sm"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteChore(chore.id)}
-                      className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg transition text-sm"
-                    >
-                      Delete
-                    </button>
+                    {(canManage || myAssignedChoreIds.has(chore.id)) && (
+                      <button
+                        onClick={() => openCompleteForm(chore)}
+                        className="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1.5 rounded-lg transition text-sm font-medium"
+                      >
+                        ✓ Log Done
+                      </button>
+                    )}
+                    {canManage && (
+                      <>
+                        <button
+                          onClick={() => openAssignForm(chore)}
+                          className="bg-royal-blue-50 hover:bg-royal-blue-100 text-royal-blue-700 px-3 py-1.5 rounded-lg transition text-sm"
+                        >
+                          Assign
+                        </button>
+                        <button
+                          onClick={() => openEditChoreForm(chore)}
+                          className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg transition text-sm"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteChore(chore.id)}
+                          className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg transition text-sm"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -448,7 +503,7 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
       {/* ---- COMPLETIONS TAB ---- */}
       {activeTab === 'completions' && (
         <>
-          {sortedCompletions.length === 0 ? (
+          {visibleCompletions.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
@@ -458,7 +513,7 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {sortedCompletions.map((comp) => {
+              {visibleCompletions.map((comp) => {
                 const chore = choreMap[comp.choreId];
                 return (
                   <div key={comp.id} className="bg-white rounded-lg shadow p-4 flex items-start justify-between gap-4">
@@ -483,12 +538,14 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
                         <p className="text-sm text-gray-400 mt-1 italic">{comp.notes}</p>
                       )}
                     </div>
-                    <button
-                      onClick={() => handleDeleteCompletion(comp.id)}
-                      className="shrink-0 bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg transition text-sm"
-                    >
-                      Delete
-                    </button>
+                    {canManage && (
+                      <button
+                        onClick={() => handleDeleteCompletion(comp.id)}
+                        className="shrink-0 bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg transition text-sm"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 );
               })}

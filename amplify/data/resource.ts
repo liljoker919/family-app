@@ -328,7 +328,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.group('ADMIN'),
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.group('PLANNER').to(['read', 'create', 'update', 'delete']),
+      allow.authenticated().to(['read']),
     ]),
 
   ChoreAssignment: a
@@ -343,7 +344,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.group('ADMIN'),
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.group('PLANNER').to(['read', 'create', 'update', 'delete']),
+      allow.authenticated().to(['read']),
     ]),
 
   ChoreCompletion: a
@@ -357,7 +359,9 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.group('ADMIN'),
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.group('PLANNER').to(['read', 'create', 'update', 'delete']),
+      allow.ownerDefinedIn('completedBy').to(['create', 'read']),
+      allow.authenticated().to(['read']),
     ]),
 });
 
