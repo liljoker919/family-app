@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Authenticator } from '@aws-amplify/ui-react';
+import { useState } from 'react';
+import { Authenticator, useAuthenticator } from '@aws-amplify/ui-react';
+import '@aws-amplify/ui-react/styles.css';
 import { Amplify } from 'aws-amplify';
 import outputs from '../../amplify_outputs.json';
 import VacationsModule from './modules/VacationsModule';
@@ -14,38 +15,93 @@ import type { ActiveModule } from '../utils/dashboardModules';
 
 Amplify.configure(outputs);
 
-export default function Dashboard() {
+const formFields = {
+  signIn: {
+    username: {
+      label: 'Email',
+      placeholder: 'Enter your email',
+    },
+  },
+  signUp: {
+    email: {
+      label: 'Email',
+      placeholder: 'Enter your email',
+      order: 1,
+    },
+    password: {
+      label: 'Password',
+      placeholder: 'Enter your password',
+      order: 2,
+    },
+    confirm_password: {
+      label: 'Confirm Password',
+      placeholder: 'Confirm your password',
+      order: 3,
+    },
+    given_name: {
+      label: 'First Name',
+      placeholder: 'Enter your first name',
+      order: 4,
+    },
+    family_name: {
+      label: 'Last Name',
+      placeholder: 'Enter your last name',
+      order: 5,
+    },
+  },
+};
+
+function DashboardContent() {
+  const { authStatus, signOut, user } = useAuthenticator((context) => [
+    context.authStatus,
+    context.user,
+  ]);
   const [activeModule, setActiveModule] = useState<ActiveModule>('vacations');
 
-  return (
-    <Authenticator>
-      {({ signOut, user }) => (
-        <div className="min-h-screen bg-gray-50">
-          {/* Header */}
-          <header className="bg-royal-blue-700 text-white shadow-lg">
-            <div className="container mx-auto px-4 py-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold">Family Dashboard</h1>
-                  <p className="text-royal-blue-200 text-sm">
-                    Welcome, {user?.signInDetails?.loginId || 'Family Member'}
-                  </p>
-                </div>
-                <button
-                  onClick={signOut}
-                  className="bg-royal-blue-600 hover:bg-royal-blue-800 px-4 py-2 rounded-lg transition"
-                >
-                  Sign Out
-                </button>
-              </div>
-            </div>
-          </header>
+  if (authStatus !== 'authenticated') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-royal-blue-900 via-royal-blue-700 to-royal-blue-500 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-white mb-2">Family App</h1>
+            <p className="text-royal-blue-100">Sign in to access your family dashboard</p>
+          </div>
+          <Authenticator
+            className="shadow-2xl rounded-lg"
+            formFields={formFields}
+          />
+        </div>
+      </div>
+    );
+  }
 
-          <div className="flex">
-            {/* Sidebar Navigation */}
-            <aside className="w-64 bg-white shadow-lg min-h-screen">
-              <nav className="p-4">
-                <ul className="space-y-2">
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-royal-blue-700 text-white shadow-lg">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Family Dashboard</h1>
+              <p className="text-royal-blue-200 text-sm">
+                Welcome, {user?.signInDetails?.loginId || 'Family Member'}
+              </p>
+            </div>
+            <button
+              onClick={signOut}
+              className="bg-royal-blue-600 hover:bg-royal-blue-800 px-4 py-2 rounded-lg transition"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex">
+        {/* Sidebar Navigation */}
+        <aside className="w-64 bg-white shadow-lg min-h-screen">
+          <nav className="p-4">
+            <ul className="space-y-2">
                   <li>
                     <button
                       onClick={() => setActiveModule('vacations')}
@@ -183,23 +239,29 @@ export default function Dashboard() {
                     </button>
                   </li>
                 </ul>
-              </nav>
-            </aside>
+          </nav>
+        </aside>
 
-            {/* Main Content */}
-            <main className="flex-1 p-8">
-              {activeModule === 'vacations' && <VacationsModule user={user} />}
-              {activeModule === 'planning' && <PlanningModule user={user} />}
-              {activeModule === 'property' && <PropertyModule user={user} />}
-              {activeModule === 'cars' && <CarsModule user={user} />}
-              {activeModule === 'calendar' && <CalendarModule />}
-              {activeModule === 'cookbook' && <CookbookModule user={user} />}
-              {activeModule === 'chores' && <ChoresModule user={user} />}
-              {activeModule === 'reporting' && <ReportingModule user={user} />}
-            </main>
-          </div>
-        </div>
-      )}
-    </Authenticator>
+        {/* Main Content */}
+        <main className="flex-1 p-8">
+          {activeModule === 'vacations' && <VacationsModule user={user} />}
+          {activeModule === 'planning' && <PlanningModule user={user} />}
+          {activeModule === 'property' && <PropertyModule user={user} />}
+          {activeModule === 'cars' && <CarsModule user={user} />}
+          {activeModule === 'calendar' && <CalendarModule />}
+          {activeModule === 'cookbook' && <CookbookModule user={user} />}
+          {activeModule === 'chores' && <ChoresModule user={user} />}
+          {activeModule === 'reporting' && <ReportingModule user={user} />}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <Authenticator.Provider>
+      <DashboardContent />
+    </Authenticator.Provider>
   );
 }
