@@ -1,6 +1,32 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 
 const schema = a.schema({
+  Family: a
+    .model({
+      name: a.string().required(),
+      description: a.string(),
+      joinCode: a.string().required(),
+      createdBy: a.string().required(),
+      members: a.hasMany('FamilyMember', 'familyId'),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update']),
+    ]),
+
+  FamilyMember: a
+    .model({
+      familyId: a.id().required(),
+      family: a.belongsTo('Family', 'familyId'),
+      userId: a.string().required(),
+      role: a.enum(['ADMIN', 'PLANNER', 'MEMBER']),
+      displayName: a.string(),
+    })
+    .authorization((allow) => [
+      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+    ]),
+
   Profile: a
     .model({
       userId: a.id().required(),
@@ -16,6 +42,7 @@ const schema = a.schema({
 
   Vacation: a
     .model({
+      familyId: a.id().required(),
       title: a.string().required(),
       description: a.string(),
       startDate: a.date().required(),
@@ -215,6 +242,7 @@ const schema = a.schema({
 
   TripPlan: a
     .model({
+      familyId: a.id().required(),
       title: a.string().required(),
       destination: a.string().required(),
       startDate: a.date(),
@@ -233,6 +261,7 @@ const schema = a.schema({
 
   Property: a
     .model({
+      familyId: a.id().required(),
       name: a.string().required(),
       address: a.string(),
       type: a.string(),
@@ -266,6 +295,7 @@ const schema = a.schema({
 
   Recipe: a
     .model({
+      familyId: a.id().required(),
       title: a.string().required(),
       description: a.string(),
       ingredients: a.string().array(),
@@ -282,6 +312,7 @@ const schema = a.schema({
 
   Car: a
     .model({
+      familyId: a.id().required(),
       make: a.string().required(),
       model: a.string().required(),
       year: a.integer().required(),
@@ -315,6 +346,7 @@ const schema = a.schema({
 
   Chore: a
     .model({
+      familyId: a.id().required(),
       title: a.string().required(),
       description: a.string(),
       recurrence: a.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'ONE_TIME']),

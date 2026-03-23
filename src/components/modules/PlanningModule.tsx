@@ -30,6 +30,7 @@ const NEXT_STATUSES: Partial<Record<TripStatus, TripStatus[]>> = {
 
 interface PlanningModuleProps {
   user: any;
+  familyId: string;
 }
 
 interface TripForm {
@@ -52,7 +53,7 @@ const emptyForm: TripForm = {
   status: 'PROPOSED',
 };
 
-export default function PlanningModule({ user }: PlanningModuleProps) {
+export default function PlanningModule({ user, familyId }: PlanningModuleProps) {
   const [tripPlans, setTripPlans] = useState<any[]>([]);
   const [userGroups, setUserGroups] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -81,7 +82,9 @@ export default function PlanningModule({ user }: PlanningModuleProps) {
 
   const fetchTripPlans = async () => {
     try {
-      const { data } = await client.models.TripPlan.list();
+      const { data } = await client.models.TripPlan.list({
+        filter: { familyId: { eq: familyId } },
+      });
       setTripPlans(data);
     } catch (error) {
       console.error('Error fetching trip plans:', error);
@@ -118,6 +121,7 @@ export default function PlanningModule({ user }: PlanningModuleProps) {
       }
 
       const payload = {
+        familyId,
         title: form.title,
         destination: form.destination,
         startDate: form.startDate || undefined,

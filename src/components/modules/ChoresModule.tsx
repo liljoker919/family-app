@@ -11,6 +11,7 @@ const MANAGER_GROUPS = ['ADMIN', 'PLANNER'] as const;
 
 interface ChoresModuleProps {
   user: any;
+  familyId: string;
 }
 
 const RECURRENCES = ['DAILY', 'WEEKLY', 'MONTHLY', 'ONE_TIME'] as const;
@@ -58,7 +59,7 @@ const RECURRENCE_COLORS: Record<ChoreRecurrence, string> = {
 
 type ActiveTab = 'my-chores' | 'chores' | 'assignments' | 'completions';
 
-export default function ChoresModule({ user }: ChoresModuleProps) {
+export default function ChoresModule({ user, familyId }: ChoresModuleProps) {
   const [chores, setChores] = useState<any[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -128,7 +129,9 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
 
   const fetchChores = async () => {
     try {
-      const { data } = await client.models.Chore.list();
+      const { data } = await client.models.Chore.list({
+        filter: { familyId: { eq: familyId } },
+      });
       setChores(data);
     } catch (error) {
       console.error('Error fetching chores:', error);
@@ -198,6 +201,7 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
     e.preventDefault();
     try {
       const payload = {
+        familyId,
         title: choreForm.title,
         description: choreForm.description || undefined,
         recurrence: choreForm.recurrence,

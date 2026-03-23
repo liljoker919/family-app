@@ -6,9 +6,10 @@ const client = generateClient<Schema>();
 
 interface CarsModuleProps {
   user: any;
+  familyId: string;
 }
 
-export default function CarsModule({ user }: CarsModuleProps) {
+export default function CarsModule({ user, familyId }: CarsModuleProps) {
   const [cars, setCars] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [showCarForm, setShowCarForm] = useState(false);
@@ -41,7 +42,9 @@ export default function CarsModule({ user }: CarsModuleProps) {
 
   const fetchCars = async () => {
     try {
-      const { data } = await client.models.Car.list();
+      const { data } = await client.models.Car.list({
+        filter: { familyId: { eq: familyId } },
+      });
       setCars(data);
     } catch (error) {
       console.error('Error fetching cars:', error);
@@ -70,6 +73,7 @@ export default function CarsModule({ user }: CarsModuleProps) {
     try {
       await client.models.Car.create({
         ...carForm,
+        familyId,
         year: parseInt(carForm.year),
         currentMileage: carForm.currentMileage ? parseInt(carForm.currentMileage) : undefined,
         registrationExpiry: carForm.registrationExpiry || undefined,

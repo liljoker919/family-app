@@ -56,11 +56,12 @@ const getExcursionStatusBadge = (status: string | null | undefined) => {
 
 interface VacationsModuleProps {
   user: any;
+  familyId: string;
 }
 
 type ActiveTab = "activities" | "itinerary" | "excursions" | "flights";
 
-export default function VacationsModule({ user }: VacationsModuleProps) {
+export default function VacationsModule({ user, familyId }: VacationsModuleProps) {
   const segmentIdCounter = React.useRef(0);
   const [vacations, setVacations] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
@@ -200,7 +201,9 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
 
   const fetchVacations = async () => {
     try {
-      const { data } = await client.models.Vacation.list();
+      const { data } = await client.models.Vacation.list({
+        filter: { familyId: { eq: familyId } },
+      });
       setVacations(data);
     } catch (error) {
       console.error("Error fetching vacations:", error);
@@ -402,6 +405,7 @@ export default function VacationsModule({ user }: VacationsModuleProps) {
     try {
       const { data: newVacation } = await client.models.Vacation.create({
         ...vacationForm,
+        familyId,
         createdBy: user?.signInDetails?.loginId || "unknown",
       });
       if (newVacation && pendingFlightSegments.length > 0) {

@@ -14,9 +14,10 @@ const MANAGER_GROUPS = ['ADMIN', 'PLANNER'] as const;
 
 interface ReportingModuleProps {
   user: any;
+  familyId: string;
 }
 
-export default function ReportingModule({ user }: ReportingModuleProps) {
+export default function ReportingModule({ user, familyId }: ReportingModuleProps) {
   const [chores, setChores] = useState<any[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -45,14 +46,21 @@ export default function ReportingModule({ user }: ReportingModuleProps) {
 
   const fetchData = async () => {
     try {
-      const [choresRes, completionsRes, assignmentsRes] = await Promise.all([
-        client.models.Chore.list(),
+      // Fetch chores scoped to this family first
+      const { data: familyChores } = await client.models.Chore.list({
+        filter: { familyId: { eq: familyId } },
+      });
+      const choreIds = new Set(familyChores.map((c: any) => c.id));
+      setChores(familyChores);
+
+      // ChoreCompletion and ChoreAssignment do not carry familyId directly;
+      // isolate them by retaining only records tied to this family's chores.
+      const [completionsRes, assignmentsRes] = await Promise.all([
         client.models.ChoreCompletion.list(),
         client.models.ChoreAssignment.list(),
       ]);
-      setChores(choresRes.data);
-      setCompletions(completionsRes.data);
-      setAssignments(assignmentsRes.data);
+      setCompletions(completionsRes.data.filter((c: any) => choreIds.has(c.choreId)));
+      setAssignments(assignmentsRes.data.filter((a: any) => choreIds.has(a.choreId)));
     } catch (error) {
       console.error('Error fetching reporting data:', error);
     }
