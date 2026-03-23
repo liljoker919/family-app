@@ -1,6 +1,5 @@
 import { useState } from 'react';
-
-type ActiveModule = 'vacations' | 'property' | 'cars' | 'calendar';
+import type { ActiveModule } from '../utils/dashboardModules';
 
 export default function DashboardDemo() {
   const [activeModule, setActiveModule] = useState<ActiveModule>('vacations');
@@ -112,6 +111,28 @@ export default function DashboardDemo() {
                       />
                     </svg>
                     Calendar
+                  </span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => setActiveModule('chores')}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                    activeModule === 'chores'
+                      ? 'bg-royal-blue-600 text-white'
+                      : 'text-gray-700 hover:bg-royal-blue-50'
+                  }`}
+                >
+                  <span className="flex items-center">
+                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                      />
+                    </svg>
+                    Chores
                   </span>
                 </button>
               </li>
@@ -330,6 +351,86 @@ export default function DashboardDemo() {
                 </div>
                 <div className="h-96 bg-gray-100 rounded-lg flex items-center justify-center">
                   <p className="text-gray-500">FullCalendar integration available in the full version</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeModule === 'chores' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-bold text-gray-800">Chores</h2>
+                <button className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-6 py-2 rounded-lg transition">
+                  Add Chore
+                </button>
+              </div>
+
+              {/* Sample Chore Cards */}
+              <div className="space-y-4">
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-xl font-bold text-gray-800">Vacuum Living Room</h3>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                          Weekly
+                        </span>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          Cleaning
+                        </span>
+                      </div>
+                      <p className="text-gray-600 mt-1">Vacuum all rugs and hardwood floors in the living room</p>
+                      <div className="flex gap-4 mt-2 text-sm text-gray-500">
+                        <span>📅 Mon, Wed, Fri</span>
+                        <span>⭐ 10 points</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="bg-green-100 hover:bg-green-200 text-green-700 px-4 py-2 rounded-lg transition text-sm">
+                        Mark Complete
+                      </button>
+                      <button className="bg-royal-blue-100 hover:bg-royal-blue-200 text-royal-blue-700 px-4 py-2 rounded-lg transition text-sm">
+                        Assign
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Sample Assignment */}
+                  <div className="mt-4 border-t pt-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Assignments</h4>
+                    <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-600">
+                      <span className="font-medium">Assigned to:</span> family@example.com
+                      <span className="ml-4 text-gray-500">2026-01-01 – 2026-12-31</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-xl font-bold text-gray-800">Take Out Trash</h3>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          Daily
+                        </span>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          Other
+                        </span>
+                      </div>
+                      <p className="text-gray-600 mt-1">Collect and take out trash bins to the curb</p>
+                      <div className="flex gap-4 mt-2 text-sm text-gray-500">
+                        <span>⭐ 5 points</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button className="bg-green-100 hover:bg-green-200 text-green-700 px-4 py-2 rounded-lg transition text-sm">
+                        Mark Complete
+                      </button>
+                      <button className="bg-royal-blue-100 hover:bg-royal-blue-200 text-royal-blue-700 px-4 py-2 rounded-lg transition text-sm">
+                        Assign
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

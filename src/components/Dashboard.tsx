@@ -9,10 +9,9 @@ import CalendarModule from './modules/CalendarModule';
 import PlanningModule from './modules/PlanningModule';
 import CookbookModule from './modules/CookbookModule';
 import ChoresModule from './modules/ChoresModule';
+import type { ActiveModule } from '../utils/dashboardModules';
 
 Amplify.configure(outputs);
-
-type ActiveModule = 'vacations' | 'planning' | 'property' | 'cars' | 'calendar' | 'cookbook' | 'chores';
 
 export default function Dashboard() {
   const [activeModule, setActiveModule] = useState<ActiveModule>('vacations');
