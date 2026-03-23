@@ -55,7 +55,7 @@ const RECURRENCE_COLORS: Record<ChoreRecurrence, string> = {
   ONE_TIME: 'bg-gray-100 text-gray-600',
 };
 
-type ActiveTab = 'chores' | 'completions';
+type ActiveTab = 'chores' | 'assignments' | 'completions';
 
 export default function ChoresModule({ user }: ChoresModuleProps) {
   const [chores, setChores] = useState<any[]>([]);
@@ -66,6 +66,7 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [filterRecurrence, setFilterRecurrence] = useState<string>('ALL');
   const [filterDue, setFilterDue] = useState<'ALL' | 'TODAY' | 'THIS_WEEK'>('ALL');
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ACTIVE');
 
   // Chore form state
   const [showChoreForm, setShowChoreForm] = useState(false);
@@ -232,6 +233,26 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
     }
   };
 
+  const handleToggleChoreActive = async (chore: any) => {
+    try {
+      await client.models.Chore.update({ id: chore.id, isActive: !chore.isActive });
+      fetchChores();
+    } catch (error) {
+      console.error('Error updating chore:', error);
+    }
+  };
+
+  const handleDeleteAssignment = async (id: string) => {
+    if (confirm('Remove this assignment?')) {
+      try {
+        await client.models.ChoreAssignment.delete({ id });
+        fetchAssignments();
+      } catch (error) {
+        console.error('Error deleting assignment:', error);
+      }
+    }
+  };
+
   const openAssignForm = (chore: any) => {
     setAssigningChore(chore);
     setAssignForm({ assignedTo: '', startDate: '', endDate: '', notes: '' });
@@ -307,7 +328,11 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
       filterDue === 'ALL' ||
       (filterDue === 'TODAY' && isChoreToday(c)) ||
       (filterDue === 'THIS_WEEK' && isChoreThisWeek(c));
-    return catMatch && recMatch && dueMatch;
+    const activeMatch =
+      filterStatus === 'ALL' ||
+      (filterStatus === 'ACTIVE' && c.isActive !== false) ||
+      (filterStatus === 'INACTIVE' && c.isActive === false);
+    return catMatch && recMatch && dueMatch && activeMatch;
   });
 
   // Set of choreIds assigned to the current user
@@ -348,7 +373,7 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 border-b border-gray-200">
-        {(['chores', 'completions'] as ActiveTab[]).map((tab) => (
+        {(['chores', 'assignments', 'completions'] as ActiveTab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -358,7 +383,7 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {tab === 'chores' ? 'Chores' : 'Completion History'}
+            {tab === 'chores' ? 'Chores' : tab === 'assignments' ? 'Assignments' : 'Completion History'}
           </button>
         ))}
       </div>
@@ -423,6 +448,20 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
                   }`}
                 >
                   {opt === 'ALL' ? 'All' : opt === 'TODAY' ? 'Today' : 'This Week'}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="text-sm font-medium text-gray-600 self-center">Status:</span>
+              {(['ACTIVE', 'INACTIVE', 'ALL'] as const).map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => setFilterStatus(opt)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition ${
+                    filterStatus === opt ? 'bg-royal-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {opt === 'ALL' ? 'All' : opt === 'ACTIVE' ? 'Active' : 'Archived'}
                 </button>
               ))}
             </div>
@@ -505,6 +544,16 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
                           Edit
                         </button>
                         <button
+                          onClick={() => handleToggleChoreActive(chore)}
+                          className={`px-3 py-1.5 rounded-lg transition text-sm ${
+                            chore.isActive !== false
+                              ? 'bg-yellow-100 hover:bg-yellow-200 text-yellow-700'
+                              : 'bg-green-100 hover:bg-green-200 text-green-700'
+                          }`}
+                        >
+                          {chore.isActive !== false ? 'Archive' : 'Restore'}
+                        </button>
+                        <button
                           onClick={() => handleDeleteChore(chore.id)}
                           className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg transition text-sm"
                         >
@@ -515,6 +564,68 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ---- ASSIGNMENTS TAB ---- */}
+      {activeTab === 'assignments' && (
+        <>
+          {assignments.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <p className="text-lg font-medium">No assignments yet</p>
+              <p className="text-sm">Use the &ldquo;Assign&rdquo; button on a chore to assign it to a family member.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {assignments.map((assignment) => {
+                const chore = choreMap[assignment.choreId];
+                return (
+                  <div key={assignment.id} className="bg-white rounded-lg shadow p-4 flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="font-semibold text-gray-800">
+                          {chore ? chore.title : assignment.choreId}
+                        </span>
+                        {chore?.recurrence && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${RECURRENCE_COLORS[chore.recurrence as ChoreRecurrence] || 'bg-gray-100 text-gray-600'}`}>
+                            {RECURRENCE_LABELS[chore.recurrence as ChoreRecurrence] || chore.recurrence}
+                          </span>
+                        )}
+                        {chore?.isActive === false && (
+                          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Archived</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        Assigned to <span className="font-medium text-gray-800">{assignment.assignedTo}</span>
+                        {' '}&mdash; by <span className="font-medium text-gray-700">{assignment.assignedBy}</span>
+                      </p>
+                      {(assignment.startDate || assignment.endDate) && (
+                        <p className="text-sm text-gray-500 mt-0.5">
+                          {assignment.startDate && <>From {assignment.startDate}</>}
+                          {assignment.startDate && assignment.endDate && ' → '}
+                          {assignment.endDate && <>Until {assignment.endDate}</>}
+                        </p>
+                      )}
+                      {assignment.notes && (
+                        <p className="text-sm text-gray-400 mt-1 italic">{assignment.notes}</p>
+                      )}
+                    </div>
+                    {canManage && (
+                      <button
+                        onClick={() => handleDeleteAssignment(assignment.id)}
+                        className="shrink-0 bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg transition text-sm"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </>
