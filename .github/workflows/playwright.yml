@@ -1,0 +1,62 @@
+name: Playwright UI Tests
+
+# Runs every Sunday at 11 PM UTC (6 PM US Central / 7 PM US Eastern)
+on:
+  schedule:
+    - cron: '0 23 * * 0'
+  workflow_dispatch:
+
+jobs:
+  playwright-tests:
+    name: Run Playwright UI Tests
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        id: run-playwright
+        run: npx playwright test
+        continue-on-error: true
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          retention-days: 30
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## Playwright UI Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.run-playwright.outcome }}" = "success" ]; then
+            echo "✅ All Playwright UI tests passed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some Playwright tests failed. Download the **playwright-report** artifact for the HTML report and **playwright-test-results** for screenshots/videos/traces." >> $GITHUB_STEP_SUMMARY
+          fi

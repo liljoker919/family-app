@@ -165,6 +165,42 @@ The application features a Royal Blue color scheme throughout the interface:
 - Navigation and headers use royal blue styling
 - Consistent color palette for a cohesive user experience
 
+## Automated Testing
+
+### Unit Tests
+
+| Workflow | Trigger | Non-blocking |
+|----------|---------|--------------|
+| **Unit Tests** | Every push to `main` | ✅ Yes (`continue-on-error`) |
+
+The unit test workflow runs [Vitest](https://vitest.dev/) on every merge/push to `main`. Test results are always uploaded as a GitHub Actions artifact named **`unit-test-results`** and are retained for 30 days.
+
+To access reports:
+
+1. Go to **Actions** → **Unit Tests** → select a run.
+2. Scroll to **Artifacts** and download **`unit-test-results`**.
+
+### Playwright UI Tests
+
+| Workflow | Trigger | Timezone | Non-blocking |
+|----------|---------|----------|--------------|
+| **Playwright UI Tests** | Weekly – Sunday at 11 PM UTC | UTC (= 6 PM US Central / 7 PM US Eastern) | ✅ Yes (`continue-on-error`) |
+
+The Playwright workflow installs Chromium and runs headless end-to-end smoke tests every Sunday night. You can also trigger it manually via **workflow_dispatch** from the Actions tab.
+
+Two artifacts are uploaded on every run:
+
+- **`playwright-report`** – Playwright HTML report (open `index.html` after downloading)
+- **`playwright-test-results`** – screenshots, videos, and traces captured on failure
+
+To access reports:
+
+1. Go to **Actions** → **Playwright UI Tests** → select a run.
+2. Scroll to **Artifacts** and download **`playwright-report`**.
+3. Extract the zip and open `playwright-report/index.html` in your browser.
+
+> **Note:** Failures in either workflow are visible in the run summary and artifact reports but **do not block** the Amplify build or deploy pipeline.
+
 ## Development
 
 ```bash

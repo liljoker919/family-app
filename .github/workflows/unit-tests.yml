@@ -1,0 +1,50 @@
+name: Unit Tests
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  unit-tests:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        id: run-tests
+        run: npm test -- --reporter=verbose --reporter=junit --outputFile=test-results/junit.xml
+        continue-on-error: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: test-results/
+          retention-days: 30
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## Unit Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.run-tests.outcome }}" = "success" ]; then
+            echo "✅ All unit tests passed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some unit tests failed. Download the **unit-test-results** artifact for details." >> $GITHUB_STEP_SUMMARY
+          fi
