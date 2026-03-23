@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import type { Schema } from '../../../amplify/data/resource';
+import { isChoreToday, isChoreThisWeek } from '../../utils/choresDue';
 
 const client = generateClient<Schema>();
 
@@ -64,6 +65,7 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('chores');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [filterRecurrence, setFilterRecurrence] = useState<string>('ALL');
+  const [filterDue, setFilterDue] = useState<'ALL' | 'TODAY' | 'THIS_WEEK'>('ALL');
 
   // Chore form state
   const [showChoreForm, setShowChoreForm] = useState(false);
@@ -301,7 +303,11 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
   const filteredChores = chores.filter((c) => {
     const catMatch = filterCategory === 'ALL' || c.category === filterCategory;
     const recMatch = filterRecurrence === 'ALL' || c.recurrence === filterRecurrence;
-    return catMatch && recMatch;
+    const dueMatch =
+      filterDue === 'ALL' ||
+      (filterDue === 'TODAY' && isChoreToday(c)) ||
+      (filterDue === 'THIS_WEEK' && isChoreThisWeek(c));
+    return catMatch && recMatch && dueMatch;
   });
 
   // Set of choreIds assigned to the current user
@@ -403,6 +409,20 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
                   }`}
                 >
                   {RECURRENCE_LABELS[rec]}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="text-sm font-medium text-gray-600 self-center">Due:</span>
+              {(['ALL', 'TODAY', 'THIS_WEEK'] as const).map((opt) => (
+                <button
+                  key={opt}
+                  onClick={() => setFilterDue(opt)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition ${
+                    filterDue === opt ? 'bg-royal-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {opt === 'ALL' ? 'All' : opt === 'TODAY' ? 'Today' : 'This Week'}
                 </button>
               ))}
             </div>
