@@ -3,6 +3,7 @@ import { generateClient } from 'aws-amplify/data';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import type { Schema } from '../../../amplify/data/resource';
 import { isChoreToday, isChoreThisWeek } from '../../utils/choresDue';
+import KidChoresView from './KidChoresView';
 
 const client = generateClient<Schema>();
 
@@ -55,14 +56,14 @@ const RECURRENCE_COLORS: Record<ChoreRecurrence, string> = {
   ONE_TIME: 'bg-gray-100 text-gray-600',
 };
 
-type ActiveTab = 'chores' | 'assignments' | 'completions';
+type ActiveTab = 'my-chores' | 'chores' | 'assignments' | 'completions';
 
 export default function ChoresModule({ user }: ChoresModuleProps) {
   const [chores, setChores] = useState<any[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [userGroups, setUserGroups] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('chores');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('my-chores');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [filterRecurrence, setFilterRecurrence] = useState<string>('ALL');
   const [filterDue, setFilterDue] = useState<'ALL' | 'TODAY' | 'THIS_WEEK'>('ALL');
@@ -373,7 +374,7 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 border-b border-gray-200">
-        {(['chores', 'assignments', 'completions'] as ActiveTab[]).map((tab) => (
+        {(['my-chores', 'chores', 'assignments', 'completions'] as ActiveTab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -383,10 +384,19 @@ export default function ChoresModule({ user }: ChoresModuleProps) {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {tab === 'chores' ? 'Chores' : tab === 'assignments' ? 'Assignments' : 'Completion History'}
+            {tab === 'my-chores'
+              ? 'My Chores'
+              : tab === 'chores'
+              ? 'All Chores'
+              : tab === 'assignments'
+              ? 'Assignments'
+              : 'Completion History'}
           </button>
         ))}
       </div>
+
+      {/* ---- MY CHORES TAB ---- */}
+      {activeTab === 'my-chores' && <KidChoresView user={user} />}
 
       {/* ---- CHORES TAB ---- */}
       {activeTab === 'chores' && (
