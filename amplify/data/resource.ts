@@ -272,7 +272,7 @@ const schema = a.schema({
       instructions: a.string(),
       prepTime: a.string(),
       category: a.enum(['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK', 'DESSERT', 'APPETIZER', 'SIDE_DISH', 'BEVERAGE', 'OTHER']),
-      contributor: a.string(),
+      contributor: a.string().required(),
       imageUrl: a.string(),
     })
     .authorization((allow) => [
