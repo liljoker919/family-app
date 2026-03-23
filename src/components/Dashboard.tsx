@@ -9,6 +9,7 @@ import CalendarModule from './modules/CalendarModule';
 import PlanningModule from './modules/PlanningModule';
 import CookbookModule from './modules/CookbookModule';
 import ChoresModule from './modules/ChoresModule';
+import ReportingModule from './modules/ReportingModule';
 import type { ActiveModule } from '../utils/dashboardModules';
 
 Amplify.configure(outputs);
@@ -164,6 +165,23 @@ export default function Dashboard() {
                       </span>
                     </button>
                   </li>
+                  <li>
+                    <button
+                      onClick={() => setActiveModule('reporting')}
+                      className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                        activeModule === 'reporting'
+                          ? 'bg-royal-blue-600 text-white'
+                          : 'text-gray-700 hover:bg-royal-blue-50'
+                      }`}
+                    >
+                      <span className="flex items-center">
+                        <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        Reporting
+                      </span>
+                    </button>
+                  </li>
                 </ul>
               </nav>
             </aside>
@@ -177,6 +195,7 @@ export default function Dashboard() {
               {activeModule === 'calendar' && <CalendarModule />}
               {activeModule === 'cookbook' && <CookbookModule user={user} />}
               {activeModule === 'chores' && <ChoresModule user={user} />}
+              {activeModule === 'reporting' && <ReportingModule user={user} />}
             </main>
           </div>
         </div>

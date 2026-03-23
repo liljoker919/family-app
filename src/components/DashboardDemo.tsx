@@ -136,6 +136,28 @@ export default function DashboardDemo() {
                   </span>
                 </button>
               </li>
+              <li>
+                <button
+                  onClick={() => setActiveModule('reporting')}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                    activeModule === 'reporting'
+                      ? 'bg-royal-blue-600 text-white'
+                      : 'text-gray-700 hover:bg-royal-blue-50'
+                  }`}
+                >
+                  <span className="flex items-center">
+                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                      />
+                    </svg>
+                    Reporting
+                  </span>
+                </button>
+              </li>
             </ul>
           </nav>
         </aside>
@@ -432,6 +454,90 @@ export default function DashboardDemo() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeModule === 'reporting' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-bold text-gray-800">Completion History</h2>
+              </div>
+
+              {/* Filters placeholder */}
+              <div className="bg-white rounded-lg shadow p-5 mb-6">
+                <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">Filters</h3>
+                <div className="flex flex-wrap gap-4">
+                  <div className="flex-1 min-w-40">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Child / User</label>
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                      <option>All Users</option>
+                      <option>kid@example.com</option>
+                    </select>
+                  </div>
+                  <div className="flex-1 min-w-40">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">From</label>
+                    <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                  </div>
+                  <div className="flex-1 min-w-40">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">To</label>
+                    <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Summary stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white rounded-lg shadow p-5 text-center">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total Completions</p>
+                  <p className="text-3xl font-bold text-royal-blue-700">14</p>
+                </div>
+                <div className="bg-white rounded-lg shadow p-5 text-center">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Unique Chores Done</p>
+                  <p className="text-3xl font-bold text-green-600">5</p>
+                </div>
+                <div className="bg-white rounded-lg shadow p-5 text-center">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Completion Rate</p>
+                  <p className="text-3xl font-bold text-indigo-600">83%</p>
+                  <p className="text-xs text-gray-400 mt-1">5 of 6 assigned</p>
+                </div>
+                <div className="bg-white rounded-lg shadow p-5 text-center">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Points Earned</p>
+                  <p className="text-3xl font-bold text-yellow-600">72</p>
+                </div>
+              </div>
+
+              {/* Completion rate bar */}
+              <div className="bg-white rounded-lg shadow p-5 mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">Overall Completion Rate</span>
+                  <span className="text-sm font-semibold text-indigo-600">83%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div className="bg-indigo-500 h-3 rounded-full" style={{ width: '83%' }} />
+                </div>
+              </div>
+
+              {/* Sample records */}
+              <div className="space-y-3">
+                {[
+                  { chore: 'Vacuum Living Room', user: 'kid@example.com', date: '2026-03-22 09:15 AM', pts: 5 },
+                  { chore: 'Dishes', user: 'kid@example.com', date: '2026-03-21 06:30 PM', pts: 3 },
+                  { chore: 'Take Out Trash', user: 'kid@example.com', date: '2026-03-20 07:00 AM', pts: 5 },
+                ].map((item, i) => (
+                  <div key={i} className="bg-white rounded-lg shadow p-4 flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="text-green-600 font-medium text-sm">✓</span>
+                        <span className="font-semibold text-gray-800">{item.chore}</span>
+                        <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">+{item.pts} pts</span>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        Completed by <span className="font-medium text-gray-700">{item.user}</span> — {item.date}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
