@@ -14,9 +14,10 @@ const MANAGER_GROUPS = ['ADMIN', 'PLANNER'] as const;
 
 interface ReportingModuleProps {
   user: any;
+  familyId: string;
 }
 
-export default function ReportingModule({ user }: ReportingModuleProps) {
+export default function ReportingModule({ user, familyId }: ReportingModuleProps) {
   const [chores, setChores] = useState<any[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -46,13 +47,15 @@ export default function ReportingModule({ user }: ReportingModuleProps) {
   const fetchData = async () => {
     try {
       const [choresRes, completionsRes, assignmentsRes] = await Promise.all([
-        client.models.Chore.list(),
+        client.models.Chore.list({ filter: { familyId: { eq: familyId } } }),
         client.models.ChoreCompletion.list(),
         client.models.ChoreAssignment.list(),
       ]);
-      setChores(choresRes.data);
-      setCompletions(completionsRes.data);
-      setAssignments(assignmentsRes.data);
+      const familyChores = choresRes.data;
+      const choreIds = new Set(familyChores.map((c: any) => c.id));
+      setChores(familyChores);
+      setCompletions(completionsRes.data.filter((c: any) => choreIds.has(c.choreId)));
+      setAssignments(assignmentsRes.data.filter((a: any) => choreIds.has(a.choreId)));
     } catch (error) {
       console.error('Error fetching reporting data:', error);
     }

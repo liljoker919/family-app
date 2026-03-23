@@ -6,6 +6,7 @@ const client = generateClient<Schema>();
 
 interface CookbookModuleProps {
   user: any;
+  familyId: string;
 }
 
 const CATEGORIES = [
@@ -34,7 +35,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   OTHER: 'Other',
 };
 
-export default function CookbookModule({ user }: CookbookModuleProps) {
+export default function CookbookModule({ user, familyId }: CookbookModuleProps) {
   const [recipes, setRecipes] = useState<any[]>([]);
   const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
@@ -58,7 +59,9 @@ export default function CookbookModule({ user }: CookbookModuleProps) {
 
   const fetchRecipes = async () => {
     try {
-      const { data } = await client.models.Recipe.list();
+      const { data } = await client.models.Recipe.list({
+        filter: { familyId: { eq: familyId } },
+      });
       setRecipes(data);
     } catch (error) {
       console.error('Error fetching recipes:', error);
@@ -124,6 +127,7 @@ export default function CookbookModule({ user }: CookbookModuleProps) {
     e.preventDefault();
     try {
       const payload = {
+        familyId,
         title: form.title,
         description: form.description || undefined,
         ingredients: form.ingredients.length > 0 ? form.ingredients : undefined,

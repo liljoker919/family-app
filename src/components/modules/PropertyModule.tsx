@@ -6,6 +6,7 @@ const client = generateClient<Schema>();
 
 interface PropertyModuleProps {
   user: any;
+  familyId: string;
 }
 
 type CategoryKey = 'RENT_INCOME' | 'MORTGAGE' | 'TAXES' | 'MAINTENANCE' | 'INSURANCE';
@@ -18,7 +19,7 @@ const CATEGORIES: Record<CategoryKey, { label: string; type: 'income' | 'expense
   INSURANCE: { label: 'Insurance', type: 'expense', icon: '🛡️', colorClass: 'bg-purple-100 text-purple-700' },
 };
 
-export default function PropertyModule({ user }: PropertyModuleProps) {
+export default function PropertyModule({ user, familyId }: PropertyModuleProps) {
   const [properties, setProperties] = useState<any[]>([]);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
@@ -39,7 +40,7 @@ export default function PropertyModule({ user }: PropertyModuleProps) {
   const fetchAllData = async () => {
     try {
       const [{ data: props }, { data: txns }] = await Promise.all([
-        client.models.Property.list(),
+        client.models.Property.list({ filter: { familyId: { eq: familyId } } }),
         client.models.PropertyTransaction.list(),
       ]);
       setProperties(props);
@@ -65,7 +66,7 @@ export default function PropertyModule({ user }: PropertyModuleProps) {
   const handleCreateProperty = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await client.models.Property.create(propertyForm);
+      await client.models.Property.create({ ...propertyForm, familyId });
       setPropertyForm({ name: '', address: '' });
       setShowPropertyForm(false);
       fetchAllData();
