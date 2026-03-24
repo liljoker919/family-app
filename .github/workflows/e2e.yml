@@ -1,0 +1,88 @@
+name: Playwright E2E Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  e2e-tests:
+    name: Run Playwright E2E Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        id: run-e2e
+        run: npm run test:e2e
+        continue-on-error: true
+        env:
+          BASE_URL: ${{ vars.DEPLOY_URL }}
+          CI: true
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload JUnit XML and test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          retention-days: 30
+
+      - name: Upload results to BrowserStack Test Management
+        if: always()
+        run: |
+          if [ ! -f "test-results/playwright-junit.xml" ]; then
+            echo "JUnit XML not found — skipping BrowserStack upload."
+            exit 0
+          fi
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "https://test-management.browserstack.com/api/v1/projects/PR-7/test-runs/import" \
+            -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
+            -H "Content-Type: multipart/form-data" \
+            -F "file=@test-results/playwright-junit.xml" \
+            -F "format=junit")
+          if [ "$response" -lt 200 ] || [ "$response" -ge 300 ]; then
+            echo "BrowserStack upload failed with HTTP status $response"
+            exit 1
+          fi
+          echo "BrowserStack upload succeeded (HTTP $response)"
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## Playwright E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.run-e2e.outcome }}" = "success" ]; then
+            echo "✅ All Playwright E2E tests passed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some Playwright E2E tests failed. Download the **playwright-report** artifact for the HTML report and **playwright-test-results** for screenshots/videos/traces." >> $GITHUB_STEP_SUMMARY
+          fi
