@@ -5,11 +5,12 @@ import type { FamilyMembership } from '../utils/familyContext';
 interface FamilySetupProps {
   userId: string;
   onComplete: (membership: FamilyMembership) => void;
+  onSignOut?: () => void;
 }
 
 type SetupMode = 'choose' | 'create' | 'join';
 
-export default function FamilySetup({ userId, onComplete }: FamilySetupProps) {
+export default function FamilySetup({ userId, onComplete, onSignOut }: FamilySetupProps) {
   const [mode, setMode] = useState<SetupMode>('choose');
   const [displayName, setDisplayName] = useState('');
   const [familyName, setFamilyName] = useState('');
@@ -54,6 +55,17 @@ export default function FamilySetup({ userId, onComplete }: FamilySetupProps) {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
+        {onSignOut && (
+          <div className="flex justify-end mb-2">
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="text-sm text-gray-500 hover:text-gray-700 transition"
+            >
+              Sign Out
+            </button>
+          </div>
+        )}
         <div className="text-center mb-8">
           <div className="text-5xl mb-4">👨‍👩‍👧‍👦</div>
           <h1 className="text-2xl font-bold text-gray-800">Welcome to Family App</h1>

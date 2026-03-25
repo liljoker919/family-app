@@ -75,6 +75,7 @@ interface DashboardInnerProps {
 
 function DashboardInner({ user, signOut, activeModule, setActiveModule }: DashboardInnerProps) {
   const [membership, setMembership] = useState<FamilyMembership | null | undefined>(undefined);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
   const userId = user?.signInDetails?.loginId ?? user?.userId ?? '';
 
@@ -99,11 +100,26 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
       <FamilySetup
         userId={userId}
         onComplete={(m) => setMembership(m)}
+        onSignOut={signOut}
       />
     );
   }
 
   const familyId = membership.familyId;
+  const canShareJoinCode = membership.role === 'ADMIN' && !!membership.familyJoinCode;
+
+  const handleCopyJoinCode = async () => {
+    if (!membership.familyJoinCode) return;
+
+    try {
+      await navigator.clipboard.writeText(membership.familyJoinCode);
+      setCopyStatus('copied');
+    } catch {
+      setCopyStatus('error');
+    }
+
+    window.setTimeout(() => setCopyStatus('idle'), 2000);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -119,6 +135,23 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
                   <span className="ml-2 text-royal-blue-300">· {membership.familyName}</span>
                 )}
               </p>
+              {canShareJoinCode && (
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <span className="text-royal-blue-200">Family Code:</span>
+                  <span className="font-mono tracking-wider bg-royal-blue-800 px-2 py-1 rounded">
+                    {membership.familyJoinCode}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyJoinCode}
+                    className="bg-royal-blue-600 hover:bg-royal-blue-800 px-2 py-1 rounded transition"
+                  >
+                    Copy
+                  </button>
+                  {copyStatus === 'copied' && <span className="text-emerald-200">Copied</span>}
+                  {copyStatus === 'error' && <span className="text-amber-200">Copy failed</span>}
+                </div>
+              )}
             </div>
             <button
               onClick={signOut}

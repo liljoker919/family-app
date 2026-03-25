@@ -18,6 +18,7 @@ export interface FamilyMembership {
   role: FamilyRole;
   displayName: string | null | undefined;
   familyName: string | null;
+  familyJoinCode: string | null;
 }
 
 /**
@@ -52,9 +53,11 @@ export async function getFamilyMembership(
 
     // Fetch the family name for display purposes
     let familyName: string | null = null;
+    let familyJoinCode: string | null = null;
     try {
       const { data: family } = await client.models.Family.get({ id: member.familyId });
       familyName = family?.name ?? null;
+      familyJoinCode = family?.joinCode ?? null;
     } catch {
       // Family lookup is best-effort
     }
@@ -64,6 +67,7 @@ export async function getFamilyMembership(
       role: (member.role ?? 'MEMBER') as FamilyRole,
       displayName: member.displayName,
       familyName,
+      familyJoinCode,
     };
   } catch (error) {
     console.error('Error fetching family membership:', error);
@@ -112,6 +116,7 @@ export async function createFamily(
     role: 'ADMIN',
     displayName: member.displayName,
     familyName: family.name,
+    familyJoinCode: family.joinCode ?? null,
   };
 }
 
@@ -147,6 +152,7 @@ export async function joinFamily(
       role: (existing[0].role ?? 'MEMBER') as FamilyRole,
       displayName: existing[0].displayName,
       familyName: family.name,
+      familyJoinCode: family.joinCode ?? null,
     };
   }
 
@@ -168,5 +174,6 @@ export async function joinFamily(
     role: 'MEMBER',
     displayName: member.displayName,
     familyName: family.name,
+    familyJoinCode: family.joinCode ?? null,
   };
 }
