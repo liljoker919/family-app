@@ -61,20 +61,53 @@ jobs:
             echo "JUnit XML not found — skipping BrowserStack upload."
             exit 0
           fi
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X POST "https://test-management.browserstack.com/api/v1/projects/PR-7/test-runs/import" \
-            -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
-            -H "Content-Type: multipart/form-data" \
-            -F "file=@test-results/playwright-junit.xml" \
-            -F "format=junit")
-          if [ "$response" -lt 200 ] || [ "$response" -ge 300 ]; then
-            echo "BrowserStack upload failed with HTTP status $response"
+          if [ -z "$BROWSERSTACK_PROJECT_ID" ]; then
+            echo "BROWSERSTACK_PROJECT_ID is not set. Add it as a GitHub repository variable (e.g. PR-123)."
             exit 1
           fi
-          echo "BrowserStack upload succeeded (HTTP $response)"
+
+          upload_to_endpoint() {
+            local endpoint="$1"
+            local response_file="/tmp/browserstack-upload-response.json"
+            local http_code
+
+            echo "Trying BrowserStack endpoint: $endpoint"
+
+            http_code=$(curl -sS -o "$response_file" -w "%{http_code}" \
+              -X POST "$endpoint" \
+              -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
+              -H "Content-Type: multipart/form-data" \
+              -F "file=@test-results/playwright-junit.xml" \
+              -F "format=junit")
+
+            echo "BrowserStack HTTP status: $http_code"
+            echo "BrowserStack response body:"
+            cat "$response_file"
+
+            if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+              return 0
+            fi
+
+            return 1
+          }
+
+          if upload_to_endpoint "https://test-management.browserstack.com/api/v2/projects/${BROWSERSTACK_PROJECT_ID}/test-runs/import"; then
+            echo "BrowserStack upload succeeded via v2 endpoint."
+            exit 0
+          fi
+
+          if upload_to_endpoint "https://test-management.browserstack.com/api/v1/projects/${BROWSERSTACK_PROJECT_ID}/test-runs/import"; then
+            echo "BrowserStack upload succeeded via v1 endpoint."
+            exit 0
+          fi
+
+          echo "BrowserStack upload failed on both v2 and v1 endpoints."
+          echo "Verify BROWSERSTACK_PROJECT_ID (PR-xxx) and API credentials from account settings."
+          exit 1
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_PROJECT_ID: ${{ vars.BROWSERSTACK_PROJECT_ID }}
 
       - name: Test summary
         if: always()
