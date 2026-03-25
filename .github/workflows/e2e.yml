@@ -61,51 +61,165 @@ jobs:
             echo "JUnit XML not found — skipping BrowserStack upload."
             exit 0
           fi
-          if [ -z "$BROWSERSTACK_PROJECT_ID" ]; then
-            echo "BROWSERSTACK_PROJECT_ID is not set. Skipping BrowserStack upload."
-            echo "Add repository variable BROWSERSTACK_PROJECT_ID (e.g. PR-123) to enable upload."
-            exit 0
-          fi
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import re
+          import sys
+          import urllib.error
+          import urllib.request
+          import xml.etree.ElementTree as ET
 
-          upload_to_endpoint() {
-            local endpoint="$1"
-            local response_file="/tmp/browserstack-upload-response.json"
-            local http_code
+          junit_path = "test-results/playwright-junit.xml"
+          username = os.getenv("BROWSERSTACK_USERNAME", "").strip()
+          access_key = os.getenv("BROWSERSTACK_ACCESS_KEY", "").strip()
+          project_id = os.getenv("BROWSERSTACK_PROJECT_ID", "").strip()
 
-            echo "Trying BrowserStack endpoint: $endpoint"
+          if not project_id:
+            print("BROWSERSTACK_PROJECT_ID is not set. Skipping BrowserStack upload.")
+            sys.exit(0)
 
-            http_code=$(curl -sS -o "$response_file" -w "%{http_code}" \
-              -X POST "$endpoint" \
-              -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
-              -H "Content-Type: multipart/form-data" \
-              -F "file=@test-results/playwright-junit.xml" \
-              -F "format=junit")
+          if not username or not access_key:
+            print("BrowserStack credentials are missing. Skipping BrowserStack upload.")
+            sys.exit(0)
 
-            echo "BrowserStack HTTP status: $http_code"
-            echo "BrowserStack response body:"
-            cat "$response_file"
-
-            if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
-              return 0
-            fi
-
-            return 1
+          auth = base64.b64encode(f"{username}:{access_key}".encode("utf-8")).decode("ascii")
+          headers = {
+            "Authorization": f"Basic {auth}",
+            "Content-Type": "application/json",
           }
 
-          if upload_to_endpoint "https://test-management.browserstack.com/api/v2/projects/${BROWSERSTACK_PROJECT_ID}/test-runs/import"; then
-            echo "BrowserStack upload succeeded via v2 endpoint."
-            exit 0
-          fi
+          def api_request(method: str, url: str, payload=None):
+            data = None if payload is None else json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(url, data=data, method=method)
+            for key, value in headers.items():
+              req.add_header(key, value)
+            try:
+              with urllib.request.urlopen(req, timeout=30) as response:
+                raw = response.read().decode("utf-8")
+                return response.status, raw
+            except urllib.error.HTTPError as exc:
+              raw = exc.read().decode("utf-8", errors="replace")
+              return exc.code, raw
 
-          if upload_to_endpoint "https://test-management.browserstack.com/api/v1/projects/${BROWSERSTACK_PROJECT_ID}/test-runs/import"; then
-            echo "BrowserStack upload succeeded via v1 endpoint."
-            exit 0
-          fi
+          run_name = (
+            f"GitHub run #{os.getenv('GITHUB_RUN_NUMBER', 'unknown')}"
+            f" ({os.getenv('GITHUB_SHA', '')[:7]})"
+          )
+          create_url = f"https://test-management.browserstack.com/api/v2/projects/{project_id}/test-runs"
+          create_payload = {
+            "test_run": {
+              "name": run_name,
+              "description": "Automated Playwright run from GitHub Actions",
+              "run_state": "in_progress",
+              "include_all": True,
+            }
+          }
 
-          echo "BrowserStack upload failed on both v2 and v1 endpoints."
-          echo "Verify BROWSERSTACK_PROJECT_ID (PR-xxx) and API credentials from account settings."
-          echo "Continuing without failing the workflow."
-          exit 0
+          status, body = api_request("POST", create_url, create_payload)
+          print(f"Create test run HTTP status: {status}")
+          if status < 200 or status >= 300:
+            print("Failed to create BrowserStack test run. Response:")
+            print(body)
+            sys.exit(0)
+
+          parsed = json.loads(body)
+          run_obj = parsed.get("testrun") or parsed.get("test_run") or {}
+          test_run_id = run_obj.get("identifier")
+          if not test_run_id:
+            print("Could not determine BrowserStack test run ID from response.")
+            print(body)
+            sys.exit(0)
+
+          print(f"Created BrowserStack test run: {test_run_id}")
+
+          def normalize(name: str) -> str:
+            name = (name or "").strip().lower()
+            name = re.sub(r"^\[[^\]]+\]\s*›\s*", "", name)
+            if "›" in name:
+              name = name.split("›")[-1].strip()
+            name = re.sub(r"\s+", " ", name)
+            return name
+
+          case_lookup = {}
+          page = 1
+          while True:
+            tc_url = (
+              f"https://test-management.browserstack.com/api/v2/projects/{project_id}/"
+              f"test-runs/{test_run_id}/test-cases?minify=true&p={page}"
+            )
+            tc_status, tc_body = api_request("GET", tc_url)
+            if tc_status < 200 or tc_status >= 300:
+              print(f"Unable to fetch test cases for run {test_run_id}. HTTP {tc_status}")
+              print(tc_body)
+              break
+
+            tc_json = json.loads(tc_body)
+            test_cases = tc_json.get("test_cases", [])
+            for tc in test_cases:
+              name_key = normalize(tc.get("name", ""))
+              identifier = tc.get("identifier")
+              if name_key and identifier and name_key not in case_lookup:
+                case_lookup[name_key] = identifier
+
+            info = tc_json.get("info") or {}
+            if not info.get("next"):
+              break
+            page = info["next"]
+
+          if not case_lookup:
+            print("No test cases found in the BrowserStack run; skipping result upload.")
+            sys.exit(0)
+
+          print(f"Loaded {len(case_lookup)} BrowserStack test case names for matching.")
+
+          try:
+            root = ET.parse(junit_path).getroot()
+          except Exception as exc:
+            print(f"Failed to parse JUnit XML: {exc}")
+            sys.exit(0)
+
+          uploaded = 0
+          unmatched = 0
+          for testcase in root.findall(".//testcase"):
+            raw_name = testcase.get("name", "")
+            norm_name = normalize(raw_name)
+
+            if testcase.find("failure") is not None or testcase.find("error") is not None:
+              result_status = "Failed"
+            elif testcase.find("skipped") is not None:
+              result_status = "Skipped"
+            else:
+              result_status = "Passed"
+
+            tc_id = case_lookup.get(norm_name)
+            if not tc_id:
+              unmatched += 1
+              print(f"No BrowserStack case match for JUnit test: {raw_name}")
+              continue
+
+            result_url = (
+              f"https://test-management.browserstack.com/api/v2/projects/{project_id}/"
+              f"test-runs/{test_run_id}/results"
+            )
+            result_payload = {
+              "test_result": {
+                "status": result_status,
+                "description": "Uploaded from GitHub Actions Playwright JUnit report",
+              },
+              "test_case_id": tc_id,
+            }
+
+            rs, rb = api_request("POST", result_url, result_payload)
+            if 200 <= rs < 300:
+              uploaded += 1
+            else:
+              print(f"Failed to upload result for {raw_name} (case {tc_id}). HTTP {rs}")
+              print(rb)
+
+          print(f"BrowserStack result upload complete: uploaded={uploaded}, unmatched={unmatched}")
+          PY
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
