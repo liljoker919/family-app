@@ -36,7 +36,6 @@ jobs:
         run: npm run test:e2e
         continue-on-error: true
         env:
-          BASE_URL: ${{ vars.DEPLOY_URL }}
           CI: true
 
       - name: Upload Playwright HTML report
