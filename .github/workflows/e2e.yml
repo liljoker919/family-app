@@ -62,8 +62,9 @@ jobs:
             exit 0
           fi
           if [ -z "$BROWSERSTACK_PROJECT_ID" ]; then
-            echo "BROWSERSTACK_PROJECT_ID is not set. Add it as a GitHub repository variable (e.g. PR-123)."
-            exit 1
+            echo "BROWSERSTACK_PROJECT_ID is not set. Skipping BrowserStack upload."
+            echo "Add repository variable BROWSERSTACK_PROJECT_ID (e.g. PR-123) to enable upload."
+            exit 0
           fi
 
           upload_to_endpoint() {
@@ -103,11 +104,12 @@ jobs:
 
           echo "BrowserStack upload failed on both v2 and v1 endpoints."
           echo "Verify BROWSERSTACK_PROJECT_ID (PR-xxx) and API credentials from account settings."
-          exit 1
+          echo "Continuing without failing the workflow."
+          exit 0
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-          BROWSERSTACK_PROJECT_ID: ${{ vars.BROWSERSTACK_PROJECT_ID }}
+          BROWSERSTACK_PROJECT_ID: ${{ secrets.BROWSERSTACK_PROJECT_ID }}
 
       - name: Test summary
         if: always()
