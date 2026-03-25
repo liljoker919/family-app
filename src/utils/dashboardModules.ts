@@ -7,6 +7,7 @@ export const DASHBOARD_MODULES = [
   'cookbook',
   'chores',
   'reporting',
+  'admin',
 ] as const;
 
 export type ActiveModule = (typeof DASHBOARD_MODULES)[number];

@@ -10,14 +10,18 @@ describe('dashboard navigation modules', () => {
     expect(DASHBOARD_MODULES).toContain('reporting');
   });
 
+  it('includes the admin module', () => {
+    expect(DASHBOARD_MODULES).toContain('admin');
+  });
+
   it('includes all required navigation modules', () => {
-    const required = ['vacations', 'planning', 'property', 'cars', 'calendar', 'cookbook', 'chores', 'reporting'] as const;
+    const required = ['vacations', 'planning', 'property', 'cars', 'calendar', 'cookbook', 'chores', 'reporting', 'admin'] as const;
     for (const mod of required) {
       expect(DASHBOARD_MODULES).toContain(mod);
     }
   });
 
-  it('lists reporting as the last navigation item', () => {
-    expect(DASHBOARD_MODULES[DASHBOARD_MODULES.length - 1]).toBe('reporting');
+  it('lists admin as the last navigation item', () => {
+    expect(DASHBOARD_MODULES[DASHBOARD_MODULES.length - 1]).toBe('admin');
   });
 });
