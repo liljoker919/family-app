@@ -17,6 +17,8 @@ export class CarsPage {
   // ── Navigation ───────────────────────────────────────────────────────────
   readonly heading: Locator;
   readonly sidebarLink: Locator;
+  readonly dashboardHeading: Locator;
+  readonly loadingIndicator: Locator;
 
   // ── Main action ──────────────────────────────────────────────────────────
   readonly addCarBtn: Locator;
@@ -40,7 +42,9 @@ export class CarsPage {
 
     // Navigation
     this.heading = page.getByRole('heading', { name: 'Cars Management' });
-    this.sidebarLink = page.getByRole('button', { name: /^Cars$/ });
+    this.sidebarLink = page.locator('aside').getByRole('button', { name: /^Cars$/ });
+    this.dashboardHeading = page.getByRole('heading', { name: 'Family Dashboard' });
+    this.loadingIndicator = page.getByText('Loading…');
 
     // "Add Car" primary button (outside any modal)
     this.addCarBtn = page.getByRole('button', { name: 'Add Car' });
@@ -68,11 +72,12 @@ export class CarsPage {
   // ── Navigation methods ───────────────────────────────────────────────────
 
   /**
-   * Navigate to the dashboard and activate the Cars module by clicking its
-   * link in the left sidebar navigation.
+   * Activate the Cars module from the already-loaded dashboard.
    */
   async goto(): Promise<void> {
-    await this.page.goto('/dashboard');
+    await expect(this.page).toHaveURL(/\/dashboard/i);
+    await this.loadingIndicator.waitFor({ state: 'hidden' }).catch(() => undefined);
+    await expect(this.dashboardHeading).toBeVisible();
     await this.sidebarLink.click();
     await expect(this.heading).toBeVisible();
   }
@@ -87,6 +92,15 @@ export class CarsPage {
     return this.page
       .locator('div.bg-white.rounded-lg.shadow-md')
       .filter({ has: this.page.getByRole('heading', { name: `${year} ${make} ${model}`, level: 3 }) });
+  }
+
+  /**
+   * Returns a locator for the car card containing the supplied VIN text.
+   */
+  getCarCardByVin(vin: string): Locator {
+    return this.page
+      .locator('div.bg-white.rounded-lg.shadow-md')
+      .filter({ hasText: `VIN: ${vin}` });
   }
 
   // ── Action methods ───────────────────────────────────────────────────────
@@ -121,8 +135,21 @@ export class CarsPage {
    */
   async deleteCar(year: string, make: string, model: string): Promise<void> {
     const card = this.getCarCard(year, make, model);
-    this.page.once('dialog', (dialog) => dialog.accept());
+    const dialogPromise = this.page.waitForEvent('dialog');
     await card.getByRole('button', { name: 'Delete' }).click();
+    const dialog = await dialogPromise;
+    await dialog.accept();
+  }
+
+  /**
+   * Deletes the car card associated with the given VIN.
+   */
+  async deleteCarByVin(vin: string): Promise<void> {
+    const card = this.getCarCardByVin(vin);
+    const dialogPromise = this.page.waitForEvent('dialog');
+    await card.getByRole('button', { name: 'Delete' }).click();
+    const dialog = await dialogPromise;
+    await dialog.accept();
   }
 
   /**

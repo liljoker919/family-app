@@ -1,27 +1,74 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/test';
 import { getAnyConfiguredFamilyUser } from '../fixtures/authUsers';
+import type { CarDetails } from '../pages/CarsPage';
 
 const SKIP_REASON = 'Set E2E_VALID_PASSWORD and at least one E2E_*_EMAIL secret.';
 
+type CreatedCar = Pick<CarDetails, 'year' | 'make' | 'model' | 'vin'>;
+
+function uniqueSuffix(): string {
+  return `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+}
+
+function buildUniqueCar(base: Pick<CarDetails, 'make' | 'model' | 'year'>): CreatedCar {
+  const suffix = uniqueSuffix();
+  const model = `${base.model}-${suffix}`;
+  const vin = `E2E${suffix}`.slice(0, 17).toUpperCase();
+  return {
+    make: base.make,
+    model,
+    year: base.year,
+    vin,
+  };
+}
+
 test.describe('Cars', () => {
+  let createdCars: CreatedCar[] = [];
+
+  test.beforeEach(() => {
+    createdCars = [];
+  });
+
+  test.afterEach(async ({ carsPage, loginAs }) => {
+    if (createdCars.length === 0) {
+      return;
+    }
+
+    try {
+      await loginAs();
+      await carsPage.goto();
+      for (const car of createdCars) {
+        const card = carsPage.getCarCardByVin(car.vin);
+        if (await card.isVisible().catch(() => false)) {
+          await carsPage.deleteCarByVin(car.vin).catch(() => undefined);
+        }
+      }
+    } catch {
+      // Best-effort cleanup only; do not mask test results.
+    }
+  });
+
   // ── BrowserStack-mapped test cases ───────────────────────────────────────
 
   test('Cars - Add a car with all required fields', async ({ carsPage, loginAs }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
     await loginAs();
+    // Successful sign-in lands on the dashboard; switch modules from there.
     await carsPage.goto();
 
-    await carsPage.createCar({
+    const car = buildUniqueCar({
       make: 'Toyota',
       model: 'Camry',
       year: '2022',
-      vin: '1HGBH41JXMN109186',
     });
+    createdCars.push(car);
+
+    await carsPage.createCar(car);
 
     // The new car card should appear in the list with the correct make, model, and year
-    await expect(carsPage.getCarCard('2022', 'Toyota', 'Camry')).toBeVisible();
+    await expect(carsPage.getCarCardByVin(car.vin)).toBeVisible();
   });
 
   test('Cars - Add car form is blocked when a required field is missing', async ({
@@ -31,6 +78,7 @@ test.describe('Cars', () => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
     await loginAs();
+    // Successful sign-in lands on the dashboard; switch modules from there.
     await carsPage.goto();
 
     // Open the Add Car form
@@ -52,48 +100,55 @@ test.describe('Cars', () => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
     await loginAs();
+    // Successful sign-in lands on the dashboard; switch modules from there.
     await carsPage.goto();
 
-    // Create a car so there is at least one car to delete
-    await carsPage.createCar({
+    const car = buildUniqueCar({
       make: 'Ford',
       model: 'Focus',
       year: '2019',
-      vin: '1FADP3F20EL123456',
     });
 
-    await expect(carsPage.getCarCard('2019', 'Ford', 'Focus')).toBeVisible();
+    // Create a car so there is at least one car to delete
+    await carsPage.createCar(car);
+
+    await expect(carsPage.getCarCardByVin(car.vin)).toBeVisible();
 
     // Delete the car and confirm the browser dialog
-    await carsPage.deleteCar('2019', 'Ford', 'Focus');
+    await carsPage.deleteCarByVin(car.vin);
 
     // The car should no longer appear in the list
-    await expect(carsPage.getCarCard('2019', 'Ford', 'Focus')).not.toBeVisible();
+    await expect(carsPage.getCarCardByVin(car.vin)).not.toBeVisible();
   });
 
   test('Cars - Update current mileage for a car', async ({ carsPage, loginAs }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
     await loginAs();
+    // Successful sign-in lands on the dashboard; switch modules from there.
     await carsPage.goto();
 
-    // Create a car with an initial mileage value
-    await carsPage.createCar({
+    const car = buildUniqueCar({
       make: 'Honda',
       model: 'Accord',
       year: '2020',
-      vin: '1HGCV1F34LA012345',
+    });
+    createdCars.push(car);
+
+    // Create a car with an initial mileage value
+    await carsPage.createCar({
+      ...car,
       currentMileage: '10000',
     });
 
-    await expect(carsPage.getCarCard('2020', 'Honda', 'Accord')).toBeVisible();
+    await expect(carsPage.getCarCardByVin(car.vin)).toBeVisible();
 
     // Perform the inline mileage update
-    await carsPage.startMileageUpdate('2020', 'Honda', 'Accord');
-    await carsPage.saveMileageUpdate('2020', 'Honda', 'Accord', '15000');
+    await carsPage.startMileageUpdate(car.year, car.make, car.model);
+    await carsPage.saveMileageUpdate(car.year, car.make, car.model, '15000');
 
     // The displayed mileage should update and be formatted with comma separators
-    const card = carsPage.getCarCard('2020', 'Honda', 'Accord');
+    const card = carsPage.getCarCardByVin(car.vin);
     await expect(card.getByText('15,000 miles')).toBeVisible();
   });
 
@@ -104,6 +159,7 @@ test.describe('Cars', () => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
     await loginAs();
+    // Successful sign-in lands on the dashboard; switch modules from there.
     await carsPage.goto();
 
     // Build a registration expiry date that falls 15 days from today
@@ -111,15 +167,19 @@ test.describe('Cars', () => {
     expiry.setDate(expiry.getDate() + 15);
     const expiryStr = expiry.toISOString().split('T')[0]; // YYYY-MM-DD
 
-    await carsPage.createCar({
+    const car = buildUniqueCar({
       make: 'Chevrolet',
       model: 'Malibu',
       year: '2021',
-      vin: '1G1ZD5ST3JF123456',
+    });
+    createdCars.push(car);
+
+    await carsPage.createCar({
+      ...car,
       registrationExpiry: expiryStr,
     });
 
-    const card = carsPage.getCarCard('2021', 'Chevrolet', 'Malibu');
+    const card = carsPage.getCarCardByVin(car.vin);
     await expect(card).toBeVisible();
 
     // A yellow "Expiring Soon" warning badge should appear next to the registration date
