@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { generateClient } from 'aws-amplify/data';
-import { fetchAuthSession } from 'aws-amplify/auth';
 import type { Schema } from '../../../amplify/data/resource';
+import type { FamilyRole } from '../../utils/familyContext';
 import { isChoreToday, isChoreThisWeek } from '../../utils/choresDue';
 import KidChoresView from './KidChoresView';
 
@@ -12,6 +12,7 @@ const MANAGER_GROUPS = ['ADMIN', 'PLANNER'] as const;
 interface ChoresModuleProps {
   user: any;
   familyId: string;
+  role: FamilyRole;
 }
 
 const RECURRENCES = ['DAILY', 'WEEKLY', 'MONTHLY', 'ONE_TIME'] as const;
@@ -59,11 +60,10 @@ const RECURRENCE_COLORS: Record<ChoreRecurrence, string> = {
 
 type ActiveTab = 'my-chores' | 'chores' | 'assignments' | 'completions';
 
-export default function ChoresModule({ user, familyId }: ChoresModuleProps) {
+export default function ChoresModule({ user, familyId, role }: ChoresModuleProps) {
   const [chores, setChores] = useState<any[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
-  const [userGroups, setUserGroups] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<ActiveTab>('my-chores');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [filterRecurrence, setFilterRecurrence] = useState<string>('ALL');
@@ -105,26 +105,14 @@ export default function ChoresModule({ user, familyId }: ChoresModuleProps) {
   const currentUser = user?.signInDetails?.loginId || 'Unknown';
 
   useEffect(() => {
-    loadUserGroups();
     fetchChores();
     fetchCompletions();
     fetchAssignments();
   }, []);
 
-  const loadUserGroups = async () => {
-    try {
-      const session = await fetchAuthSession();
-      const groups =
-        (session.tokens?.idToken?.payload?.['cognito:groups'] as string[]) ?? [];
-      setUserGroups(groups);
-    } catch {
-      setUserGroups([]);
-    }
-  };
-
   const canManage = useMemo(
-    () => userGroups.some((g) => MANAGER_GROUPS.includes(g as typeof MANAGER_GROUPS[number])),
-    [userGroups]
+    () => MANAGER_GROUPS.includes(role as typeof MANAGER_GROUPS[number]),
+    [role]
   );
 
   const fetchChores = async () => {
