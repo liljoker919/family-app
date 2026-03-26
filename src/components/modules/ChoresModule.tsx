@@ -102,6 +102,11 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
     notes: '',
   });
 
+  // Form feedback state
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   const currentUser = user?.signInDetails?.loginId || 'Unknown';
 
   useEffect(() => {
@@ -159,6 +164,8 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
 
   const openCreateChoreForm = () => {
     resetChoreForm();
+    setFormError(null);
+    setFormSuccess(null);
     setShowChoreForm(true);
   };
 
@@ -173,6 +180,8 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
       isActive: chore.isActive !== false,
     });
     setEditingChore(chore);
+    setFormError(null);
+    setFormSuccess(null);
     setShowChoreForm(true);
   };
 
@@ -187,6 +196,9 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
 
   const handleChoreSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
+    setFormSuccess(null);
+    setIsSaving(true);
     try {
       const payload = {
         familyId,
@@ -209,9 +221,18 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
       }
       setShowChoreForm(false);
       resetChoreForm();
-      fetchChores();
+      const successMsg = editingChore ? 'Chore updated successfully.' : 'Chore created successfully.';
+      setFormSuccess(successMsg);
+      try {
+        await fetchChores();
+      } catch {
+        setFormSuccess(successMsg + ' (List may be stale — please refresh.)');
+      }
     } catch (error) {
       console.error('Error saving chore:', error);
+      setFormError('Failed to save chore. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -352,6 +373,12 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
 
   return (
     <div>
+      {formSuccess && (
+        <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-lg flex justify-between items-center">
+          <span>{formSuccess}</span>
+          <button onClick={() => setFormSuccess(null)} className="text-green-500 hover:text-green-700 ml-4 font-bold">&times;</button>
+        </div>
+      )}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-gray-800">Chores</h2>
         {canManage && (
@@ -694,6 +721,11 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
             <h3 className="text-2xl font-bold mb-4">
               {editingChore ? 'Edit Chore' : 'Add New Chore'}
             </h3>
+            {formError && (
+              <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                {formError}
+              </div>
+            )}
             <form onSubmit={handleChoreSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
@@ -795,14 +827,16 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 text-white py-2 rounded-lg transition"
+                  disabled={isSaving}
+                  className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white py-2 rounded-lg transition"
                 >
-                  {editingChore ? 'Update Chore' : 'Save Chore'}
+                  {isSaving ? 'Saving…' : editingChore ? 'Update Chore' : 'Save Chore'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setShowChoreForm(false); resetChoreForm(); }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg transition"
+                  disabled={isSaving}
+                  onClick={() => { setShowChoreForm(false); resetChoreForm(); setFormError(null); setFormSuccess(null); }}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-60 disabled:cursor-not-allowed text-gray-700 py-2 rounded-lg transition"
                 >
                   Cancel
                 </button>
