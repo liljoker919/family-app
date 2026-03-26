@@ -17,6 +17,31 @@ export interface ActivityDetails {
   location?: string;
 }
 
+export interface FlightSegmentDetails {
+  airline: string;
+  flightNumber: string;
+  departureAirport: string;
+  arrivalAirport: string;
+  /** Format: 'YYYY-MM-DDTHH:MM' */
+  departureDateTime: string;
+  /** Format: 'YYYY-MM-DDTHH:MM' */
+  arrivalDateTime: string;
+  confirmationNumber?: string;
+  notes?: string;
+}
+
+export interface TripLegDetails {
+  name: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface ExcursionDetails {
+  name: string;
+  status?: 'PROPOSED' | 'UNDER_REVIEW' | 'SELECTED' | 'BOOKED' | 'REJECTED';
+  description?: string;
+}
+
 export type VacationTab = 'Activities' | 'Itinerary' | 'Excursions' | 'Flights';
 
 export class VacationsPage {
@@ -47,6 +72,10 @@ export class VacationsPage {
 
   // ── Itinerary tab content ────────────────────────────────────────────────
   readonly addLegBtn: Locator;
+
+  // ── Flights tab content ──────────────────────────────────────────────────
+  readonly addFlightSegmentBtn: Locator;
+  readonly flightSegmentFormError: Locator;
 
   // ── Excursions tab content ───────────────────────────────────────────────
   readonly noLegsMessage: Locator;
@@ -83,6 +112,10 @@ export class VacationsPage {
 
     // Itinerary tab
     this.addLegBtn = page.getByRole('button', { name: '+ Add Leg' });
+
+    // Flights tab
+    this.addFlightSegmentBtn = page.getByRole('button', { name: '+ Add Flight Segment' });
+    this.flightSegmentFormError = page.getByText('Arrival date/time must be after departure date/time.');
 
     // Excursions tab – message shown when no itinerary legs exist
     this.noLegsMessage = page.getByText(
@@ -200,5 +233,162 @@ export class VacationsPage {
   /** Assert that the Vacations module heading is visible. */
   async expectVacationsHeading(): Promise<void> {
     await expect(this.heading).toBeVisible();
+  }
+
+  // ── Flight segment helpers ────────────────────────────────────────────────
+
+  /**
+   * In the Flights tab, opens the "Add Flight Segment" form, fills all
+   * provided fields, and submits.  If validation fails the form stays open
+   * with an error message (asserted separately via `flightSegmentFormError`).
+   */
+  async addFlightSegment(details: FlightSegmentDetails): Promise<void> {
+    await this.addFlightSegmentBtn.click();
+    const flightForm = this.page.locator('div').filter({
+      has: this.page.locator('h5', { hasText: 'New Flight Segment' }),
+    });
+    await this.page.getByPlaceholder('Airline *').fill(details.airline);
+    await this.page.getByPlaceholder('Flight Number *').fill(details.flightNumber);
+    await this.page.getByPlaceholder('Departure Airport *').fill(details.departureAirport);
+    await this.page.getByPlaceholder('Arrival Airport *').fill(details.arrivalAirport);
+    await flightForm
+      .locator('label:has-text("Departure Date/Time") + input')
+      .fill(details.departureDateTime);
+    await flightForm
+      .locator('label:has-text("Arrival Date/Time") + input')
+      .fill(details.arrivalDateTime);
+    if (details.confirmationNumber) {
+      await this.page.getByPlaceholder('Confirmation Number').fill(details.confirmationNumber);
+    }
+    if (details.notes) {
+      await this.page.getByPlaceholder('Notes').fill(details.notes);
+    }
+    await flightForm.getByRole('button', { name: 'Save' }).click();
+  }
+
+  /**
+   * Returns a locator for a saved flight segment card identified by airline
+   * and flight number (displayed as "✈️ {airline} · {flightNumber}").
+   */
+  flightSegmentCard(airline: string, flightNumber: string): Locator {
+    return this.page.getByText(`${airline} · ${flightNumber}`);
+  }
+
+  // ── Trip-leg helpers ──────────────────────────────────────────────────────
+
+  /**
+   * In the Itinerary tab, opens the "Add Leg" form, fills the required name
+   * and optional dates, then submits.
+   */
+  async addLeg(details: TripLegDetails): Promise<void> {
+    await this.addLegBtn.click();
+    await this.page.getByPlaceholder('Leg Name (e.g. Outbound Flight, Paris Stay)').fill(details.name);
+    const legForm = this.page.locator('div').filter({
+      has: this.page.locator('h5', { hasText: 'New Trip Leg' }),
+    });
+    if (details.startDate || details.endDate) {
+      const dateInputs = legForm.locator('input[type="date"]');
+      if (details.startDate) await dateInputs.nth(0).fill(details.startDate);
+      if (details.endDate) await dateInputs.nth(1).fill(details.endDate);
+    }
+    await legForm.getByRole('button', { name: 'Add Leg', exact: true }).click();
+  }
+
+  // ── Excursion helpers ─────────────────────────────────────────────────────
+
+  /**
+   * In the Excursions tab, clicks the leg-selection button for the given leg
+   * name to load that leg's excursions.
+   */
+  async selectLegInExcursions(legName: string): Promise<void> {
+    await this.page.getByRole('button', { name: new RegExp(legName) }).click();
+  }
+
+  /**
+   * Opens the "Propose Excursion" form, fills it in, and submits.
+   */
+  async proposeExcursion(details: ExcursionDetails): Promise<void> {
+    await this.page.getByRole('button', { name: '+ Propose Excursion' }).click();
+    await this.page.getByPlaceholder('Excursion Name *').fill(details.name);
+    if (details.description) {
+      const excursionForm = this.page.locator('div').filter({
+        has: this.page.locator('h5', { hasText: 'Propose Excursion Option' }),
+      });
+      await excursionForm.locator('textarea').fill(details.description);
+    }
+    if (details.status) {
+      const excursionForm = this.page.locator('div').filter({
+        has: this.page.locator('h5', { hasText: 'Propose Excursion Option' }),
+      });
+      await excursionForm.locator('select').selectOption(details.status);
+    }
+    await this.page.getByRole('button', { name: 'Propose', exact: true }).click();
+  }
+
+  /**
+   * Returns a locator scoped to the excursion card identified by the given
+   * excursion name (displayed inside an `<h5>` element).
+   */
+  excursionCard(name: string): Locator {
+    return this.page
+      .locator('div')
+      .filter({ has: this.page.locator('h5', { hasText: name }) })
+      .filter({ has: this.page.getByRole('button', { name: /👍/ }) })
+      .first();
+  }
+
+  /**
+   * Clicks the 👍 upvote button on the excursion card with the given name.
+   */
+  async voteUpOnExcursion(excursionName: string): Promise<void> {
+    await this.excursionCard(excursionName).getByRole('button', { name: /👍/ }).click();
+  }
+
+  /**
+   * Opens the comments section for the excursion with the given name by
+   * clicking its "💬 Comments" button.
+   */
+  async openExcursionComments(excursionName: string): Promise<void> {
+    await this.excursionCard(excursionName)
+      .getByRole('button', { name: /💬 Comments/ })
+      .click();
+  }
+
+  /**
+   * Types `comment` into the comment input and clicks "Post" to submit it.
+   * Assumes `openExcursionComments` has already been called.
+   */
+  async postExcursionComment(comment: string): Promise<void> {
+    await this.page.getByPlaceholder('Add your opinion...').fill(comment);
+    await this.page.getByRole('button', { name: 'Post' }).click();
+  }
+
+  // ── Activity feedback helpers ─────────────────────────────────────────────
+
+  /**
+   * Clicks the "Feedback" button on the activity card matching `activityName`
+   * to open the inline star-rating form.
+   */
+  async openActivityFeedback(activityName: string): Promise<void> {
+    const card = this.page
+      .locator('div')
+      .filter({ has: this.page.locator('h5', { hasText: activityName }) })
+      .filter({ has: this.page.getByRole('button', { name: 'Feedback' }) })
+      .first();
+    await card.getByRole('button', { name: 'Feedback' }).click();
+  }
+
+  /**
+   * Selects a star `rating` (1–5), enters a `comment`, and submits the
+   * activity feedback form.  Assumes the form is already open.
+   */
+  async submitActivityFeedback(rating: number, comment: string): Promise<void> {
+    const form = this.page.locator('form').filter({
+      has: this.page.getByRole('button', { name: 'Submit Feedback' }),
+    });
+    // Star buttons are 1–5, in order; click the Nth one (0-indexed)
+    await form.locator('button[type="button"]').nth(rating - 1).click();
+    await form.getByPlaceholder('Leave a comment...').fill(comment);
+    await form.getByRole('button', { name: 'Submit Feedback' }).click();
   }
 }
