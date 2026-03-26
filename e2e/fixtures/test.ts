@@ -1,11 +1,13 @@
 import { test as base, expect } from '@playwright/test';
 import { AuthPage } from '../pages/AuthPage';
 import { VacationsPage } from '../pages/VacationsPage';
+import { CarsPage } from '../pages/CarsPage';
 import { getAnyConfiguredFamilyUser, getConfiguredFamilyUsers, getFamilyUser, type FamilyRole } from './authUsers';
 
 type AuthFixtures = {
   authPage: AuthPage;
   vacationsPage: VacationsPage;
+  carsPage: CarsPage;
   loginAs: (role?: FamilyRole) => Promise<{ role: FamilyRole; email: string }>;
   configuredRoles: FamilyRole[];
 };
@@ -17,6 +19,10 @@ export const test = base.extend<AuthFixtures>({
 
   vacationsPage: async ({ page }, use) => {
     await use(new VacationsPage(page));
+  },
+
+  carsPage: async ({ page }, use) => {
+    await use(new CarsPage(page));
   },
 
   configuredRoles: async ({}, use) => {
