@@ -14,6 +14,7 @@ import ReportingModule from './modules/ReportingModule';
 import AdminModule from './modules/AdminModule';
 import FamilySetup from './FamilySetup';
 import type { ActiveModule } from '../utils/dashboardModules';
+import { canAccessModule } from '../utils/dashboardModules';
 import { getFamilyMembership } from '../utils/familyContext';
 import type { FamilyMembership } from '../utils/familyContext';
 
@@ -288,6 +289,7 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
                   </span>
                 </button>
               </li>
+              {canAccessModule('reporting', membership.role) && (
               <li>
                 <button
                   onClick={() => setActiveModule('reporting')}
@@ -305,7 +307,8 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
                   </span>
                 </button>
               </li>
-              {membership.role === 'ADMIN' && (
+              )}
+              {canAccessModule('admin', membership.role) && (
                 <li>
                   <button
                     onClick={() => setActiveModule('admin')}
@@ -331,6 +334,16 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
 
         {/* Main Content */}
         <main className="flex-1 p-8">
+          {!canAccessModule(activeModule, membership.role) ? (
+            <div className="flex flex-col items-center justify-center h-64 text-center">
+              <svg className="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <h2 className="text-xl font-semibold text-gray-600 mb-2">Access Restricted</h2>
+              <p className="text-gray-500">You do not have permission to view this module.</p>
+            </div>
+          ) : (
+            <>
           {activeModule === 'vacations' && <VacationsModule user={user} familyId={familyId} />}
           {activeModule === 'planning' && <PlanningModule user={user} familyId={familyId} />}
           {activeModule === 'property' && <PropertyModule user={user} familyId={familyId} />}
@@ -340,6 +353,8 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
           {activeModule === 'chores' && <ChoresModule user={user} familyId={familyId} />}
           {activeModule === 'reporting' && <ReportingModule user={user} familyId={familyId} />}
           {activeModule === 'admin' && <AdminModule user={user} familyId={familyId} membership={membership} />}
+            </>
+          )}
         </main>
       </div>
     </div>
