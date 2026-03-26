@@ -3,6 +3,7 @@ import { AuthPage } from '../pages/AuthPage';
 import { VacationsPage } from '../pages/VacationsPage';
 import { CarsPage } from '../pages/CarsPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { PropertyPage } from '../pages/PropertyPage';
 import { getAnyConfiguredFamilyUser, getConfiguredFamilyUsers, getFamilyUser, type FamilyRole } from './authUsers';
 
 type AuthFixtures = {
@@ -10,6 +11,7 @@ type AuthFixtures = {
   vacationsPage: VacationsPage;
   carsPage: CarsPage;
   dashboardPage: DashboardPage;
+  propertyPage: PropertyPage;
   loginAs: (role?: FamilyRole) => Promise<{ role: FamilyRole; email: string }>;
   configuredRoles: FamilyRole[];
 };
@@ -29,6 +31,10 @@ export const test = base.extend<AuthFixtures>({
 
   dashboardPage: async ({ page }, use) => {
     await use(new DashboardPage(page));
+  },
+
+  propertyPage: async ({ page }, use) => {
+    await use(new PropertyPage(page));
   },
 
   configuredRoles: async ({}, use) => {
