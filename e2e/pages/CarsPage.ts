@@ -145,8 +145,8 @@ export class CarsPage {
   /**
    * Deletes the car card associated with the given VIN.
    */
- 
-  await page.getByRole('button', { name: 'Cars' }).click(); async deleteCarByVin(vin: string): Promise<void> {
+
+  async deleteCarByVin(vin: string): Promise<void> {
     const card = this.getCarCardByVin(vin);
     const deleteButton = card.getByRole('button', { name: 'Delete' });
     await deleteButton.scrollIntoViewIfNeeded();
