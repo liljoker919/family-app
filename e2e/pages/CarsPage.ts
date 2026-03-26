@@ -135,10 +135,11 @@ export class CarsPage {
    */
   async deleteCar(year: string, make: string, model: string): Promise<void> {
     const card = this.getCarCard(year, make, model);
-    const dialogPromise = this.page.waitForEvent('dialog');
-    await card.getByRole('button', { name: 'Delete' }).click();
-    const dialog = await dialogPromise;
-    await dialog.accept();
+    const deleteButton = card.getByRole('button', { name: 'Delete' });
+    await deleteButton.scrollIntoViewIfNeeded();
+    const dialogPromise = this.page.waitForEvent('dialog').then((dialog) => dialog.accept());
+    await deleteButton.click({ force: true });
+    await dialogPromise;
   }
 
   /**
@@ -146,10 +147,11 @@ export class CarsPage {
    */
   async deleteCarByVin(vin: string): Promise<void> {
     const card = this.getCarCardByVin(vin);
-    const dialogPromise = this.page.waitForEvent('dialog');
-    await card.getByRole('button', { name: 'Delete' }).click();
-    const dialog = await dialogPromise;
-    await dialog.accept();
+    const deleteButton = card.getByRole('button', { name: 'Delete' });
+    await deleteButton.scrollIntoViewIfNeeded();
+    const dialogPromise = this.page.waitForEvent('dialog').then((dialog) => dialog.accept());
+    await deleteButton.click({ force: true });
+    await dialogPromise;
   }
 
   /**
