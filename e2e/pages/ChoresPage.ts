@@ -27,6 +27,8 @@ export class ChoresPage {
   // ── Navigation ───────────────────────────────────────────────────────────
   readonly heading: Locator;
   readonly sidebarLink: Locator;
+  readonly dashboardHeading: Locator;
+  readonly loadingIndicator: Locator;
 
   // ── Main action ──────────────────────────────────────────────────────────
   readonly addChoreBtn: Locator;
@@ -67,6 +69,8 @@ export class ChoresPage {
     // Navigation
     this.heading = page.getByRole('heading', { name: 'Chores' });
     this.sidebarLink = page.locator('aside').getByRole('button', { name: 'Chores', exact: true });
+    this.dashboardHeading = page.getByRole('heading', { name: 'Family Dashboard' });
+    this.loadingIndicator = page.getByText('Loading…');
 
     // "Add Chore" primary button (outside any modal)
     this.addChoreBtn = page.getByRole('button', { name: 'Add Chore' });
@@ -118,7 +122,9 @@ export class ChoresPage {
    * link in the left sidebar navigation.
    */
   async goto(): Promise<void> {
-    await this.page.goto('/dashboard');
+    await expect(this.page).toHaveURL(/\/dashboard/i);
+    await this.loadingIndicator.waitFor({ state: 'hidden' }).catch(() => undefined);
+    await expect(this.dashboardHeading).toBeVisible();
     await this.sidebarLink.click();
     await expect(this.heading).toBeVisible();
   }
@@ -230,8 +236,10 @@ export class ChoresPage {
    */
   async deleteChore(choreTitle: string): Promise<void> {
     const row = this.getChoreRow(choreTitle);
-    this.page.once('dialog', (dialog) => dialog.accept());
+    const dialogPromise = this.page.waitForEvent('dialog');
     await row.getByRole('button', { name: 'Delete' }).click();
+    const dialog = await dialogPromise;
+    await dialog.accept();
   }
 
   /**

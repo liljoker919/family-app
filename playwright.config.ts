@@ -28,13 +28,13 @@ export default defineConfig({
     video: 'retain-on-failure',
     trace: 'retain-on-failure',
   },
-  ...(configuredBaseUrl
+  ...(configuredBaseUrl || process.env.CI
     ? {}
     : {
         webServer: {
           command: 'npm run dev -- --host 127.0.0.1 --port 4321',
           url: baseURL,
-          reuseExistingServer: !process.env.CI,
+          reuseExistingServer: false,
           timeout: 120_000,
         },
       }),

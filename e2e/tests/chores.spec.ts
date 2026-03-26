@@ -4,6 +4,10 @@ import { getAnyConfiguredFamilyUser } from '../fixtures/authUsers';
 
 const SKIP_REASON = 'Set E2E_VALID_PASSWORD and at least one E2E_*_EMAIL secret.';
 
+function uniqueTitle(base: string): string {
+  return `${base}-${Date.now()}${Math.floor(Math.random() * 1000)}`;
+}
+
 test.describe('Chores', () => {
   // ── BrowserStack-mapped test cases ───────────────────────────────────────
 
@@ -13,22 +17,27 @@ test.describe('Chores', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueTitle('Vacuum Living Room');
+
     await loginAs();
     await choresPage.goto();
     await choresPage.switchToAllChores();
 
     await choresPage.createChore({
-      title: 'Vacuum Living Room',
+      title,
       category: 'CLEANING',
       recurrence: 'WEEKLY',
     });
 
     // The new chore appears in the chore list with the entered title,
     // category, and recurrence label
-    const choreRow = choresPage.getChoreRow('Vacuum Living Room');
+    const choreRow = choresPage.getChoreRow(title);
     await expect(choreRow).toBeVisible();
     await expect(choreRow.getByText('Weekly')).toBeVisible();
     await expect(choreRow.getByText('Cleaning')).toBeVisible();
+
+    // cleanup
+    await choresPage.deleteChore(title).catch(() => undefined);
   });
 
   test('Chore - Assign a chore to a family member', async ({
@@ -37,28 +46,34 @@ test.describe('Chores', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueTitle('Walk the Dog');
+
     await loginAs();
     await choresPage.goto();
     await choresPage.switchToAllChores();
 
     // Create a chore so there is at least one to assign
     await choresPage.createChore({
-      title: 'Walk the Dog',
+      title,
       category: 'PETS',
       recurrence: 'DAILY',
     });
 
-    await expect(choresPage.getChoreRow('Walk the Dog')).toBeVisible();
+    await expect(choresPage.getChoreRow(title)).toBeVisible();
 
     // Open the assign form, select a family member, and click Assign
-    await choresPage.assignChore('Walk the Dog', { assignedTo: 'Alex' });
+    await choresPage.assignChore(title, { assignedTo: 'Alex' });
 
     // Switch to Assignments tab and verify the chore is listed as assigned
     await choresPage.switchToAssignments();
-    await expect(choresPage.getAssignmentRow('Walk the Dog')).toBeVisible();
+    await expect(choresPage.getAssignmentRow(title)).toBeVisible();
     await expect(
-      choresPage.getAssignmentRow('Walk the Dog').getByText('Alex')
+      choresPage.getAssignmentRow(title).getByText('Alex')
     ).toBeVisible();
+
+    // cleanup
+    await choresPage.switchToAllChores();
+    await choresPage.deleteChore(title).catch(() => undefined);
   });
 
   test('Chore - Deleting a chore removes it from the list', async ({
@@ -67,24 +82,26 @@ test.describe('Chores', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueTitle('Take Out Trash');
+
     await loginAs();
     await choresPage.goto();
     await choresPage.switchToAllChores();
 
     // Create a chore so there is at least one to delete
     await choresPage.createChore({
-      title: 'Take Out Trash',
+      title,
       category: 'ERRANDS',
       recurrence: 'WEEKLY',
     });
 
-    await expect(choresPage.getChoreRow('Take Out Trash')).toBeVisible();
+    await expect(choresPage.getChoreRow(title)).toBeVisible();
 
     // Delete the chore and confirm the browser dialog
-    await choresPage.deleteChore('Take Out Trash');
+    await choresPage.deleteChore(title);
 
     // The chore is permanently removed from the chore list
-    await expect(choresPage.getChoreRow('Take Out Trash')).not.toBeVisible();
+    await expect(choresPage.getChoreRow(title)).not.toBeVisible();
   });
 
   test('Chore - Edit an existing chore updates its details', async ({
@@ -93,31 +110,37 @@ test.describe('Chores', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const originalTitle = uniqueTitle('Mop Kitchen Floor');
+    const updatedTitle = uniqueTitle('Mop All Floors');
+
     await loginAs();
     await choresPage.goto();
     await choresPage.switchToAllChores();
 
     // Create a chore to edit
     await choresPage.createChore({
-      title: 'Mop Kitchen Floor',
+      title: originalTitle,
       category: 'CLEANING',
       recurrence: 'WEEKLY',
       pointValue: '5',
     });
 
-    await expect(choresPage.getChoreRow('Mop Kitchen Floor')).toBeVisible();
+    await expect(choresPage.getChoreRow(originalTitle)).toBeVisible();
 
     // Edit the chore: update title and point value
-    await choresPage.editChore('Mop Kitchen Floor', {
-      title: 'Mop All Floors',
+    await choresPage.editChore(originalTitle, {
+      title: updatedTitle,
       pointValue: '15',
     });
 
     // The chore list reflects the updated title and point value
-    await expect(choresPage.getChoreRow('Mop All Floors')).toBeVisible();
+    await expect(choresPage.getChoreRow(updatedTitle)).toBeVisible();
     await expect(
-      choresPage.getChoreRow('Mop All Floors').getByText('15 pts')
+      choresPage.getChoreRow(updatedTitle).getByText('15 pts')
     ).toBeVisible();
+
+    // cleanup
+    await choresPage.deleteChore(updatedTitle).catch(() => undefined);
   });
 
   test('Chore - Mark a chore as complete', async ({
@@ -126,25 +149,31 @@ test.describe('Chores', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueTitle('Wash Dishes');
+
     await loginAs();
     await choresPage.goto();
     await choresPage.switchToAllChores();
 
     // Create a chore so there is at least one chore that has been assigned
     await choresPage.createChore({
-      title: 'Wash Dishes',
+      title,
       category: 'COOKING',
       recurrence: 'DAILY',
     });
 
-    await expect(choresPage.getChoreRow('Wash Dishes')).toBeVisible();
+    await expect(choresPage.getChoreRow(title)).toBeVisible();
 
     // Click the complete button for that chore and confirm the completion form
-    await choresPage.logChoreCompletion('Wash Dishes');
+    await choresPage.logChoreCompletion(title);
 
     // The chore is marked as completed and a completion record appears in the
     // completion history
     await choresPage.switchToCompletionHistory();
-    await expect(choresPage.getCompletionRow('Wash Dishes')).toBeVisible();
+    await expect(choresPage.getCompletionRow(title)).toBeVisible();
+
+    // cleanup
+    await choresPage.switchToAllChores();
+    await choresPage.deleteChore(title).catch(() => undefined);
   });
 });
