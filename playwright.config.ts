@@ -1,10 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { config as loadEnv } from 'dotenv';
 
-loadEnv({ override: false });
+const configDir = path.dirname(fileURLToPath(import.meta.url));
+const envFilePath = path.join(configDir, '.env');
+
+loadEnv({ path: envFilePath, override: false });
 
 const configuredBaseUrl = process.env.BASE_URL?.trim();
-const baseURL = configuredBaseUrl || 'http://127.0.0.1:4321';
+const baseURL = configuredBaseUrl || 'https://main.d1gak7oijss0a0.amplifyapp.com/';
 
 export default defineConfig({
   testDir: './e2e',
