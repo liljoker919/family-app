@@ -325,7 +325,7 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.group('ADMIN'),
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
   CarService: a
@@ -341,7 +341,7 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.group('ADMIN'),
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
   Chore: a
