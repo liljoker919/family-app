@@ -236,10 +236,9 @@ export class ChoresPage {
    */
   async deleteChore(choreTitle: string): Promise<void> {
     const row = this.getChoreRow(choreTitle);
-    const dialogPromise = this.page.waitForEvent('dialog');
+    const dialogPromise = this.page.waitForEvent('dialog').then((dialog) => dialog.accept());
     await row.getByRole('button', { name: 'Delete' }).click();
-    const dialog = await dialogPromise;
-    await dialog.accept();
+    await dialogPromise;
   }
 
   /**
