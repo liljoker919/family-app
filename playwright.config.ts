@@ -1,4 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
+import { config as loadEnv } from 'dotenv';
+
+loadEnv({ override: false });
 
 const configuredBaseUrl = process.env.BASE_URL?.trim();
 const baseURL = configuredBaseUrl || 'http://127.0.0.1:4321';
