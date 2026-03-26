@@ -34,6 +34,13 @@ jobs:
         id: run-playwright
         run: npx playwright test
         continue-on-error: true
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          E2E_DAD_EMAIL: ${{ secrets.E2E_DAD_EMAIL }}
+          E2E_MOM_EMAIL: ${{ secrets.E2E_MOM_EMAIL }}
+          E2E_CHILD1_EMAIL: ${{ secrets.E2E_CHILD1_EMAIL }}
+          E2E_CHILD2_EMAIL: ${{ secrets.E2E_CHILD2_EMAIL }}
+          E2E_VALID_PASSWORD: ${{ secrets.E2E_VALID_PASSWORD }}
 
       - name: Upload Playwright HTML report
         if: always()
