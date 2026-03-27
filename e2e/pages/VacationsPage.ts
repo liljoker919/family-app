@@ -152,7 +152,7 @@ export class VacationsPage {
    * Returns a locator for the h3 title element inside a vacation card.
    */
   vacationCard(title: string): Locator {
-    return this.page.getByRole('heading', { name: title });
+    return this.page.getByRole('heading', { name: title, exact: true });
   }
 
   /**
@@ -163,7 +163,7 @@ export class VacationsPage {
     // Locate the card that contains the given title heading
     const card = this.page
       .locator('div.bg-white.rounded-lg.shadow-md')
-      .filter({ has: this.page.getByRole('heading', { name: title, level: 3 }) });
+      .filter({ has: this.page.getByRole('heading', { name: title, exact: true, level: 3 }) });
 
     // Click the matching quick-access button on the card (outside the tab bar)
     await card.getByRole('button', { name: tab }).click();
@@ -214,18 +214,21 @@ export class VacationsPage {
    */
   async addActivity(activityDetails: ActivityDetails): Promise<void> {
     await this.page.getByRole('button', { name: 'Add Activity' }).click();
+    const activityForm = this.page.locator('form').filter({
+      has: this.page.getByPlaceholder('Activity Name'),
+    });
     await this.page.getByPlaceholder('Activity Name').fill(activityDetails.name);
     if (activityDetails.description) {
       await this.page.getByPlaceholder('Description').fill(activityDetails.description);
     }
     if (activityDetails.date) {
       // The date input has no placeholder or label; it is the only date input in the activity form
-      await this.page.locator('div.bg-gray-50 input[type="date"]').fill(activityDetails.date);
+      await activityForm.locator('input[type="date"]').fill(activityDetails.date);
     }
     if (activityDetails.location) {
       await this.page.getByPlaceholder('Location').fill(activityDetails.location);
     }
-    await this.page.locator('div.bg-gray-50').getByRole('button', { name: 'Add' }).click();
+    await activityForm.getByRole('button', { name: 'Add', exact: true }).click();
   }
 
   // ── Assertion helpers ────────────────────────────────────────────────────

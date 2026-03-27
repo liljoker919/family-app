@@ -4,27 +4,33 @@ import { getAnyConfiguredFamilyUser } from '../fixtures/authUsers';
 
 const SKIP_REASON = 'Set E2E_VALID_PASSWORD and at least one E2E_*_EMAIL secret.';
 
+function uniquePropertyName(base: string): string {
+  return `${base}-${Date.now()}${Math.floor(Math.random() * 1000)}`;
+}
+
 test.describe('Property', () => {
   // ── BrowserStack-mapped test cases ───────────────────────────────────────
 
   test('Property - Add a property with a valid name', async ({ propertyPage, loginAs }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const propertyName = uniquePropertyName('Sunset Villa');
+
     await loginAs();
     await propertyPage.goto();
 
     await propertyPage.createProperty({
-      name: 'Sunset Villa',
+      name: propertyName,
       address: '123 Ocean Drive, Miami, FL',
     });
 
     // The new property card should appear in the list
-    await expect(propertyPage.getPropertyCard('Sunset Villa')).toBeVisible();
+    await expect(propertyPage.getPropertyCard(propertyName)).toBeVisible();
 
     // Summary bar should show Total Income, Total Expenses, and Net Income all at zero
-    await expect(propertyPage.getIncomeTotal('Sunset Villa')).toHaveText('$0.00');
-    await expect(propertyPage.getExpensesTotal('Sunset Villa')).toHaveText('$0.00');
-    await expect(propertyPage.getNetIncome('Sunset Villa')).toHaveText('+$0.00');
+    await expect(propertyPage.getIncomeTotal(propertyName)).toHaveText('$0.00');
+    await expect(propertyPage.getExpensesTotal(propertyName)).toHaveText('$0.00');
+    await expect(propertyPage.getNetIncome(propertyName)).toHaveText('+$0.00');
   });
 
   test('Property - Add property form is blocked when the required name field is missing', async ({
@@ -55,18 +61,20 @@ test.describe('Property', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const propertyName = uniquePropertyName('Elm Street Rental');
+
     await loginAs();
     await propertyPage.goto();
 
     // Create a property so there is at least one to delete
-    await propertyPage.createProperty({ name: 'Elm Street Rental' });
-    await expect(propertyPage.getPropertyCard('Elm Street Rental')).toBeVisible();
+    await propertyPage.createProperty({ name: propertyName });
+    await expect(propertyPage.getPropertyCard(propertyName)).toBeVisible();
 
     // Delete the property and confirm the browser dialog
-    await propertyPage.deleteProperty('Elm Street Rental');
+    await propertyPage.deleteProperty(propertyName);
 
     // The property and all of its associated transactions are removed from the list
-    await expect(propertyPage.getPropertyCard('Elm Street Rental')).not.toBeVisible();
+    await expect(propertyPage.getPropertyCard(propertyName)).not.toBeVisible();
   });
 
   test('Property - Logging a rent income transaction updates the income total', async ({
@@ -75,17 +83,19 @@ test.describe('Property', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const propertyName = uniquePropertyName('Beachside Cottage');
+
     await loginAs();
     await propertyPage.goto();
 
     // Create a property to log a transaction against
-    await propertyPage.createProperty({ name: 'Beachside Cottage' });
-    await expect(propertyPage.getPropertyCard('Beachside Cottage')).toBeVisible();
+    await propertyPage.createProperty({ name: propertyName });
+    await expect(propertyPage.getPropertyCard(propertyName)).toBeVisible();
 
     // Expand the ledger then log a Rent Income transaction
-    await propertyPage.expandLedger('Beachside Cottage');
+    await propertyPage.expandLedger(propertyName);
     const today = new Date().toISOString().split('T')[0];
-    await propertyPage.logTransaction('Beachside Cottage', {
+    await propertyPage.logTransaction(propertyName, {
       category: 'RENT_INCOME',
       amount: '1500',
       date: today,
@@ -93,12 +103,12 @@ test.describe('Property', () => {
 
     // The transaction should appear in the ledger with a green income badge
     // (the ledger remains expanded after logging the transaction)
-    const card = propertyPage.getPropertyCard('Beachside Cottage');
+    const card = propertyPage.getPropertyCard(propertyName);
     await expect(card.getByText('Rent Income')).toBeVisible();
     await expect(card.locator('span.text-green-600', { hasText: '+$1500.00' })).toBeVisible();
 
     // Total Income in the summary bar should reflect the entered amount
-    await expect(propertyPage.getIncomeTotal('Beachside Cottage')).toHaveText('$1500.00');
+    await expect(propertyPage.getIncomeTotal(propertyName)).toHaveText('$1500.00');
   });
 
   test('Property - Logging a mortgage expense updates the expense total', async ({
@@ -107,17 +117,19 @@ test.describe('Property', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const propertyName = uniquePropertyName('Downtown Loft');
+
     await loginAs();
     await propertyPage.goto();
 
     // Create a property to log a transaction against
-    await propertyPage.createProperty({ name: 'Downtown Loft' });
-    await expect(propertyPage.getPropertyCard('Downtown Loft')).toBeVisible();
+    await propertyPage.createProperty({ name: propertyName });
+    await expect(propertyPage.getPropertyCard(propertyName)).toBeVisible();
 
     // Expand the ledger, open the Log Transaction modal, and verify the type
     // preview badge shows "Expense" when Mortgage is selected
-    await propertyPage.expandLedger('Downtown Loft');
-    const card = propertyPage.getPropertyCard('Downtown Loft');
+    await propertyPage.expandLedger(propertyName);
+    const card = propertyPage.getPropertyCard(propertyName);
     await card.getByRole('button', { name: /\+ Log Transaction/ }).click();
     await propertyPage.categorySelect.selectOption('MORTGAGE');
     await expect(propertyPage.typeBadge).toHaveText('▼ Expense');
@@ -134,7 +146,7 @@ test.describe('Property', () => {
     await expect(card.locator('span.text-red-600', { hasText: '-$2000.00' })).toBeVisible();
 
     // Total Expenses in the summary bar should reflect the entered amount
-    await expect(propertyPage.getExpensesTotal('Downtown Loft')).toHaveText('$2000.00');
+    await expect(propertyPage.getExpensesTotal(propertyName)).toHaveText('$2000.00');
   });
 
   test('Property - Net income equals total income minus total expenses', async ({
@@ -143,37 +155,39 @@ test.describe('Property', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const propertyName = uniquePropertyName('Maple Grove House');
+
     await loginAs();
     await propertyPage.goto();
 
     // Create a property and log both an income and an expense transaction
-    await propertyPage.createProperty({ name: 'Maple Grove House' });
-    await expect(propertyPage.getPropertyCard('Maple Grove House')).toBeVisible();
+    await propertyPage.createProperty({ name: propertyName });
+    await expect(propertyPage.getPropertyCard(propertyName)).toBeVisible();
 
     const today = new Date().toISOString().split('T')[0];
 
-    await propertyPage.expandLedger('Maple Grove House');
-    await propertyPage.logTransaction('Maple Grove House', {
+    await propertyPage.expandLedger(propertyName);
+    await propertyPage.logTransaction(propertyName, {
       category: 'RENT_INCOME',
       amount: '3000',
       date: today,
     });
 
     // The ledger remains expanded after the first transaction; log the second directly
-    await propertyPage.logTransaction('Maple Grove House', {
+    await propertyPage.logTransaction(propertyName, {
       category: 'MORTGAGE',
       amount: '1200',
       date: today,
     });
 
     // Net Income should equal Total Income ($3000) minus Total Expenses ($1200) = $1800
-    await expect(propertyPage.getIncomeTotal('Maple Grove House')).toHaveText('$3000.00');
-    await expect(propertyPage.getExpensesTotal('Maple Grove House')).toHaveText('$1200.00');
+    await expect(propertyPage.getIncomeTotal(propertyName)).toHaveText('$3000.00');
+    await expect(propertyPage.getExpensesTotal(propertyName)).toHaveText('$1200.00');
     // Positive net income is displayed in royal blue with a "+" prefix
-    await expect(propertyPage.getNetIncome('Maple Grove House')).toHaveText('+$1800.00');
+    await expect(propertyPage.getNetIncome(propertyName)).toHaveText('+$1800.00');
 
     // Verify colour – the Net Income cell uses bg-royal-blue-50 when net >= 0
-    const card = propertyPage.getPropertyCard('Maple Grove House');
+    const card = propertyPage.getPropertyCard(propertyName);
     await expect(card.locator('p.text-xs', { hasText: /Net Income/i }).locator('+ p')).toHaveClass(
       /text-royal-blue-700/
     );

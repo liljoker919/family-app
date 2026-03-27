@@ -4,6 +4,10 @@ import { getAnyConfiguredFamilyUser } from '../fixtures/authUsers';
 
 const SKIP_REASON = 'Set E2E_VALID_PASSWORD and at least one E2E_*_EMAIL secret.';
 
+function uniqueVacationTitle(base: string): string {
+  return `${base}-${Date.now()}${Math.floor(Math.random() * 1000)}`;
+}
+
 test.describe('Vacations', () => {
   // ── Navigation ────────────────────────────────────────────────────────────
 
@@ -37,11 +41,13 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueVacationTitle('trip destination');
+
     await loginAs();
     await vacationsPage.gotoViaUrl();
 
     await vacationsPage.createVacation({
-      title: 'trip destination',
+      title,
       description: 'A memorable family getaway',
       startDate: '2026-07-01',
       endDate: '2026-07-07',
@@ -50,7 +56,7 @@ test.describe('Vacations', () => {
     });
 
     // The new card should be visible in the list
-    await expect(vacationsPage.vacationCard('trip destination')).toBeVisible();
+    await expect(vacationsPage.vacationCard(title)).toBeVisible();
   });
 
   // ── Tab interaction ───────────────────────────────────────────────────────
@@ -61,12 +67,14 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueVacationTitle('trip destination - itinerary');
+
     await loginAs();
     await vacationsPage.gotoViaUrl();
 
     // Create a dedicated vacation for this test
     await vacationsPage.createVacation({
-      title: 'trip destination - itinerary',
+      title,
       description: 'Testing itinerary tab',
       startDate: '2026-08-01',
       endDate: '2026-08-10',
@@ -75,7 +83,7 @@ test.describe('Vacations', () => {
     });
 
     // Open the card with the Itinerary tab active
-    await vacationsPage.openVacationDetail('trip destination - itinerary', 'Itinerary');
+    await vacationsPage.openVacationDetail(title, 'Itinerary');
 
     // The "✅ Activities" / "🗺️ Itinerary" tab bar should now be visible.
     // Switch to (or confirm) the Itinerary tab and verify the "+ Add Leg" button.
@@ -89,12 +97,14 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueVacationTitle('trip destination - excursions');
+
     await loginAs();
     await vacationsPage.gotoViaUrl();
 
     // Create a dedicated vacation for this test
     await vacationsPage.createVacation({
-      title: 'trip destination - excursions',
+      title,
       description: 'Testing excursions tab',
       startDate: '2026-09-01',
       endDate: '2026-09-07',
@@ -103,7 +113,7 @@ test.describe('Vacations', () => {
     });
 
     // Open the card with the Excursions tab active
-    await vacationsPage.openVacationDetail('trip destination - excursions', 'Excursions');
+    await vacationsPage.openVacationDetail(title, 'Excursions');
 
     // Switch to the Excursions tab in the detail view
     await vacationsPage.switchTab('Excursions');
@@ -120,18 +130,20 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueVacationTitle('bs vacation - date range');
+
     await loginAs();
     await vacationsPage.gotoViaUrl();
 
     await vacationsPage.createVacation({
-      title: 'bs vacation - date range',
+      title,
       startDate: '2026-07-01',
       endDate: '2026-07-10',
       tripType: 'SINGLE_LOCATION',
       transportation: 'car',
     });
 
-    await expect(vacationsPage.vacationCard('bs vacation - date range')).toBeVisible();
+    await expect(vacationsPage.vacationCard(title)).toBeVisible();
   });
 
   test('Vacation - Add a flight segment with valid departure and arrival', async ({
@@ -140,18 +152,20 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueVacationTitle('bs vacation - flight segment');
+
     await loginAs();
     await vacationsPage.gotoViaUrl();
 
     await vacationsPage.createVacation({
-      title: 'bs vacation - flight segment',
+      title,
       startDate: '2026-08-01',
       endDate: '2026-08-10',
       tripType: 'SINGLE_LOCATION',
       transportation: 'flight',
     });
 
-    await vacationsPage.openVacationDetail('bs vacation - flight segment', 'Flights');
+    await vacationsPage.openVacationDetail(title, 'Flights');
     await vacationsPage.addFlightSegment({
       airline: 'Test Air',
       flightNumber: 'TA101',
@@ -170,18 +184,20 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueVacationTitle('bs vacation - blocked flight');
+
     await loginAs();
     await vacationsPage.gotoViaUrl();
 
     await vacationsPage.createVacation({
-      title: 'bs vacation - blocked flight',
+      title,
       startDate: '2026-09-01',
       endDate: '2026-09-10',
       tripType: 'SINGLE_LOCATION',
       transportation: 'flight',
     });
 
-    await vacationsPage.openVacationDetail('bs vacation - blocked flight', 'Flights');
+    await vacationsPage.openVacationDetail(title, 'Flights');
     // Arrival (08:00) is before departure (11:00) — validation must block saving
     await vacationsPage.addFlightSegment({
       airline: 'Test Air',
@@ -201,19 +217,24 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueVacationTitle('bs vacation - activities');
+
     await loginAs();
     await vacationsPage.gotoViaUrl();
 
     await vacationsPage.createVacation({
-      title: 'bs vacation - activities',
+      title,
       startDate: '2026-07-01',
       endDate: '2026-07-07',
       tripType: 'SINGLE_LOCATION',
       transportation: 'car',
     });
 
-    await vacationsPage.openVacationDetail('bs vacation - activities', 'Activities');
-    await vacationsPage.addActivity({ name: 'Sightseeing tour' });
+    await vacationsPage.openVacationDetail(title, 'Activities');
+    await vacationsPage.addActivity({
+      name: 'Sightseeing tour',
+      date: '2026-07-02',
+    });
 
     await expect(vacationsPage.page.locator('h5', { hasText: 'Sightseeing tour' })).toBeVisible();
   });
@@ -224,18 +245,20 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueVacationTitle('bs vacation - upvote');
+
     await loginAs();
     await vacationsPage.gotoViaUrl();
 
     await vacationsPage.createVacation({
-      title: 'bs vacation - upvote',
+      title,
       startDate: '2026-07-01',
       endDate: '2026-07-14',
       tripType: 'MULTI_LOCATION',
       transportation: 'car',
     });
 
-    await vacationsPage.openVacationDetail('bs vacation - upvote', 'Itinerary');
+    await vacationsPage.openVacationDetail(title, 'Itinerary');
     await vacationsPage.switchTab('Itinerary');
     await vacationsPage.addLeg({ name: 'Beach Stay', startDate: '2026-07-01', endDate: '2026-07-07' });
     await expect(vacationsPage.page.getByText('Beach Stay')).toBeVisible();
@@ -258,19 +281,24 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueVacationTitle('bs vacation - activity feedback');
+
     await loginAs();
     await vacationsPage.gotoViaUrl();
 
     await vacationsPage.createVacation({
-      title: 'bs vacation - activity feedback',
+      title,
       startDate: '2026-07-01',
       endDate: '2026-07-07',
       tripType: 'SINGLE_LOCATION',
       transportation: 'car',
     });
 
-    await vacationsPage.openVacationDetail('bs vacation - activity feedback', 'Activities');
-    await vacationsPage.addActivity({ name: 'City walk' });
+    await vacationsPage.openVacationDetail(title, 'Activities');
+    await vacationsPage.addActivity({
+      name: 'City walk',
+      date: '2026-07-02',
+    });
     await vacationsPage.openActivityFeedback('City walk');
     await vacationsPage.submitActivityFeedback(4, 'Really enjoyable experience!');
 
@@ -283,18 +311,20 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueVacationTitle('bs vacation - excursion status');
+
     await loginAs();
     await vacationsPage.gotoViaUrl();
 
     await vacationsPage.createVacation({
-      title: 'bs vacation - excursion status',
+      title,
       startDate: '2026-07-01',
       endDate: '2026-07-14',
       tripType: 'MULTI_LOCATION',
       transportation: 'car',
     });
 
-    await vacationsPage.openVacationDetail('bs vacation - excursion status', 'Itinerary');
+    await vacationsPage.openVacationDetail(title, 'Itinerary');
     await vacationsPage.switchTab('Itinerary');
     await vacationsPage.addLeg({ name: 'Mountain Trek', startDate: '2026-07-01', endDate: '2026-07-07' });
     await expect(vacationsPage.page.getByText('Mountain Trek')).toBeVisible();
@@ -312,18 +342,20 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
+    const title = uniqueVacationTitle('bs vacation - excursion comment');
+
     await loginAs();
     await vacationsPage.gotoViaUrl();
 
     await vacationsPage.createVacation({
-      title: 'bs vacation - excursion comment',
+      title,
       startDate: '2026-07-01',
       endDate: '2026-07-14',
       tripType: 'MULTI_LOCATION',
       transportation: 'car',
     });
 
-    await vacationsPage.openVacationDetail('bs vacation - excursion comment', 'Itinerary');
+    await vacationsPage.openVacationDetail(title, 'Itinerary');
     await vacationsPage.switchTab('Itinerary');
     await vacationsPage.addLeg({ name: 'City Tour', startDate: '2026-07-01', endDate: '2026-07-07' });
     await expect(vacationsPage.page.getByText('City Tour')).toBeVisible();
