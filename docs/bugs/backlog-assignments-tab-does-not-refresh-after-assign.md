@@ -26,9 +26,7 @@ This breaks the expected UX: a user completing an assign action expects immediat
 
 ## Actual Behavior
 
-1–3 same as above.
-4. Assignments tab still shows pre-assign state.
-5. User must reload the page and re-navigate to see the assignment.
+1–3 same as above. 4. Assignments tab still shows pre-assign state. 5. User must reload the page and re-navigate to see the assignment.
 
 ---
 
@@ -55,7 +53,7 @@ In `ChoresModule.tsx`, locate the `handleAssignSubmit` (or equivalent) function 
 // After successful ChoreAssignment.create(...)
 await fetchAssignments(); // re-fetch so Assignments tab reflects new data
 setAssignModalOpen(false);
-showSuccessToast('Chore assigned successfully.');
+showSuccessToast("Chore assigned successfully.");
 ```
 
 ---
@@ -78,7 +76,9 @@ await choresPage.assignChore(title, { assignedTo });
 // After fix: no reload needed
 await choresPage.switchToAssignments();
 await expect(choresPage.getAssignmentRow(title)).toBeVisible();
-await expect(choresPage.getAssignmentRow(title).getByText(assignedTo)).toBeVisible();
+await expect(
+  choresPage.getAssignmentRow(title).getByText(assignedTo),
+).toBeVisible();
 ```
 
 ---
