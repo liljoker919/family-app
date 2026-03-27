@@ -72,11 +72,10 @@ export class PropertyPage {
   // ── Navigation methods ───────────────────────────────────────────────────
 
   /**
-   * Navigate to the dashboard and activate the Property module by clicking
-   * its link in the left sidebar navigation.
+   * Activate the Property module from the already-loaded dashboard.
    */
   async goto(): Promise<void> {
-    await this.page.goto('/dashboard');
+    await expect(this.page).toHaveURL(/\/dashboard/i);
     await this.sidebarLink.click();
     await expect(this.heading).toBeVisible();
   }

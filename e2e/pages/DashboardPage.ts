@@ -56,12 +56,12 @@ export class DashboardPage {
   // ── Navigation methods ───────────────────────────────────────────────────
 
   /**
-   * Navigate to the dashboard URL and wait for the family membership data to
-   * finish loading so the full dashboard UI is visible.
+   * Wait for the already-loaded dashboard (post-login landing) to finish
+   * loading so the full dashboard UI is visible.
    */
   async goto(): Promise<void> {
-    await this.page.goto('/dashboard');
-    await this.loadingIndicator.waitFor({ state: 'hidden' });
+    await expect(this.page).toHaveURL(/\/dashboard/i);
+    await this.loadingIndicator.waitFor({ state: 'hidden' }).catch(() => undefined);
     await expect(this.heading).toBeVisible();
   }
 

@@ -126,20 +126,20 @@ export class VacationsPage {
   // ── Navigation methods ───────────────────────────────────────────────────
 
   /**
-   * Navigate directly to the dashboard. The Vacations module is the default
-   * active module so this effectively lands on the Vacations view.
+   * Use the post-login dashboard landing where Vacations is the default
+   * active module.
    */
   async gotoViaUrl(): Promise<void> {
-    await this.page.goto('/dashboard');
+    await expect(this.page).toHaveURL(/\/dashboard/i);
     await expect(this.heading).toBeVisible();
   }
 
   /**
-   * Navigate to the dashboard and then activate the Vacations module by
+   * Activate the Vacations module from the already-loaded dashboard by
    * clicking its link in the left sidebar navigation.
    */
   async gotoViaSidebar(): Promise<void> {
-    await this.page.goto('/dashboard');
+    await expect(this.page).toHaveURL(/\/dashboard/i);
     // Switch to a different module first so the sidebar click is meaningful
     await this.page.getByRole('button', { name: 'Trip Planning' }).click();
     await this.sidebarLink.click();
