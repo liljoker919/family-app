@@ -359,9 +359,7 @@ const schema = a.schema({
       completions: a.hasMany('ChoreCompletion', 'choreId'),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
-      allow.group('PLANNER').to(['read', 'create', 'update', 'delete']),
-      allow.authenticated().to(['read']),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
   ChoreAssignment: a
@@ -375,9 +373,7 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
-      allow.group('PLANNER').to(['read', 'create', 'update', 'delete']),
-      allow.authenticated().to(['read']),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
   ChoreCompletion: a
@@ -390,10 +386,7 @@ const schema = a.schema({
       pointsEarned: a.integer(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
-      allow.group('PLANNER').to(['read', 'create', 'update', 'delete']),
-      allow.ownerDefinedIn('completedBy').to(['create', 'read']),
-      allow.authenticated().to(['read']),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 });
 
