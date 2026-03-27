@@ -1,12 +1,9 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/test';
 import { getAnyConfiguredFamilyUser } from '../fixtures/authUsers';
+import { uniqueTestID } from '../utils/test-helpers';
 
 const SKIP_REASON = 'Set E2E_VALID_PASSWORD and at least one E2E_*_EMAIL secret.';
-
-function uniquePropertyName(base: string): string {
-  return `${base}-${Date.now()}${Math.floor(Math.random() * 1000)}`;
-}
 
 test.describe('Property', () => {
   // ── BrowserStack-mapped test cases ───────────────────────────────────────
@@ -14,7 +11,7 @@ test.describe('Property', () => {
   test('Property - Add a property with a valid name', async ({ propertyPage, loginAs }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const propertyName = uniquePropertyName('Sunset Villa');
+    const propertyName = uniqueTestID('Sunset Villa');
 
     await loginAs();
     await propertyPage.goto();
@@ -61,7 +58,7 @@ test.describe('Property', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const propertyName = uniquePropertyName('Elm Street Rental');
+    const propertyName = uniqueTestID('Elm Street Rental');
 
     await loginAs();
     await propertyPage.goto();
@@ -83,7 +80,7 @@ test.describe('Property', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const propertyName = uniquePropertyName('Beachside Cottage');
+    const propertyName = uniqueTestID('Beachside Cottage');
 
     await loginAs();
     await propertyPage.goto();
@@ -117,7 +114,7 @@ test.describe('Property', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const propertyName = uniquePropertyName('Downtown Loft');
+    const propertyName = uniqueTestID('Downtown Loft');
 
     await loginAs();
     await propertyPage.goto();
@@ -155,7 +152,7 @@ test.describe('Property', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const propertyName = uniquePropertyName('Maple Grove House');
+    const propertyName = uniqueTestID('Maple Grove House');
 
     await loginAs();
     await propertyPage.goto();

@@ -1,12 +1,9 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/test';
 import { getAnyConfiguredFamilyUser } from '../fixtures/authUsers';
+import { uniqueTestID } from '../utils/test-helpers';
 
 const SKIP_REASON = 'Set E2E_VALID_PASSWORD and at least one E2E_*_EMAIL secret.';
-
-function uniqueVacationTitle(base: string): string {
-  return `${base}-${Date.now()}${Math.floor(Math.random() * 1000)}`;
-}
 
 test.describe('Vacations', () => {
   // ── Navigation ────────────────────────────────────────────────────────────
@@ -41,7 +38,7 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const title = uniqueVacationTitle('trip destination');
+    const title = uniqueTestID('trip destination');
 
     await loginAs();
     await vacationsPage.gotoViaUrl();
@@ -67,7 +64,7 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const title = uniqueVacationTitle('trip destination - itinerary');
+    const title = uniqueTestID('trip destination - itinerary');
 
     await loginAs();
     await vacationsPage.gotoViaUrl();
@@ -97,7 +94,7 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const title = uniqueVacationTitle('trip destination - excursions');
+    const title = uniqueTestID('trip destination - excursions');
 
     await loginAs();
     await vacationsPage.gotoViaUrl();
@@ -130,7 +127,7 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const title = uniqueVacationTitle('bs vacation - date range');
+    const title = uniqueTestID('bs vacation - date range');
 
     await loginAs();
     await vacationsPage.gotoViaUrl();
@@ -152,7 +149,7 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const title = uniqueVacationTitle('bs vacation - flight segment');
+    const title = uniqueTestID('bs vacation - flight segment');
 
     await loginAs();
     await vacationsPage.gotoViaUrl();
@@ -184,7 +181,7 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const title = uniqueVacationTitle('bs vacation - blocked flight');
+    const title = uniqueTestID('bs vacation - blocked flight');
 
     await loginAs();
     await vacationsPage.gotoViaUrl();
@@ -217,7 +214,7 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const title = uniqueVacationTitle('bs vacation - activities');
+    const title = uniqueTestID('bs vacation - activities');
 
     await loginAs();
     await vacationsPage.gotoViaUrl();
@@ -245,7 +242,7 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const title = uniqueVacationTitle('bs vacation - upvote');
+    const title = uniqueTestID('bs vacation - upvote');
 
     await loginAs();
     await vacationsPage.gotoViaUrl();
@@ -281,7 +278,7 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const title = uniqueVacationTitle('bs vacation - activity feedback');
+    const title = uniqueTestID('bs vacation - activity feedback');
 
     await loginAs();
     await vacationsPage.gotoViaUrl();
@@ -311,7 +308,7 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const title = uniqueVacationTitle('bs vacation - excursion status');
+    const title = uniqueTestID('bs vacation - excursion status');
 
     await loginAs();
     await vacationsPage.gotoViaUrl();
@@ -342,7 +339,7 @@ test.describe('Vacations', () => {
   }) => {
     test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
 
-    const title = uniqueVacationTitle('bs vacation - excursion comment');
+    const title = uniqueTestID('bs vacation - excursion comment');
 
     await loginAs();
     await vacationsPage.gotoViaUrl();

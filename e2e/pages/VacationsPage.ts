@@ -217,16 +217,16 @@ export class VacationsPage {
     const activityForm = this.page.locator('form').filter({
       has: this.page.getByPlaceholder('Activity Name'),
     });
-    await this.page.getByPlaceholder('Activity Name').fill(activityDetails.name);
+    await activityForm.getByPlaceholder('Activity Name').fill(activityDetails.name);
     if (activityDetails.description) {
-      await this.page.getByPlaceholder('Description').fill(activityDetails.description);
+      await activityForm.getByPlaceholder('Description').fill(activityDetails.description);
     }
     if (activityDetails.date) {
       // The date input has no placeholder or label; it is the only date input in the activity form
       await activityForm.locator('input[type="date"]').fill(activityDetails.date);
     }
     if (activityDetails.location) {
-      await this.page.getByPlaceholder('Location').fill(activityDetails.location);
+      await activityForm.getByPlaceholder('Location').fill(activityDetails.location);
     }
     await activityForm.getByRole('button', { name: 'Add', exact: true }).click();
   }
