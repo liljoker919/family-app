@@ -27,20 +27,24 @@ Define and apply one standard confirmation pattern for create, edit, and delete 
 ## Proposed UX Standard
 
 1. Create
+
 - Show success toast/banner after successful create.
 - Immediately reflect the created item in the current list/view.
 
 2. Edit
+
 - Show success toast/banner after successful edit.
 - Immediately reflect updated values in-place.
 
 3. Delete
+
 - Use a consistent confirmation step before delete.
 - On confirm + successful delete, remove item from UI immediately.
 - Show success toast/banner after delete.
 - On failure, show actionable error toast/banner and keep item visible.
 
 4. Error handling
+
 - Standardize API failure messages and field-level validation display.
 - Prevent silent failures.
 
