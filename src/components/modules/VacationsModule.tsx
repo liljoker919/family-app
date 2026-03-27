@@ -594,7 +594,10 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
     if (confirm("Are you sure you want to delete this vacation?")) {
       try {
         await client.models.Vacation.delete({ id });
-        fetchVacations();
+        setVacations((prev) => prev.filter((v) => v.id !== id));
+        if (selectedVacation?.id === id) {
+          setSelectedVacation(null);
+        }
       } catch (error) {
         console.error("Error deleting vacation:", error);
       }
