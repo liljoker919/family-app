@@ -165,8 +165,18 @@ export class VacationsPage {
       .locator('div.bg-white.rounded-lg.shadow-md')
       .filter({ has: this.page.getByRole('heading', { name: title, exact: true, level: 3 }) });
 
+    // Wait for the created/updated card to render before interacting with it.
+    await expect(card).toBeVisible({ timeout: 15000 });
+
+    const tabButtonName = {
+      Activities: /^Activities$/,
+      Itinerary: /^Itinerary$/,
+      Excursions: /^Excursions$/,
+      Flights: /Flights/,
+    }[tab];
+
     // Click the matching quick-access button on the card (outside the tab bar)
-    await card.getByRole('button', { name: tab }).click();
+    await card.getByRole('button', { name: tabButtonName }).click();
   }
 
   // ── Action methods ───────────────────────────────────────────────────────

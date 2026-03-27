@@ -9,7 +9,7 @@ test.describe('Dashboard', () => {
     loginAs,
   }) => {
     const { email } = await loginAs();
-    await expect(dashboardPage.heading).toBeVisible();
+    await dashboardPage.goto();
 
     // The welcome paragraph in the header must contain the signed-in user's email
     await expect(dashboardPage.headerWelcome).toContainText(email);
@@ -24,7 +24,7 @@ test.describe('Dashboard', () => {
     loginAs,
   }) => {
     await loginAs();
-    await expect(dashboardPage.heading).toBeVisible();
+    await dashboardPage.goto();
 
     // Always-visible sidebar modules in the order shown in the spec
     const alwaysVisibleModules = [
@@ -60,6 +60,8 @@ test.describe('Dashboard', () => {
     loginAs,
   }) => {
     await loginAs();
+
+    await expect(dashboardPage.page).toHaveURL(/\/dashboard/i);
 
     // Attempt to observe the loading indicator.  In fast environments the
     // membership fetch may complete before this assertion runs, which is

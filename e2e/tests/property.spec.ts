@@ -1,17 +1,15 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/test';
-import { getAnyConfiguredFamilyUser } from '../fixtures/authUsers';
-import { uniqueTestID } from '../utils/test-helpers';
 
-const SKIP_REASON = 'Set E2E_VALID_PASSWORD and at least one E2E_*_EMAIL secret.';
+function uniquePropertyName(base: string): string {
+  return `${base}-${Date.now()}${Math.floor(Math.random() * 1000)}`;
+}
 
 test.describe('Property', () => {
   // ── BrowserStack-mapped test cases ───────────────────────────────────────
 
   test('Property - Add a property with a valid name', async ({ propertyPage, loginAs }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
-    const propertyName = uniqueTestID('Sunset Villa');
+    const propertyName = uniquePropertyName('Sunset Villa');
 
     await loginAs();
     await propertyPage.goto();
@@ -34,8 +32,6 @@ test.describe('Property', () => {
     propertyPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     await loginAs();
     await propertyPage.goto();
 
@@ -56,9 +52,7 @@ test.describe('Property', () => {
     propertyPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
-    const propertyName = uniqueTestID('Elm Street Rental');
+    const propertyName = uniquePropertyName('Elm Street Rental');
 
     await loginAs();
     await propertyPage.goto();
@@ -78,9 +72,7 @@ test.describe('Property', () => {
     propertyPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
-    const propertyName = uniqueTestID('Beachside Cottage');
+    const propertyName = uniquePropertyName('Beachside Cottage');
 
     await loginAs();
     await propertyPage.goto();
@@ -112,9 +104,7 @@ test.describe('Property', () => {
     propertyPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
-    const propertyName = uniqueTestID('Downtown Loft');
+    const propertyName = uniquePropertyName('Downtown Loft');
 
     await loginAs();
     await propertyPage.goto();
@@ -150,9 +140,7 @@ test.describe('Property', () => {
     propertyPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
-    const propertyName = uniqueTestID('Maple Grove House');
+    const propertyName = uniquePropertyName('Maple Grove House');
 
     await loginAs();
     await propertyPage.goto();
@@ -188,5 +176,43 @@ test.describe('Property', () => {
     await expect(card.locator('p.text-xs', { hasText: /Net Income/i }).locator('+ p')).toHaveClass(
       /text-royal-blue-700/
     );
+  });
+
+  test('Property - Transaction ledger displays newest transactions first', async ({
+    propertyPage,
+    loginAs,
+  }) => {
+    const propertyName = uniquePropertyName('Riverside Cottage');
+
+    await loginAs();
+    await propertyPage.goto();
+
+    await propertyPage.createProperty({ name: propertyName });
+    await expect(propertyPage.getPropertyCard(propertyName)).toBeVisible();
+
+    await propertyPage.expandLedger(propertyName);
+
+    // Log an older transaction first (January)
+    await propertyPage.logTransaction(propertyName, {
+      category: 'RENT_INCOME',
+      amount: '500',
+      date: '2026-01-01',
+    });
+
+    // Log a newer transaction second (June)
+    await propertyPage.logTransaction(propertyName, {
+      category: 'MORTGAGE',
+      amount: '300',
+      date: '2026-06-01',
+    });
+
+    // The ledger sorts newest-first: the June row must appear before January
+    const card = propertyPage.getPropertyCard(propertyName);
+    const ledgerRows = card.locator('div.flex.items-center.gap-4.px-4.py-3');
+    await expect(ledgerRows.first()).toContainText('2026-06-01');
+    await expect(ledgerRows.nth(1)).toContainText('2026-01-01');
+
+    // cleanup
+    await propertyPage.deleteProperty(propertyName).catch(() => undefined);
   });
 });

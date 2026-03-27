@@ -1,9 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/test';
-import { getAnyConfiguredFamilyUser } from '../fixtures/authUsers';
-import type { CarDetails } from '../pages/CarsPage';
-
-const SKIP_REASON = 'Set E2E_VALID_PASSWORD and at least one E2E_*_EMAIL secret.';
+import type { CarDetails, ServiceDetails } from '../pages/CarsPage';
 
 type CreatedCar = Pick<CarDetails, 'year' | 'make' | 'model' | 'vin'>;
 
@@ -52,8 +49,6 @@ test.describe('Cars', () => {
   // ── BrowserStack-mapped test cases ───────────────────────────────────────
 
   test('Cars - Add a car with all required fields', async ({ carsPage, loginAs }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     await loginAs();
     // Successful sign-in lands on the dashboard; switch modules from there.
     await carsPage.goto();
@@ -75,8 +70,6 @@ test.describe('Cars', () => {
     carsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     await loginAs();
     // Successful sign-in lands on the dashboard; switch modules from there.
     await carsPage.goto();
@@ -97,8 +90,6 @@ test.describe('Cars', () => {
   });
 
   test('Cars - Deleting a car removes it from the list', async ({ carsPage, loginAs }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     await loginAs();
     // Successful sign-in lands on the dashboard; switch modules from there.
     await carsPage.goto();
@@ -122,8 +113,6 @@ test.describe('Cars', () => {
   });
 
   test('Cars - Update current mileage for a car', async ({ carsPage, loginAs }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     await loginAs();
     // Successful sign-in lands on the dashboard; switch modules from there.
     await carsPage.goto();
@@ -156,8 +145,6 @@ test.describe('Cars', () => {
     carsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     await loginAs();
     // Successful sign-in lands on the dashboard; switch modules from there.
     await carsPage.goto();
@@ -184,5 +171,64 @@ test.describe('Cars', () => {
 
     // A yellow "Expiring Soon" warning badge should appear next to the registration date
     await expect(card.getByText(/⚠️ Expiring Soon/)).toBeVisible();
+  });
+
+  test('Cars - Car with a past registration expiry shows an expired badge', async ({
+    carsPage,
+    loginAs,
+  }) => {
+    await loginAs();
+    await carsPage.goto();
+
+    // Build a registration expiry date 15 days in the past
+    const expiry = new Date();
+    expiry.setDate(expiry.getDate() - 15);
+    const expiryStr = expiry.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    const car = buildUniqueCar({
+      make: 'Nissan',
+      model: 'Altima',
+      year: '2018',
+    });
+    createdCars.push(car);
+
+    await carsPage.createCar({
+      ...car,
+      registrationExpiry: expiryStr,
+    });
+
+    const card = carsPage.getCarCardByVin(car.vin);
+    await expect(card).toBeVisible();
+
+    // A red "Expired" badge should appear next to the registration date
+    await expect(card.getByText(/⚠️ Expired/)).toBeVisible();
+  });
+
+  test('Cars - Add a service record to a car', async ({ carsPage, loginAs }) => {
+    await loginAs();
+    await carsPage.goto();
+
+    const car = buildUniqueCar({
+      make: 'Subaru',
+      model: 'Outback',
+      year: '2021',
+    });
+    createdCars.push(car);
+
+    await carsPage.createCar(car);
+    await expect(carsPage.getCarCardByVin(car.vin)).toBeVisible();
+
+    // Open service history and add a service record
+    await carsPage.viewServiceHistory(car.vin);
+    const serviceDetails: ServiceDetails = {
+      serviceType: 'Oil Change',
+      date: '2026-03-01',
+      cost: '45.99',
+      provider: 'Jiffy Lube',
+    };
+    await carsPage.addServiceRecord(serviceDetails);
+
+    // The service record should appear in the service history list
+    await expect(carsPage.getServiceRecord('Oil Change')).toBeVisible();
   });
 });
