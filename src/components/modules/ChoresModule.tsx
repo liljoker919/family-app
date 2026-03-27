@@ -214,6 +214,7 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
         createdBy: currentUser,
       };
 
+      const isCreating = !editingChore;
       if (editingChore) {
         await client.models.Chore.update({ id: editingChore.id, ...payload });
       } else {
@@ -221,8 +222,15 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
       }
       setShowChoreForm(false);
       resetChoreForm();
-      const successMsg = editingChore ? 'Chore updated successfully.' : 'Chore created successfully.';
+      const successMsg = isCreating ? 'Chore created successfully.' : 'Chore updated successfully.';
       setFormSuccess(successMsg);
+      if (isCreating) {
+        setFilterCategory('ALL');
+        setFilterRecurrence('ALL');
+        setFilterDue('ALL');
+        setFilterStatus('ACTIVE');
+        setActiveTab('chores');
+      }
       try {
         await fetchChores();
       } catch {
