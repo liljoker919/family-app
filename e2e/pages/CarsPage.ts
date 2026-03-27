@@ -11,6 +11,15 @@ export interface CarDetails {
   currentMileage?: string;
 }
 
+export interface ServiceDetails {
+  serviceType: string;
+  date: string;
+  description?: string;
+  mileageAtService?: string;
+  cost?: string;
+  provider?: string;
+}
+
 export class CarsPage {
   readonly page: Page;
 
@@ -179,5 +188,50 @@ export class CarsPage {
   /** Assert that the Cars Management module heading is visible. */
   async expectCarsHeading(): Promise<void> {
     await expect(this.heading).toBeVisible();
+  }
+
+  // ── Service history methods ───────────────────────────────────────────────
+
+  /**
+   * Clicks "View Service History" on the car card identified by VIN to expand
+   * the service history section.
+   */
+  async viewServiceHistory(vin: string): Promise<void> {
+    const card = this.getCarCardByVin(vin);
+    await card.getByRole('button', { name: 'View Service History' }).click();
+  }
+
+  /**
+   * Clicks "Add Service Record", fills the inline service form, and submits it.
+   * Assumes `viewServiceHistory` has already been called to expand the section.
+   */
+  async addServiceRecord(details: ServiceDetails): Promise<void> {
+    await this.page.getByRole('button', { name: 'Add Service Record' }).click();
+    const serviceForm = this.page
+      .locator('form')
+      .filter({ has: this.page.getByRole('button', { name: 'Add Service' }) });
+    await serviceForm.locator('label:has-text("Service Type") + input').fill(details.serviceType);
+    await serviceForm.locator('label:has-text("Date") + input').fill(details.date);
+    if (details.description) {
+      await serviceForm.locator('label:has-text("Description") + textarea').fill(details.description);
+    }
+    if (details.mileageAtService) {
+      await serviceForm.locator('label:has-text("Mileage at Service") + input').fill(details.mileageAtService);
+    }
+    if (details.cost) {
+      await serviceForm.locator('label:has-text("Cost") + input').fill(details.cost);
+    }
+    if (details.provider) {
+      await serviceForm.locator('label:has-text("Provider") + input').fill(details.provider);
+    }
+    await serviceForm.getByRole('button', { name: 'Add Service' }).click();
+  }
+
+  /**
+   * Returns a locator for the service record card identified by service type
+   * text (the h5 heading inside the record).
+   */
+  getServiceRecord(serviceType: string): Locator {
+    return this.page.locator('h5.font-semibold', { hasText: serviceType });
   }
 }

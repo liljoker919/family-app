@@ -1,8 +1,5 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/test';
-import { getAnyConfiguredFamilyUser } from '../fixtures/authUsers';
-
-const SKIP_REASON = 'Set E2E_VALID_PASSWORD and at least one E2E_*_EMAIL secret.';
 
 function uniqueVacationTitle(base: string): string {
   return `${base}-${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -15,8 +12,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     await loginAs();
     await vacationsPage.gotoViaUrl();
     await vacationsPage.expectVacationsHeading();
@@ -26,8 +21,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     await loginAs();
     await vacationsPage.gotoViaSidebar();
     await vacationsPage.expectVacationsHeading();
@@ -39,8 +32,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueVacationTitle('trip destination');
 
     await loginAs();
@@ -65,8 +56,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueVacationTitle('trip destination - itinerary');
 
     await loginAs();
@@ -95,8 +84,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueVacationTitle('trip destination - excursions');
 
     await loginAs();
@@ -111,6 +98,8 @@ test.describe('Vacations', () => {
       tripType: 'SINGLE_LOCATION',
       transportation: 'car',
     });
+
+    await expect(vacationsPage.vacationCard(title)).toBeVisible();
 
     // Open the card with the Excursions tab active
     await vacationsPage.openVacationDetail(title, 'Excursions');
@@ -128,8 +117,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueVacationTitle('bs vacation - date range');
 
     await loginAs();
@@ -150,8 +137,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueVacationTitle('bs vacation - flight segment');
 
     await loginAs();
@@ -182,8 +167,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueVacationTitle('bs vacation - blocked flight');
 
     await loginAs();
@@ -215,8 +198,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueVacationTitle('bs vacation - activities');
 
     await loginAs();
@@ -243,8 +224,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueVacationTitle('bs vacation - upvote');
 
     await loginAs();
@@ -257,6 +236,8 @@ test.describe('Vacations', () => {
       tripType: 'MULTI_LOCATION',
       transportation: 'car',
     });
+
+    await expect(vacationsPage.vacationCard(title)).toBeVisible();
 
     await vacationsPage.openVacationDetail(title, 'Itinerary');
     await vacationsPage.switchTab('Itinerary');
@@ -279,8 +260,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueVacationTitle('bs vacation - activity feedback');
 
     await loginAs();
@@ -293,6 +272,8 @@ test.describe('Vacations', () => {
       tripType: 'SINGLE_LOCATION',
       transportation: 'car',
     });
+
+    await expect(vacationsPage.vacationCard(title)).toBeVisible();
 
     await vacationsPage.openVacationDetail(title, 'Activities');
     await vacationsPage.addActivity({
@@ -309,8 +290,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueVacationTitle('bs vacation - excursion status');
 
     await loginAs();
@@ -340,8 +319,6 @@ test.describe('Vacations', () => {
     vacationsPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueVacationTitle('bs vacation - excursion comment');
 
     await loginAs();
