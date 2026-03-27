@@ -210,19 +210,19 @@ export class CarsPage {
     const serviceForm = this.page
       .locator('form')
       .filter({ has: this.page.getByRole('button', { name: 'Add Service' }) });
-    await serviceForm.locator('label:has-text("Service Type") + input').fill(details.serviceType);
-    await serviceForm.locator('label:has-text("Date") + input').fill(details.date);
+    await serviceForm.getByLabel('Service Type').fill(details.serviceType);
+    await serviceForm.getByLabel('Date').fill(details.date);
     if (details.description) {
-      await serviceForm.locator('label:has-text("Description") + textarea').fill(details.description);
+      await serviceForm.getByLabel('Description').fill(details.description);
     }
     if (details.mileageAtService) {
-      await serviceForm.locator('label:has-text("Mileage at Service") + input').fill(details.mileageAtService);
+      await serviceForm.getByLabel('Mileage at Service').fill(details.mileageAtService);
     }
     if (details.cost) {
-      await serviceForm.locator('label:has-text("Cost") + input').fill(details.cost);
+      await serviceForm.getByLabel('Cost').fill(details.cost);
     }
     if (details.provider) {
-      await serviceForm.locator('label:has-text("Provider") + input').fill(details.provider);
+      await serviceForm.getByLabel('Provider').fill(details.provider);
     }
     await serviceForm.getByRole('button', { name: 'Add Service' }).click();
   }

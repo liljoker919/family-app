@@ -208,7 +208,7 @@ test.describe('Property', () => {
 
     // The ledger sorts newest-first: the June row must appear before January
     const card = propertyPage.getPropertyCard(propertyName);
-    const ledgerRows = card.locator('div.flex.items-center.gap-4.px-4.py-3');
+    const ledgerRows = card.locator('.divide-y > div');
     await expect(ledgerRows.first()).toContainText('2026-06-01');
     await expect(ledgerRows.nth(1)).toContainText('2026-01-01');
 
