@@ -2,12 +2,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import type { FamilyRole } from '../../utils/familyContext';
+import { canEditContent } from '../../utils/rolePermissions';
 import { isChoreToday, isChoreThisWeek } from '../../utils/choresDue';
 import KidChoresView from './KidChoresView';
 
 const client = generateClient<Schema>();
-
-const MANAGER_GROUPS = ['ADMIN', 'PLANNER'] as const;
 
 interface ChoresModuleProps {
   user: any;
@@ -116,7 +115,7 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
   }, []);
 
   const canManage = useMemo(
-    () => MANAGER_GROUPS.includes(role as typeof MANAGER_GROUPS[number]),
+    () => canEditContent(role),
     [role]
   );
 
