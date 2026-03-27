@@ -101,7 +101,7 @@ export class ChoresPage {
       .filter({ has: page.locator('button[type="submit"]').filter({ hasText: 'Assign' }) });
     this.assignFormHeading = page.getByRole('heading', { name: 'Assign Chore' });
     this.assignedToInput = assignModal.locator('label:has-text("Assign To") + input');
-    this.assignBtn = page.getByRole('button', { name: 'Assign', exact: true });
+    this.assignBtn = assignModal.getByRole('button', { name: 'Assign', exact: true });
     this.cancelAssignBtn = assignModal.getByRole('button', { name: 'Cancel' });
 
     // Log Completion modal – scope to the form containing "Log Completion" submit button

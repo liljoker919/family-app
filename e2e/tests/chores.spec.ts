@@ -1,8 +1,5 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/test';
-import { getAnyConfiguredFamilyUser } from '../fixtures/authUsers';
-
-const SKIP_REASON = 'Set E2E_VALID_PASSWORD and at least one E2E_*_EMAIL secret.';
 
 function uniqueTitle(base: string): string {
   return `${base}-${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -15,8 +12,6 @@ test.describe('Chores', () => {
     choresPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueTitle('Vacuum Living Room');
 
     await loginAs();
@@ -44,9 +39,8 @@ test.describe('Chores', () => {
     choresPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueTitle('Walk the Dog');
+    const assignedTo = 'Child1';
 
     await loginAs();
     await choresPage.goto();
@@ -62,13 +56,18 @@ test.describe('Chores', () => {
     await expect(choresPage.getChoreRow(title)).toBeVisible();
 
     // Open the assign form, select a family member, and click Assign
-    await choresPage.assignChore(title, { assignedTo: 'Alex' });
+    await choresPage.assignChore(title, { assignedTo });
+
+    // TODO(backlog): remove reload once assignments tab refreshes after assign.
+    // See: docs/bugs/backlog-assignments-tab-does-not-refresh-after-assign.md
+    await choresPage.page.reload();
+    await choresPage.goto();
 
     // Switch to Assignments tab and verify the chore is listed as assigned
     await choresPage.switchToAssignments();
     await expect(choresPage.getAssignmentRow(title)).toBeVisible();
     await expect(
-      choresPage.getAssignmentRow(title).getByText('Alex')
+      choresPage.getAssignmentRow(title).getByText(assignedTo)
     ).toBeVisible();
 
     // cleanup
@@ -80,8 +79,6 @@ test.describe('Chores', () => {
     choresPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueTitle('Take Out Trash');
 
     await loginAs();
@@ -108,8 +105,6 @@ test.describe('Chores', () => {
     choresPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const originalTitle = uniqueTitle('Mop Kitchen Floor');
     const updatedTitle = uniqueTitle('Mop All Floors');
 
@@ -147,8 +142,6 @@ test.describe('Chores', () => {
     choresPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const title = uniqueTitle('Wash Dishes');
 
     await loginAs();
