@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { generateClient } from 'aws-amplify/data';
-import { fetchAuthSession } from 'aws-amplify/auth';
 import type { Schema } from '../../../amplify/data/resource';
+import type { FamilyRole } from '../../utils/familyContext';
+import { canEditContent } from '../../utils/rolePermissions';
 import {
   filterCompletions,
   computeCompletionStats,
@@ -10,18 +11,16 @@ import {
 
 const client = generateClient<Schema>();
 
-const MANAGER_GROUPS = ['ADMIN', 'PLANNER'] as const;
-
 interface ReportingModuleProps {
   user: any;
   familyId: string;
+  role: FamilyRole;
 }
 
-export default function ReportingModule({ user, familyId }: ReportingModuleProps) {
+export default function ReportingModule({ user, familyId, role }: ReportingModuleProps) {
   const [chores, setChores] = useState<any[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
-  const [userGroups, setUserGroups] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -30,19 +29,8 @@ export default function ReportingModule({ user, familyId }: ReportingModuleProps
   const [filterEndDate, setFilterEndDate] = useState<string>('');
 
   useEffect(() => {
-    Promise.all([loadUserGroups(), fetchData()]).finally(() => setLoading(false));
+    fetchData().finally(() => setLoading(false));
   }, []);
-
-  const loadUserGroups = async () => {
-    try {
-      const session = await fetchAuthSession();
-      const groups =
-        (session.tokens?.idToken?.payload?.['cognito:groups'] as string[]) ?? [];
-      setUserGroups(groups);
-    } catch {
-      setUserGroups([]);
-    }
-  };
 
   const fetchData = async () => {
     try {
@@ -66,13 +54,7 @@ export default function ReportingModule({ user, familyId }: ReportingModuleProps
     }
   };
 
-  const canManage = useMemo(
-    () =>
-      userGroups.some((g) =>
-        MANAGER_GROUPS.includes(g as (typeof MANAGER_GROUPS)[number])
-      ),
-    [userGroups]
-  );
+  const canManage = useMemo(() => canEditContent(role), [role]);
 
   const knownChildren = useMemo(
     () => deriveKnownChildren(completions, assignments),

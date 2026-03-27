@@ -10,7 +10,6 @@ const schema = a.schema({
       members: a.hasMany('FamilyMember', 'familyId'),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
@@ -23,7 +22,6 @@ const schema = a.schema({
       displayName: a.string(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
@@ -36,7 +34,6 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.ownerDefinedIn('userId').to(['read', 'update']),
-      allow.group('ADMIN'),
       allow.authenticated().to(['read']),
     ]),
 
@@ -56,7 +53,6 @@ const schema = a.schema({
       flightSegments: a.hasMany('FlightSegment', 'vacationId'),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
@@ -74,7 +70,6 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
@@ -94,7 +89,6 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'tripLegId'),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
@@ -113,7 +107,6 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
@@ -130,7 +123,6 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
@@ -146,7 +138,6 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'cruisePortStopId'),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
@@ -167,7 +158,6 @@ const schema = a.schema({
       comments: a.hasMany('ExcursionComment', 'excursionOptionId'),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
@@ -179,7 +169,6 @@ const schema = a.schema({
       vote: a.enum(['UP', 'DOWN']),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
@@ -192,7 +181,6 @@ const schema = a.schema({
       createdAt: a.datetime(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
@@ -207,7 +195,6 @@ const schema = a.schema({
       feedbacks: a.hasMany('Feedback', 'activityId'),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
@@ -221,7 +208,6 @@ const schema = a.schema({
       createdAt: a.datetime(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
@@ -236,7 +222,6 @@ const schema = a.schema({
       recommend: a.boolean(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update']),
     ]),
 
@@ -254,9 +239,7 @@ const schema = a.schema({
       createdBy: a.string().required(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
-      allow.group('PLANNER').to(['read', 'create', 'update']),
-      allow.authenticated().to(['read']),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
   Property: a
@@ -268,7 +251,7 @@ const schema = a.schema({
       transactions: a.hasMany('PropertyTransaction', 'propertyId'),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
   PropertyTransactionCategory: a.enum([
@@ -290,7 +273,7 @@ const schema = a.schema({
       category: a.ref('PropertyTransactionCategory').required(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
+      allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
   Recipe: a
@@ -306,7 +289,6 @@ const schema = a.schema({
       imageUrl: a.string(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
@@ -324,7 +306,6 @@ const schema = a.schema({
       services: a.hasMany('CarService', 'carId'),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 
@@ -340,7 +321,6 @@ const schema = a.schema({
       provider: a.string(),
     })
     .authorization((allow) => [
-      allow.group('ADMIN'),
       allow.authenticated().to(['read', 'create', 'update', 'delete']),
     ]),
 

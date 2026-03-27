@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { generateClient } from 'aws-amplify/data';
-import { fetchAuthSession } from 'aws-amplify/auth';
 import type { Schema } from '../../../amplify/data/resource';
+import type { FamilyRole } from '../../utils/familyContext';
+import { canEditContent } from '../../utils/rolePermissions';
 
 const client = generateClient<Schema>();
-
-const EDITOR_GROUPS = ['ADMIN', 'PLANNER'] as const;
 
 type TripStatus = 'PROPOSED' | 'PLANNING' | 'BOOKED' | 'CANCELED';
 
@@ -31,6 +30,7 @@ const NEXT_STATUSES: Partial<Record<TripStatus, TripStatus[]>> = {
 interface PlanningModuleProps {
   user: any;
   familyId: string;
+  role: FamilyRole;
 }
 
 interface TripForm {
@@ -53,9 +53,8 @@ const emptyForm: TripForm = {
   status: 'PROPOSED',
 };
 
-export default function PlanningModule({ user, familyId }: PlanningModuleProps) {
+export default function PlanningModule({ user, familyId, role }: PlanningModuleProps) {
   const [tripPlans, setTripPlans] = useState<any[]>([]);
-  const [userGroups, setUserGroups] = useState<string[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingTrip, setEditingTrip] = useState<any>(null);
   const [form, setForm] = useState<TripForm>(emptyForm);
@@ -63,22 +62,10 @@ export default function PlanningModule({ user, familyId }: PlanningModuleProps) 
   const [filterDestination, setFilterDestination] = useState('');
 
   useEffect(() => {
-    loadUserGroups();
     fetchTripPlans();
   }, []);
 
-  const loadUserGroups = async () => {
-    try {
-      const session = await fetchAuthSession();
-      const groups =
-        (session.tokens?.idToken?.payload?.['cognito:groups'] as string[]) ?? [];
-      setUserGroups(groups);
-    } catch {
-      setUserGroups([]);
-    }
-  };
-
-  const canEdit = userGroups.some((g) => EDITOR_GROUPS.includes(g as typeof EDITOR_GROUPS[number]));
+  const canEdit = canEditContent(role);
 
   const fetchTripPlans = async () => {
     try {
