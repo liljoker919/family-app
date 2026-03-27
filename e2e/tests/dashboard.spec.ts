@@ -1,8 +1,5 @@
 import { expect } from '@playwright/test';
 import { test } from '../fixtures/test';
-import { getAnyConfiguredFamilyUser } from '../fixtures/authUsers';
-
-const SKIP_REASON = 'Set E2E_VALID_PASSWORD and at least one E2E_*_EMAIL secret.';
 
 test.describe('Dashboard', () => {
   // ── BrowserStack-mapped test cases ───────────────────────────────────────
@@ -11,10 +8,8 @@ test.describe('Dashboard', () => {
     dashboardPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     const { email } = await loginAs();
-    await dashboardPage.goto();
+    await expect(dashboardPage.heading).toBeVisible();
 
     // The welcome paragraph in the header must contain the signed-in user's email
     await expect(dashboardPage.headerWelcome).toContainText(email);
@@ -28,10 +23,8 @@ test.describe('Dashboard', () => {
     dashboardPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     await loginAs();
-    await dashboardPage.goto();
+    await expect(dashboardPage.heading).toBeVisible();
 
     // Always-visible sidebar modules in the order shown in the spec
     const alwaysVisibleModules = [
@@ -63,17 +56,10 @@ test.describe('Dashboard', () => {
   });
 
   test('Dashboard - Loading spinner is visible while family data is fetching', async ({
-    page,
     dashboardPage,
     loginAs,
   }) => {
-    test.skip(!getAnyConfiguredFamilyUser(), SKIP_REASON);
-
     await loginAs();
-
-    // Navigate to /dashboard to trigger a fresh family-membership fetch cycle.
-    // DashboardInner renders "Loading…" while the async fetch is in-flight.
-    await page.goto('/dashboard');
 
     // Attempt to observe the loading indicator.  In fast environments the
     // membership fetch may complete before this assertion runs, which is
