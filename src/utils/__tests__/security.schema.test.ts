@@ -77,12 +77,14 @@ function containsGroupRule(
   groups: string[],
   operations: string[]
 ): boolean {
-  // Build loose patterns for each group and operation to search in the block.
   const groupsLiteral = groups.map((g) => `'${g}'`).join(',\\s*');
-  const opsLiteral = operations.map((o) => `'${o}'`).join('[^\\]]*');
+  // Each operation must appear inside the .to([...]) array, separated only by
+  // commas and whitespace – using a narrow character class avoids false
+  // positives from comments or adjacent string literals.
+  const opsLiteral = operations.map((o) => `'${o}'`).join(`(?:'[^']*'|[^\\]'])*`);
 
   const pattern = new RegExp(
-    `allow\\.groups\\(\\[\\s*${groupsLiteral}\\s*\\]\\)\\.to\\(\\[\\s*[^\\]]*${opsLiteral}`,
+    `allow\\.groups\\(\\[\\s*${groupsLiteral}\\s*\\]\\)\\.to\\(\\[\\s*${opsLiteral}`,
     's'
   );
   return pattern.test(block);

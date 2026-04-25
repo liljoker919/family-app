@@ -191,7 +191,7 @@ test.describe('security.rbac – MEMBER mutation blocks (negative)', () => {
         mutation TestMemberCreateVacation {
           createVacation(input: {
             familyId: "security-test-family-id",
-            title: "SECURITY TEST – MUST BE REJECTED",
+            title: "SECURITY TEST - MUST BE REJECTED",
             startDate: "2099-01-01",
             endDate: "2099-01-07",
             createdBy: "security-test"
@@ -268,7 +268,7 @@ test.describe('security.rbac – tenant isolation (cross-family access)', () => 
       // different (non-existent) family.
       const query = `
         query TestCrossFamilyRead {
-          getVacation(id: "00000000-0000-0000-0000-cross-family-test") {
+          getVacation(id: "00000000-0000-0000-0000-000000000001") {
             id
             familyId
             title
@@ -355,7 +355,7 @@ test.describe('security.rbac – privilege escalation prevention', () => {
       const mutation = `
         mutation TestPrivilegeEscalation {
           updateFamilyMember(input: {
-            id: "00000000-0000-0000-0000-security-test",
+            id: "00000000-0000-0000-0000-000000000002",
             role: ADMIN
           }) { id role }
         }

@@ -218,9 +218,9 @@ describe('security.rbac – tenant isolation (cross-family access blocked)', () 
   it('security.rbac.admin-cannot-manage-members-of-other-family', () => {
     const result = validateRoleUpdate({
       callerRole: 'ADMIN',
-      callerFamilyId: 'family-mine',
+      callerFamilyId: 'family-1',
       targetCurrentRole: 'ADMIN',
-      targetFamilyId: 'family-other',
+      targetFamilyId: 'family-2',
       newRole: 'MEMBER',
       adminCountInFamily: 2,
     });
@@ -232,9 +232,9 @@ describe('security.rbac – tenant isolation (cross-family access blocked)', () 
     for (const targetRole of ALL_ROLES) {
       const result = validateRoleUpdate({
         callerRole: 'ADMIN',
-        callerFamilyId: 'family-a',
+        callerFamilyId: 'family-1',
         targetCurrentRole: targetRole,
-        targetFamilyId: 'family-b',
+        targetFamilyId: 'family-2',
         newRole: 'MEMBER',
         adminCountInFamily: 2,
       });
