@@ -178,7 +178,6 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
   const openCreateChoreForm = () => {
     resetChoreForm();
     setFormError(null);
-    setFormSuccess(null);
     setShowChoreForm(true);
   };
 
@@ -194,7 +193,6 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
     });
     setEditingChore(chore);
     setFormError(null);
-    setFormSuccess(null);
     setShowChoreForm(true);
   };
 
@@ -210,7 +208,6 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
   const handleChoreSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    setFormSuccess(null);
     setIsSaving(true);
     try {
       const payload = {
@@ -318,12 +315,8 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
       });
       setShowAssignForm(false);
       setAssigningChore(null);
-      try {
-        await fetchAssignments();
-        setToast({ message: 'Chore assigned successfully.', type: 'success' });
-      } catch {
-        setToast({ message: 'Chore assigned successfully. (List may be stale — please refresh.)', type: 'success' });
-      }
+      await fetchAssignments();
+      setToast({ message: 'Chore assigned successfully.', type: 'success' });
     } catch (error) {
       console.error('Error creating assignment:', error);
       setToast({ message: 'Failed to assign chore. Please try again.', type: 'error' });
@@ -894,7 +887,7 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
                 <button
                   type="button"
                   disabled={isSaving}
-                  onClick={() => { setShowChoreForm(false); resetChoreForm(); setFormError(null); setFormSuccess(null); }}
+                  onClick={() => { setShowChoreForm(false); resetChoreForm(); setFormError(null); }}
                   className="flex-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-60 disabled:cursor-not-allowed text-gray-700 py-2 rounded-lg transition"
                 >
                   Cancel
