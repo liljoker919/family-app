@@ -1,0 +1,147 @@
+name: Security Regression Suite
+
+# This workflow runs the security regression suite on every push to main and
+# on every pull request that touches the Amplify data schema (resource.ts).
+# It is a required check that must pass before schema changes can be merged.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'amplify/data/resource.ts'
+      - 'src/utils/rolePermissions.ts'
+      - 'src/utils/roleMutationGuards.ts'
+      - 'src/utils/__tests__/security.*.test.ts'
+  workflow_dispatch:
+
+jobs:
+  security-unit-tests:
+    name: Security Unit & Schema Tests (Vitest)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security regression suite (Vitest)
+        id: run-security-tests
+        run: |
+          npm test -- \
+            --reporter=verbose \
+            --reporter=junit \
+            --outputFile=test-results/security-junit.xml \
+            security.rbac \
+            security.schema
+        env:
+          CI: true
+
+      - name: Upload security test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-unit-test-results
+          path: test-results/
+          retention-days: 30
+
+      - name: Security test summary
+        if: always()
+        run: |
+          echo "## Security Regression Suite Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.run-security-tests.outcome }}" = "success" ]; then
+            echo "✅ All security regression tests passed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Security regression tests **FAILED**." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Changes to \`amplify/data/resource.ts\` or role permission utilities" >> $GITHUB_STEP_SUMMARY
+            echo "must not break the Authorization Matrix.  Download the" >> $GITHUB_STEP_SUMMARY
+            echo "**security-unit-test-results** artifact for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  security-e2e-tests:
+    name: Security E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    # Only run E2E tests when role-specific credentials are configured.
+    # The job is still reported so the matrix of test coverage is visible.
+    continue-on-error: true
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run security E2E tests
+        id: run-security-e2e
+        run: npx playwright test e2e/tests/security.spec.ts
+        continue-on-error: true
+        env:
+          CI: true
+          BASE_URL: ${{ secrets.BASE_URL }}
+          E2E_DAD_EMAIL: ${{ secrets.E2E_DAD_EMAIL }}
+          E2E_MOM_EMAIL: ${{ secrets.E2E_MOM_EMAIL }}
+          E2E_CHILD1_EMAIL: ${{ secrets.E2E_CHILD1_EMAIL }}
+          E2E_CHILD2_EMAIL: ${{ secrets.E2E_CHILD2_EMAIL }}
+          E2E_VALID_PASSWORD: ${{ secrets.E2E_VALID_PASSWORD }}
+          # Role-specific users for RBAC security tests.
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_PLANNER_EMAIL: ${{ secrets.E2E_PLANNER_EMAIL }}
+          E2E_MEMBER_EMAIL: ${{ secrets.E2E_MEMBER_EMAIL }}
+
+      - name: Upload security E2E report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-e2e-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload security E2E test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-e2e-test-results
+          path: test-results/
+          retention-days: 30
+
+      - name: Security E2E summary
+        if: always()
+        run: |
+          echo "## Security E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.run-security-e2e.outcome }}" = "success" ]; then
+            echo "✅ All security E2E tests passed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Some security E2E tests failed or were skipped." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Tests that require role-specific users (E2E_ADMIN_EMAIL," >> $GITHUB_STEP_SUMMARY
+            echo "E2E_PLANNER_EMAIL, E2E_MEMBER_EMAIL) are automatically skipped" >> $GITHUB_STEP_SUMMARY
+            echo "when those secrets are not configured." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Download the **security-e2e-report** artifact for the HTML report." >> $GITHUB_STEP_SUMMARY
+          fi
