@@ -32,6 +32,7 @@ const RECURRENCE_LABELS: Record<string, string> = {
 
 interface KidChoresViewProps {
   user: any;
+  familyId: string;
 }
 
 interface ChoreRowProps {
@@ -100,7 +101,7 @@ function ChoreRow({ entry, onMarkDone }: ChoreRowProps) {
   );
 }
 
-export default function KidChoresView({ user }: KidChoresViewProps) {
+export default function KidChoresView({ user, familyId }: KidChoresViewProps) {
   const [chores, setChores] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
@@ -121,9 +122,9 @@ export default function KidChoresView({ user }: KidChoresViewProps) {
     setLoading(true);
     try {
       const [choresResult, assignmentsResult, completionsResult] = await Promise.all([
-        client.models.Chore.list(),
-        client.models.ChoreAssignment.list(),
-        client.models.ChoreCompletion.list(),
+        client.models.Chore.list({ filter: { familyId: { eq: familyId } } }),
+        client.models.ChoreAssignment.list({ filter: { familyId: { eq: familyId } } }),
+        client.models.ChoreCompletion.list({ filter: { familyId: { eq: familyId } } }),
       ]);
       setChores(choresResult.data);
       setAssignments(assignmentsResult.data);
@@ -189,6 +190,7 @@ export default function KidChoresView({ user }: KidChoresViewProps) {
     try {
       await client.models.ChoreCompletion.create({
         choreId: choreToComplete.id,
+        familyId,
         completedBy: currentUser,
         completedAt,
         notes: notes || undefined,

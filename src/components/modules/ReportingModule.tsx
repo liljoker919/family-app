@@ -38,17 +38,16 @@ export default function ReportingModule({ user, familyId, role }: ReportingModul
       const { data: familyChores } = await client.models.Chore.list({
         filter: { familyId: { eq: familyId } },
       });
-      const choreIds = new Set(familyChores.map((c: any) => c.id));
       setChores(familyChores);
 
-      // ChoreCompletion and ChoreAssignment do not carry familyId directly;
-      // isolate them by retaining only records tied to this family's chores.
+      // ChoreCompletion and ChoreAssignment now carry familyId; query them
+      // directly with the familyId filter for efficient family-bounded access.
       const [completionsRes, assignmentsRes] = await Promise.all([
-        client.models.ChoreCompletion.list(),
-        client.models.ChoreAssignment.list(),
+        client.models.ChoreCompletion.list({ filter: { familyId: { eq: familyId } } }),
+        client.models.ChoreAssignment.list({ filter: { familyId: { eq: familyId } } }),
       ]);
-      setCompletions(completionsRes.data.filter((c: any) => choreIds.has(c.choreId)));
-      setAssignments(assignmentsRes.data.filter((a: any) => choreIds.has(a.choreId)));
+      setCompletions(completionsRes.data);
+      setAssignments(assignmentsRes.data);
     } catch (error) {
       console.error('Error fetching reporting data:', error);
     }
