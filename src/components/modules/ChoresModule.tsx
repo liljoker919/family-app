@@ -5,6 +5,8 @@ import type { FamilyRole } from '../../utils/familyContext';
 import { canEditContent, canDeleteContent } from '../../utils/rolePermissions';
 import { isChoreToday, isChoreThisWeek } from '../../utils/choresDue';
 import KidChoresView from './KidChoresView';
+import ConfirmModal from '../ConfirmModal';
+import Toast from '../Toast';
 
 const client = generateClient<Schema>();
 
@@ -103,8 +105,11 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
 
   // Form feedback state
   const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Delete confirmation and toast state
+  const [pendingDelete, setPendingDelete] = useState<{ message: string; onConfirm: () => Promise<void> } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const currentUser = user?.signInDetails?.loginId || 'Unknown';
 
@@ -231,7 +236,6 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
       setShowChoreForm(false);
       resetChoreForm();
       const successMsg = isCreating ? 'Chore created successfully.' : 'Chore updated successfully.';
-      setFormSuccess(successMsg);
       if (isCreating) {
         setFilterCategory('ALL');
         setFilterRecurrence('ALL');
@@ -241,8 +245,9 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
       }
       try {
         await fetchChores();
+        setToast({ message: successMsg, type: 'success' });
       } catch {
-        setFormSuccess(successMsg + ' (List may be stale — please refresh.)');
+        setToast({ message: successMsg + ' (List may be stale — please refresh.)', type: 'success' });
       }
     } catch (error) {
       console.error('Error saving chore:', error);
@@ -253,14 +258,19 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
   };
 
   const handleDeleteChore = async (id: string) => {
-    if (confirm('Are you sure you want to delete this chore?')) {
-      try {
-        await client.models.Chore.delete({ id });
-        fetchChores();
-      } catch (error) {
-        console.error('Error deleting chore:', error);
-      }
-    }
+    setPendingDelete({
+      message: 'Are you sure you want to delete this chore?',
+      onConfirm: async () => {
+        try {
+          await client.models.Chore.delete({ id });
+          fetchChores();
+          setToast({ message: 'Chore deleted successfully.', type: 'success' });
+        } catch (error) {
+          console.error('Error deleting chore:', error);
+          setToast({ message: 'Failed to delete chore. Please try again.', type: 'error' });
+        }
+      },
+    });
   };
 
   const handleToggleChoreActive = async (chore: any) => {
@@ -273,14 +283,19 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
   };
 
   const handleDeleteAssignment = async (id: string) => {
-    if (confirm('Remove this assignment?')) {
-      try {
-        await client.models.ChoreAssignment.delete({ id });
-        fetchAssignments();
-      } catch (error) {
-        console.error('Error deleting assignment:', error);
-      }
-    }
+    setPendingDelete({
+      message: 'Are you sure you want to remove this assignment?',
+      onConfirm: async () => {
+        try {
+          await client.models.ChoreAssignment.delete({ id });
+          fetchAssignments();
+          setToast({ message: 'Assignment removed successfully.', type: 'success' });
+        } catch (error) {
+          console.error('Error deleting assignment:', error);
+          setToast({ message: 'Failed to remove assignment. Please try again.', type: 'error' });
+        }
+      },
+    });
   };
 
   const openAssignForm = (chore: any) => {
@@ -303,8 +318,11 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
       });
       setShowAssignForm(false);
       setAssigningChore(null);
+      fetchAssignments();
+      setToast({ message: 'Chore assigned successfully.', type: 'success' });
     } catch (error) {
       console.error('Error creating assignment:', error);
+      setToast({ message: 'Failed to assign chore. Please try again.', type: 'error' });
     }
   };
 
@@ -343,14 +361,19 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
   };
 
   const handleDeleteCompletion = async (id: string) => {
-    if (confirm('Delete this completion record?')) {
-      try {
-        await client.models.ChoreCompletion.delete({ id });
-        fetchCompletions();
-      } catch (error) {
-        console.error('Error deleting completion:', error);
-      }
-    }
+    setPendingDelete({
+      message: 'Are you sure you want to delete this completion record?',
+      onConfirm: async () => {
+        try {
+          await client.models.ChoreCompletion.delete({ id });
+          fetchCompletions();
+          setToast({ message: 'Completion record deleted successfully.', type: 'success' });
+        } catch (error) {
+          console.error('Error deleting completion:', error);
+          setToast({ message: 'Failed to delete completion record. Please try again.', type: 'error' });
+        }
+      },
+    });
   };
 
   const filteredChores = chores.filter((c) => {
@@ -391,12 +414,24 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
 
   return (
     <div>
-      {formSuccess && (
-        <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-lg flex justify-between items-center">
-          <span>{formSuccess}</span>
-          <button onClick={() => setFormSuccess(null)} className="text-green-500 hover:text-green-700 ml-4 font-bold">&times;</button>
-        </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
+      <ConfirmModal
+        isOpen={pendingDelete !== null}
+        title="Confirm Delete"
+        message={pendingDelete?.message ?? ''}
+        onConfirm={async () => {
+          const action = pendingDelete;
+          setPendingDelete(null);
+          await action?.onConfirm();
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-gray-800">Chores</h2>
         {canManage && (

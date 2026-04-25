@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../../amplify/data/resource";
+import ConfirmModal from "../ConfirmModal";
+import Toast from "../Toast";
 
 const client = generateClient<Schema>();
 
@@ -194,6 +196,9 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
   });
 
   const [commentText, setCommentText] = useState("");
+
+  const [pendingDelete, setPendingDelete] = useState<{ message: string; onConfirm: () => Promise<void> } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     fetchVacations();
@@ -591,17 +596,22 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
   };
 
   const handleDeleteVacation = async (id: string) => {
-    if (confirm("Are you sure you want to delete this vacation?")) {
-      try {
-        await client.models.Vacation.delete({ id });
-        setVacations((prev) => prev.filter((v) => v.id !== id));
-        if (selectedVacation?.id === id) {
-          setSelectedVacation(null);
+    setPendingDelete({
+      message: 'Are you sure you want to delete this vacation?',
+      onConfirm: async () => {
+        try {
+          await client.models.Vacation.delete({ id });
+          setVacations((prev) => prev.filter((v) => v.id !== id));
+          if (selectedVacation?.id === id) {
+            setSelectedVacation(null);
+          }
+          setToast({ message: 'Vacation deleted successfully.', type: 'success' });
+        } catch (error) {
+          console.error("Error deleting vacation:", error);
+          setToast({ message: 'Failed to delete vacation. Please try again.', type: 'error' });
         }
-      } catch (error) {
-        console.error("Error deleting vacation:", error);
-      }
-    }
+      },
+    });
   };
 
   const validateFlightSegmentForm = (form: typeof flightSegmentForm): string => {
@@ -757,6 +767,24 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
 
   return (
     <div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+      <ConfirmModal
+        isOpen={pendingDelete !== null}
+        title="Confirm Delete"
+        message={pendingDelete?.message ?? ''}
+        onConfirm={async () => {
+          const action = pendingDelete;
+          setPendingDelete(null);
+          await action?.onConfirm();
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-gray-800">Vacations</h2>
         <button

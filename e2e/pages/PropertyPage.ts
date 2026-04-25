@@ -138,13 +138,13 @@ export class PropertyPage {
   }
 
   /**
-   * Clicks the delete icon (🗑️) on the given property card and accepts the
-   * browser confirmation dialog.
+   * Clicks the delete icon (🗑️) on the given property card and confirms via
+   * the custom modal dialog.
    */
   async deleteProperty(name: string): Promise<void> {
     const card = this.getPropertyCard(name);
-    this.page.once('dialog', (dialog) => dialog.accept());
     await card.getByTitle('Delete property').click();
+    await this.page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
   }
 
   /**
