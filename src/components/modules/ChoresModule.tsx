@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import type { FamilyRole } from '../../utils/familyContext';
-import { canEditContent } from '../../utils/rolePermissions';
+import { canEditContent, canDeleteContent } from '../../utils/rolePermissions';
 import { isChoreToday, isChoreThisWeek } from '../../utils/choresDue';
 import KidChoresView from './KidChoresView';
 
@@ -119,6 +119,11 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
     [role]
   );
 
+  const canDelete = useMemo(
+    () => canDeleteContent(role),
+    [role]
+  );
+
   const fetchChores = async () => {
     try {
       const { data } = await client.models.Chore.list({
@@ -132,7 +137,9 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
 
   const fetchCompletions = async () => {
     try {
-      const { data } = await client.models.ChoreCompletion.list();
+      const { data } = await client.models.ChoreCompletion.list({
+        filter: { familyId: { eq: familyId } },
+      });
       setCompletions(data);
     } catch (error) {
       console.error('Error fetching completions:', error);
@@ -141,7 +148,9 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
 
   const fetchAssignments = async () => {
     try {
-      const { data } = await client.models.ChoreAssignment.list();
+      const { data } = await client.models.ChoreAssignment.list({
+        filter: { familyId: { eq: familyId } },
+      });
       setAssignments(data);
     } catch (error) {
       console.error('Error fetching assignments:', error);
@@ -285,6 +294,7 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
     try {
       await client.models.ChoreAssignment.create({
         choreId: assigningChore.id,
+        familyId,
         assignedTo: assignForm.assignedTo,
         assignedBy: currentUser,
         startDate: assignForm.startDate || undefined,
@@ -318,6 +328,7 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
       const pointsEarned = completingChore.pointValue ?? undefined;
       await client.models.ChoreCompletion.create({
         choreId: completingChore.id,
+        familyId,
         completedBy: completeForm.completedBy,
         completedAt: new Date(completeForm.completedAt).toISOString(),
         notes: completeForm.notes || undefined,
@@ -422,7 +433,7 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
       </div>
 
       {/* ---- MY CHORES TAB ---- */}
-      {activeTab === 'my-chores' && <KidChoresView user={user} />}
+      {activeTab === 'my-chores' && <KidChoresView user={user} familyId={familyId} />}
 
       {/* ---- CHORES TAB ---- */}
       {activeTab === 'chores' && (
@@ -589,13 +600,15 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
                         >
                           {chore.isActive !== false ? 'Archive' : 'Restore'}
                         </button>
+                      </>
+                    )}
+                    {canDelete && (
                         <button
                           onClick={() => handleDeleteChore(chore.id)}
                           className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg transition text-sm"
                         >
                           Delete
                         </button>
-                      </>
                     )}
                   </div>
                 </div>
@@ -651,7 +664,7 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
                         <p className="text-sm text-gray-400 mt-1 italic">{assignment.notes}</p>
                       )}
                     </div>
-                    {canManage && (
+                    {canDelete && (
                       <button
                         onClick={() => handleDeleteAssignment(assignment.id)}
                         className="shrink-0 bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg transition text-sm"
@@ -705,7 +718,7 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
                         <p className="text-sm text-gray-400 mt-1 italic">{comp.notes}</p>
                       )}
                     </div>
-                    {canManage && (
+                    {canDelete && (
                       <button
                         onClick={() => handleDeleteCompletion(comp.id)}
                         className="shrink-0 bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg transition text-sm"

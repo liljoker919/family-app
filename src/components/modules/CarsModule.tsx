@@ -118,6 +118,7 @@ export default function CarsModule({ user, familyId }: CarsModuleProps) {
       await client.models.CarService.create({
         ...serviceForm,
         carId: selectedCar.id,
+        familyId: selectedCar.familyId,
         mileageAtService: serviceForm.mileageAtService ? parseInt(serviceForm.mileageAtService) : undefined,
         cost: serviceForm.cost ? parseFloat(serviceForm.cost) : undefined,
       });
