@@ -126,7 +126,7 @@ export class PropertyPage {
 
   /**
    * Opens the Add Property modal, fills the provided fields, and submits the
-   * form.
+   * form.  Waits for the modal to close before returning.
    */
   async createProperty(details: PropertyDetails): Promise<void> {
     await this.addPropertyBtn.click();
@@ -135,6 +135,8 @@ export class PropertyPage {
       await this.propertyAddressInput.fill(details.address);
     }
     await this.createPropertyBtn.click();
+    // Wait for the modal to close – confirms the API call succeeded.
+    await this.addPropertyModalHeading.waitFor({ state: 'hidden' });
   }
 
   /**
@@ -159,6 +161,7 @@ export class PropertyPage {
   /**
    * Opens the Log Transaction modal for the given property (the ledger must
    * already be expanded), fills all provided fields, and submits the form.
+   * Waits for the modal to close before returning.
    */
   async logTransaction(propertyName: string, details: TransactionDetails): Promise<void> {
     const card = this.getPropertyCard(propertyName);
@@ -170,6 +173,8 @@ export class PropertyPage {
       await this.descriptionInput.fill(details.description);
     }
     await this.saveTransactionBtn.click();
+    // Wait for the modal to close – confirms the API call succeeded.
+    await this.logTransactionModalHeading.waitFor({ state: 'hidden' });
   }
 
   // ── Assertion helpers ────────────────────────────────────────────────────

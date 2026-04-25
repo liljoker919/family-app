@@ -116,6 +116,8 @@ export class CarsPage {
 
   /**
    * Opens the Add Car modal, fills all provided fields, and submits the form.
+   * Waits for the modal to close before returning, ensuring the car has been
+   * persisted and the list will start refreshing.
    */
   async createCar(details: CarDetails): Promise<void> {
     await this.addCarBtn.click();
@@ -136,6 +138,9 @@ export class CarsPage {
       await this.currentMileageInput.fill(details.currentMileage);
     }
     await this.createCarBtn.click();
+    // Wait for the modal to close – this confirms the API call succeeded and
+    // the list will start refreshing.
+    await this.addCarModalHeading.waitFor({ state: 'hidden' });
   }
 
   /**
