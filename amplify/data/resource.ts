@@ -51,6 +51,8 @@ const schema = a.schema({
   // Any authenticated user may read members and create a membership record
   // (required to create or join a family).  Only ADMIN may update roles or
   // remove members, enforcing the "Role Changes → ADMIN only" requirement.
+  // Secondary indexes on userId and familyId support the updateMemberRole
+  // Lambda resolver's caller-lookup and admin-count operations.
   FamilyMember: a
     .model({
       familyId: a.id().required(),
@@ -59,6 +61,12 @@ const schema = a.schema({
       role: a.enum(['ADMIN', 'PLANNER', 'MEMBER']),
       displayName: a.string(),
     })
+    .secondaryIndexes((index) => [
+      // Enables efficient caller-identity lookup in the updateMemberRole Lambda.
+      index('userId'),
+      // Enables efficient family-scoped queries (member listing, admin counts).
+      index('familyId'),
+    ])
     .authorization((allow) => [
       allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
       allow.groups(['ADMIN']).to(['update', 'delete']),
