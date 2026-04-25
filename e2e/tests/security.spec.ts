@@ -73,6 +73,136 @@ function hasAuthorizationError(responses: Array<{ status: number; body: string }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Unauthenticated Redirect – Visiting /dashboard without signing in
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('security.redirect – unauthenticated access', () => {
+  /**
+   * security.redirect.unauthenticated-dashboard-shows-signin-form
+   *
+   * A visitor who navigates directly to /dashboard without first signing in
+   * must NOT see the dashboard content.  The AWS Amplify Authenticator
+   * component wrapping the dashboard renders the sign-in form in-place,
+   * effectively blocking access to the authenticated UI.
+   */
+  test('security.redirect.unauthenticated-dashboard-shows-signin-form', async ({ page }) => {
+    // Navigate directly to the dashboard URL without any prior authentication.
+    await page.goto('/dashboard');
+
+    // The Amplify Authenticator intercepts unauthenticated sessions and renders
+    // the sign-in form instead of the dashboard content.
+    const emailInput = page.locator('input[name="username"]');
+    await expect(emailInput).toBeVisible({ timeout: 15000 });
+
+    // The authenticated dashboard heading must not be visible.
+    const dashboardHeading = page.getByRole('heading', { name: 'Family Dashboard' });
+    await expect(dashboardHeading).not.toBeVisible();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RBAC Boundary – restricted module routes for MEMBER users
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('security.rbac – MEMBER restricted-module boundary checks', () => {
+  /**
+   * security.rbac.member-reporting-module-not-visible-in-sidebar
+   *
+   * The "Reporting" sidebar navigation button must not be rendered for MEMBER
+   * users.  Only ADMIN and PLANNER roles may access that module.
+   */
+  test('security.rbac.member-reporting-module-not-visible-in-sidebar', async ({
+    page,
+    authPage,
+  }) => {
+    const member = getRoleUser('E2E_MEMBER_EMAIL');
+    if (!member) {
+      test.skip(true, 'E2E_MEMBER_EMAIL not configured – skipping MEMBER role test');
+    }
+
+    await authPage.goto();
+    await authPage.login(member!.email, member!.password);
+    await expect(page).toHaveURL(/\/dashboard/i);
+
+    // The "Reporting" sidebar link must not be rendered for MEMBER users.
+    const reportingNavBtn = page.locator('aside').getByRole('button', { name: /^Reporting$/i });
+    await expect(reportingNavBtn).toHaveCount(0);
+  });
+
+  /**
+   * security.rbac.member-access-restricted-shown-for-admin-content
+   *
+   * Even if the activeModule state is somehow set to 'admin', the content-level
+   * guard (canAccessModule) must render "Access Restricted" for MEMBER users.
+   * This test exercises the guard by using page.evaluate to set the React
+   * component state directly, bypassing the hidden sidebar button.
+   */
+  test('security.rbac.member-access-restricted-shown-for-admin-content', async ({
+    page,
+    authPage,
+  }) => {
+    const member = getRoleUser('E2E_MEMBER_EMAIL');
+    if (!member) {
+      test.skip(true, 'E2E_MEMBER_EMAIL not configured – skipping MEMBER role test');
+    }
+
+    await authPage.goto();
+    await authPage.login(member!.email, member!.password);
+    await expect(page).toHaveURL(/\/dashboard/i);
+
+    // Wait for the dashboard to finish loading family membership data.
+    await page.getByText('Loading…').waitFor({ state: 'hidden', timeout: 15000 }).catch(() => undefined);
+    await expect(page.getByRole('heading', { name: 'Family Dashboard' })).toBeVisible();
+
+    // Use React DevTools fiber traversal to find the setActiveModule dispatcher
+    // and force the module to 'admin' – bypassing the (correctly hidden) sidebar.
+    const switched = await page.evaluate(() => {
+      try {
+        // Walk the React fiber tree from a known sidebar element to find the
+        // nearest stateful fiber that owns setActiveModule.
+        const sidebarEl = document.querySelector('aside');
+        if (!sidebarEl) return false;
+
+        // React attaches internal fiber keys with a double-underscore prefix.
+        const fiberKey = Object.keys(sidebarEl).find(
+          (k) => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance')
+        );
+        if (!fiberKey) return false;
+
+        let fiber: any = (sidebarEl as any)[fiberKey];
+        // Walk up toward the root until we find a fiber whose memoizedState
+        // queue contains a dispatch function we can call.
+        while (fiber) {
+          const state = fiber.memoizedState;
+          if (state && typeof state.queue?.dispatch === 'function') {
+            // The first useState hook in DashboardInner is activeModule.
+            // Calling dispatch with 'admin' will trigger a re-render.
+            state.queue.dispatch('admin');
+            return true;
+          }
+          fiber = fiber.return;
+        }
+        return false;
+      } catch {
+        return false;
+      }
+    });
+
+    if (!switched) {
+      // React fiber traversal is an implementation detail that may change.
+      // Skip gracefully if we could not inject the state change.
+      test.skip(true, 'React fiber injection not available – skipping content-guard check');
+    }
+
+    // After forcing activeModule to 'admin', the content area must show
+    // "Access Restricted" because canAccessModule('admin', 'MEMBER') is false.
+    await expect(page.getByRole('heading', { name: 'Access Restricted' })).toBeVisible({
+      timeout: 5000,
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Negative Testing – The "Blocker" Suite
 // ─────────────────────────────────────────────────────────────────────────────
 
