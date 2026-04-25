@@ -140,15 +140,14 @@ export class CarsPage {
 
   /**
    * Deletes the car identified by year, make and model.
-   * Automatically accepts the browser confirmation dialog.
+   * Clicks the Delete button and confirms via the custom modal dialog.
    */
   async deleteCar(year: string, make: string, model: string): Promise<void> {
     const card = this.getCarCard(year, make, model);
     const deleteButton = card.getByRole('button', { name: 'Delete' });
     await deleteButton.scrollIntoViewIfNeeded();
-    const dialogPromise = this.page.waitForEvent('dialog').then((dialog) => dialog.accept());
     await deleteButton.click({ force: true });
-    await dialogPromise;
+    await this.page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
   }
 
   /**
@@ -159,9 +158,8 @@ export class CarsPage {
     const card = this.getCarCardByVin(vin);
     const deleteButton = card.getByRole('button', { name: 'Delete' });
     await deleteButton.scrollIntoViewIfNeeded();
-    const dialogPromise = this.page.waitForEvent('dialog').then((dialog) => dialog.accept());
     await deleteButton.click({ force: true });
-    await dialogPromise;
+    await this.page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
   }
 
   /**

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
+import ConfirmModal from '../ConfirmModal';
+import Toast from '../Toast';
 
 const client = generateClient<Schema>();
 
@@ -52,6 +54,8 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
     contributor: '',
     imageUrl: '',
   });
+  const [pendingDelete, setPendingDelete] = useState<{ message: string; onConfirm: () => Promise<void> } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     fetchRecipes();
@@ -155,15 +159,20 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this recipe?')) {
-      try {
-        await client.models.Recipe.delete({ id });
-        if (selectedRecipe?.id === id) setSelectedRecipe(null);
-        fetchRecipes();
-      } catch (error) {
-        console.error('Error deleting recipe:', error);
-      }
-    }
+    setPendingDelete({
+      message: 'Are you sure you want to delete this recipe?',
+      onConfirm: async () => {
+        try {
+          await client.models.Recipe.delete({ id });
+          if (selectedRecipe?.id === id) setSelectedRecipe(null);
+          fetchRecipes();
+          setToast({ message: 'Recipe deleted successfully.', type: 'success' });
+        } catch (error) {
+          console.error('Error deleting recipe:', error);
+          setToast({ message: 'Failed to delete recipe. Please try again.', type: 'error' });
+        }
+      },
+    });
   };
 
   const filteredRecipes = filterCategory === 'ALL'
@@ -172,6 +181,24 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
 
   return (
     <div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+      <ConfirmModal
+        isOpen={pendingDelete !== null}
+        title="Confirm Delete"
+        message={pendingDelete?.message ?? ''}
+        onConfirm={async () => {
+          const action = pendingDelete;
+          setPendingDelete(null);
+          await action?.onConfirm();
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-gray-800">Family Cookbook</h2>
         <button

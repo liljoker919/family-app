@@ -231,14 +231,13 @@ export class ChoresPage {
 
   /**
    * Deletes the chore identified by title.
-   * Automatically accepts the browser confirmation dialog.
+   * Clicks the Delete button and confirms via the custom modal dialog.
    * Assumes the All Chores tab is active.
    */
   async deleteChore(choreTitle: string): Promise<void> {
     const row = this.getChoreRow(choreTitle);
-    const dialogPromise = this.page.waitForEvent('dialog').then((dialog) => dialog.accept());
     await row.getByRole('button', { name: 'Delete' }).click();
-    await dialogPromise;
+    await this.page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
   }
 
   /**

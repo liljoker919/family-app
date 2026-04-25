@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
+import ConfirmModal from '../ConfirmModal';
+import Toast from '../Toast';
 
 const client = generateClient<Schema>();
 
@@ -35,6 +37,8 @@ export default function CarsModule({ user, familyId }: CarsModuleProps) {
     cost: '',
     provider: '',
   });
+  const [pendingDelete, setPendingDelete] = useState<{ message: string; onConfirm: () => Promise<void> } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     fetchCars();
@@ -138,15 +142,20 @@ export default function CarsModule({ user, familyId }: CarsModuleProps) {
   };
 
   const handleDeleteCar = async (id: string) => {
-    if (confirm('Are you sure you want to delete this car?')) {
-      try {
-        await client.models.Car.delete({ id });
-        if (selectedCar?.id === id) setSelectedCar(null);
-        fetchCars();
-      } catch (error) {
-        console.error('Error deleting car:', error);
-      }
-    }
+    setPendingDelete({
+      message: 'Are you sure you want to delete this car?',
+      onConfirm: async () => {
+        try {
+          await client.models.Car.delete({ id });
+          if (selectedCar?.id === id) setSelectedCar(null);
+          fetchCars();
+          setToast({ message: 'Car deleted successfully.', type: 'success' });
+        } catch (error) {
+          console.error('Error deleting car:', error);
+          setToast({ message: 'Failed to delete car. Please try again.', type: 'error' });
+        }
+      },
+    });
   };
 
   const handleCancelMileageEdit = () => {
@@ -176,6 +185,24 @@ export default function CarsModule({ user, familyId }: CarsModuleProps) {
 
   return (
     <div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+      <ConfirmModal
+        isOpen={pendingDelete !== null}
+        title="Confirm Delete"
+        message={pendingDelete?.message ?? ''}
+        onConfirm={async () => {
+          const action = pendingDelete;
+          setPendingDelete(null);
+          await action?.onConfirm();
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-gray-800">Cars Management</h2>
         <button

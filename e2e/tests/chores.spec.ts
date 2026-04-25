@@ -58,11 +58,6 @@ test.describe('Chores', () => {
     // Open the assign form, select a family member, and click Assign
     await choresPage.assignChore(title, { assignedTo });
 
-    // TODO(backlog): remove reload once assignments tab refreshes after assign.
-    // See: docs/bugs/backlog-assignments-tab-does-not-refresh-after-assign.md
-    await choresPage.page.reload();
-    await choresPage.goto();
-
     // Switch to Assignments tab and verify the chore is listed as assigned
     await choresPage.switchToAssignments();
     await expect(choresPage.getAssignmentRow(title)).toBeVisible();

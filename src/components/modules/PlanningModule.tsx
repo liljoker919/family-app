@@ -3,6 +3,8 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import type { FamilyRole } from '../../utils/familyContext';
 import { canEditContent } from '../../utils/rolePermissions';
+import ConfirmModal from '../ConfirmModal';
+import Toast from '../Toast';
 
 const client = generateClient<Schema>();
 
@@ -60,6 +62,8 @@ export default function PlanningModule({ user, familyId, role }: PlanningModuleP
   const [form, setForm] = useState<TripForm>(emptyForm);
   const [filterStatus, setFilterStatus] = useState<TripStatus | 'ALL'>('ALL');
   const [filterDestination, setFilterDestination] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<{ message: string; onConfirm: () => Promise<void> } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     fetchTripPlans();
@@ -151,13 +155,19 @@ export default function PlanningModule({ user, familyId, role }: PlanningModuleP
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this trip plan?')) return;
-    try {
-      await client.models.TripPlan.delete({ id });
-      fetchTripPlans();
-    } catch (error) {
-      console.error('Error deleting trip plan:', error);
-    }
+    setPendingDelete({
+      message: 'Are you sure you want to delete this trip plan?',
+      onConfirm: async () => {
+        try {
+          await client.models.TripPlan.delete({ id });
+          fetchTripPlans();
+          setToast({ message: 'Trip plan deleted successfully.', type: 'success' });
+        } catch (error) {
+          console.error('Error deleting trip plan:', error);
+          setToast({ message: 'Failed to delete trip plan. Please try again.', type: 'error' });
+        }
+      },
+    });
   };
 
   const filteredTrips = tripPlans.filter((trip) => {
@@ -178,6 +188,24 @@ export default function PlanningModule({ user, familyId, role }: PlanningModuleP
 
   return (
     <div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+      <ConfirmModal
+        isOpen={pendingDelete !== null}
+        title="Confirm Delete"
+        message={pendingDelete?.message ?? ''}
+        onConfirm={async () => {
+          const action = pendingDelete;
+          setPendingDelete(null);
+          await action?.onConfirm();
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-gray-800">Trip Planning Dashboard</h2>

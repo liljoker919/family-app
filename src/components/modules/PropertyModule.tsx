@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
+import ConfirmModal from '../ConfirmModal';
+import Toast from '../Toast';
 
 const client = generateClient<Schema>();
 
@@ -32,6 +34,8 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
     description: '',
     date: new Date().toISOString().split('T')[0],
   });
+  const [pendingDelete, setPendingDelete] = useState<{ message: string; onConfirm: () => Promise<void> } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     fetchAllData();
@@ -113,19 +117,42 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
   };
 
   const handleDeleteProperty = async (id: string) => {
-    if (confirm('Are you sure you want to delete this property?')) {
-      try {
-        await client.models.Property.delete({ id });
-        if (selectedProperty?.id === id) setSelectedProperty(null);
-        fetchAllData();
-      } catch (error) {
-        console.error('Error deleting property:', error);
-      }
-    }
+    setPendingDelete({
+      message: 'Are you sure you want to delete this property?',
+      onConfirm: async () => {
+        try {
+          await client.models.Property.delete({ id });
+          if (selectedProperty?.id === id) setSelectedProperty(null);
+          fetchAllData();
+          setToast({ message: 'Property deleted successfully.', type: 'success' });
+        } catch (error) {
+          console.error('Error deleting property:', error);
+          setToast({ message: 'Failed to delete property. Please try again.', type: 'error' });
+        }
+      },
+    });
   };
 
   return (
     <div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+      <ConfirmModal
+        isOpen={pendingDelete !== null}
+        title="Confirm Delete"
+        message={pendingDelete?.message ?? ''}
+        onConfirm={async () => {
+          const action = pendingDelete;
+          setPendingDelete(null);
+          await action?.onConfirm();
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-3xl font-bold text-gray-800">Property P&amp;L Tracker</h2>
