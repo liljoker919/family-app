@@ -1,4 +1,5 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
+import { updateMemberRoleFn } from '../functions/update-member-role/resource';
 
 // ---------------------------------------------------------------------------
 // Authorization Matrix (enforced at the API layer via Cognito group claims)
@@ -50,6 +51,8 @@ const schema = a.schema({
   // Any authenticated user may read members and create a membership record
   // (required to create or join a family).  Only ADMIN may update roles or
   // remove members, enforcing the "Role Changes → ADMIN only" requirement.
+  // Secondary indexes on userId and familyId support the updateMemberRole
+  // Lambda resolver's caller-lookup and admin-count operations.
   FamilyMember: a
     .model({
       familyId: a.id().required(),
@@ -58,6 +61,12 @@ const schema = a.schema({
       role: a.enum(['ADMIN', 'PLANNER', 'MEMBER']),
       displayName: a.string(),
     })
+    .secondaryIndexes((index) => [
+      // Enables efficient caller-identity lookup in the updateMemberRole Lambda.
+      index('userId'),
+      // Enables efficient family-scoped queries (member listing, admin counts).
+      index('familyId'),
+    ])
     .authorization((allow) => [
       allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
       allow.groups(['ADMIN']).to(['update', 'delete']),
@@ -499,6 +508,34 @@ const schema = a.schema({
       allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
+
+  // -------------------------------------------------------------------------
+  // Role management – custom mutation with server-side guardrails
+  // -------------------------------------------------------------------------
+
+  // Result shape returned by the updateMemberRole mutation.
+  UpdatedMemberResult: a.customType({
+    id: a.id().required(),
+    familyId: a.id().required(),
+    userId: a.string().required(),
+    role: a.string().required(),
+    displayName: a.string(),
+  }),
+
+  // updateMemberRole – server-side guarded role update.
+  // The Lambda resolver enforces:
+  //   • Caller must be ADMIN (privilege-escalation protection).
+  //   • Caller and target must share the same familyId (cross-family protection).
+  //   • The final ADMIN in a family may not be demoted (last-admin guard).
+  updateMemberRole: a
+    .mutation()
+    .arguments({
+      memberId: a.id().required(),
+      newRole: a.string().required(),
+    })
+    .returns(a.ref('UpdatedMemberResult').required())
+    .authorization((allow) => [allow.groups(['ADMIN'])])
+    .handler(a.handler.function(updateMemberRoleFn)),
 });
 
 export type Schema = ClientSchema<typeof schema>;
