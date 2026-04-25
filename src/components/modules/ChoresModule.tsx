@@ -318,8 +318,12 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
       });
       setShowAssignForm(false);
       setAssigningChore(null);
-      fetchAssignments();
-      setToast({ message: 'Chore assigned successfully.', type: 'success' });
+      try {
+        await fetchAssignments();
+        setToast({ message: 'Chore assigned successfully.', type: 'success' });
+      } catch {
+        setToast({ message: 'Chore assigned successfully. (List may be stale — please refresh.)', type: 'success' });
+      }
     } catch (error) {
       console.error('Error creating assignment:', error);
       setToast({ message: 'Failed to assign chore. Please try again.', type: 'error' });
