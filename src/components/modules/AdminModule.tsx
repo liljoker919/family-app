@@ -78,24 +78,29 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
     const member = members.find((m) => m.id === memberId);
     if (!member) return;
 
+    // Client-side fast-fail: mirrors the server-side last-admin guard so the
+    // UI stays responsive without a round-trip for the most common block.
     if (member.role === 'ADMIN' && newRole !== 'ADMIN' && adminCount <= 1) {
-      setError('Cannot demote the last admin. Promote another member to admin first.');
+      setError('A family must have at least one administrator.');
       return;
     }
 
     setSaving(memberId);
     try {
-      const { errors } = await client.models.FamilyMember.update({ id: memberId, role: newRole });
+      const { errors } = await client.mutations.updateMemberRole({ memberId, newRole });
       if (errors && errors.length > 0) {
-        setError(errors.map((e: any) => e.message).join(', '));
+        setError(errors.map((e: any) => e.message).join(' '));
       } else {
         setMembers((prev) =>
           prev.map((m) => (m.id === memberId ? { ...m, role: newRole } : m))
         );
       }
-    } catch (err) {
-      console.error('Error updating role:', err);
-      setError('Failed to update role. Please try again.');
+    } catch (err: any) {
+      // Surface the server-side error message when available so the user sees
+      // an actionable explanation (e.g. cross-family or last-admin errors).
+      const serverMsg: string | undefined =
+        err?.errors?.[0]?.message ?? err?.message;
+      setError(serverMsg ?? 'Failed to update role. Please try again.');
     } finally {
       setSaving(null);
     }
@@ -200,7 +205,7 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
                     <button
                       onClick={() => updateRole(member.id, 'MEMBER')}
                       disabled={isBusy || isLastAdmin}
-                      title={isLastAdmin ? 'Cannot demote the last admin' : undefined}
+                      title={isLastAdmin ? 'A family must have at least one administrator.' : undefined}
                       className="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isBusy ? 'Saving…' : 'Demote to Member'}
