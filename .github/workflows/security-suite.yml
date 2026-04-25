@@ -1,19 +1,14 @@
 name: Security Regression Suite
 
 # This workflow runs the security regression suite on every push to main and
-# on every pull request that touches the Amplify data schema (resource.ts).
-# It is a required check that must pass before schema changes can be merged.
+# on every pull request.  It is a required check that must pass before any
+# changes can be merged.
 
 on:
   push:
     branches:
       - main
   pull_request:
-    paths:
-      - 'amplify/data/resource.ts'
-      - 'src/utils/rolePermissions.ts'
-      - 'src/utils/roleMutationGuards.ts'
-      - 'src/utils/__tests__/security.*.test.ts'
   workflow_dispatch:
 
 jobs:
@@ -74,9 +69,8 @@ jobs:
   security-e2e-tests:
     name: Security E2E Tests (Playwright)
     runs-on: ubuntu-latest
-    # Only run E2E tests when role-specific credentials are configured.
-    # The job is still reported so the matrix of test coverage is visible.
-    continue-on-error: true
+    # E2E tests skip gracefully when role-specific credentials are absent;
+    # genuine failures now block the PR.
     permissions:
       contents: read
 
@@ -99,7 +93,6 @@ jobs:
       - name: Run security E2E tests
         id: run-security-e2e
         run: npx playwright test e2e/tests/security.spec.ts
-        continue-on-error: true
         env:
           CI: true
           BASE_URL: ${{ secrets.BASE_URL }}

@@ -4,12 +4,12 @@ on:
   push:
     branches:
       - main
+  pull_request:
 
 jobs:
   unit-tests:
     name: Run Unit Tests
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
 
@@ -29,7 +29,6 @@ jobs:
       - name: Run unit tests
         id: run-tests
         run: npm test -- --reporter=verbose --reporter=junit --outputFile=test-results/junit.xml
-        continue-on-error: true
 
       - name: Upload test results
         if: always()

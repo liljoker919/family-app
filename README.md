@@ -167,26 +167,34 @@ The application features a Royal Blue color scheme throughout the interface:
 
 ## Automated Testing
 
+All workflows that run on pull requests are **required status checks**. A PR cannot be merged to `main` if any Vitest or Playwright test fails.
+
 ### Unit Tests
 
-| Workflow | Trigger | Non-blocking |
-|----------|---------|--------------|
-| **Unit Tests** | Every push to `main` | ✅ Yes (`continue-on-error`) |
+| Workflow | Trigger | Fails Block Merge |
+|----------|---------|------------------|
+| **Unit Tests** | Every push to `main` and every pull request | Yes |
 
-The unit test workflow runs [Vitest](https://vitest.dev/) on every merge/push to `main`. Test results are always uploaded as a GitHub Actions artifact named **`unit-test-results`** and are retained for 30 days.
+The unit test workflow runs [Vitest](https://vitest.dev/) on every push to `main` and on every pull request. Test results are uploaded as a GitHub Actions artifact named **`unit-test-results`** and are retained for 30 days.
 
 To access reports:
 
 1. Go to **Actions** → **Unit Tests** → select a run.
 2. Scroll to **Artifacts** and download **`unit-test-results`**.
 
-### Playwright UI Tests
+### Security Regression Suite
 
-| Workflow | Trigger | Timezone | Non-blocking |
-|----------|---------|----------|--------------|
-| **Playwright UI Tests** | Weekly – Sunday at 11 PM UTC | UTC (= 6 PM US Central / 7 PM US Eastern) | ✅ Yes (`continue-on-error`) |
+| Workflow | Trigger | Fails Block Merge |
+|----------|---------|------------------|
+| **Security Regression Suite** | Every push to `main` and every pull request | Yes |
 
-The Playwright workflow installs Chromium and runs headless end-to-end smoke tests every Sunday night. You can also trigger it manually via **workflow_dispatch** from the Actions tab.
+Runs the full RBAC unit tests and schema static-analysis tests (Vitest) plus the security E2E suite (Playwright) on every PR. All jobs must pass before a PR can be merged.
+
+### Playwright E2E Tests
+
+| Workflow | Trigger | Fails Block Merge |
+|----------|---------|------------------|
+| **Playwright E2E Tests** | Every push to `main` and every pull request | Yes |
 
 Two artifacts are uploaded on every run:
 
@@ -195,11 +203,19 @@ Two artifacts are uploaded on every run:
 
 To access reports:
 
-1. Go to **Actions** → **Playwright UI Tests** → select a run.
+1. Go to **Actions** → **Playwright E2E Tests** → select a run.
 2. Scroll to **Artifacts** and download **`playwright-report`**.
 3. Extract the zip and open `playwright-report/index.html` in your browser.
 
-> **Note:** Failures in either workflow are visible in the run summary and artifact reports but **do not block** the Amplify build or deploy pipeline.
+### Playwright UI Tests (Scheduled)
+
+| Workflow | Trigger | Timezone | Fails Block Merge |
+|----------|---------|----------|------------------|
+| **Playwright UI Tests** | Weekly – Sunday at 11 PM UTC | UTC (= 6 PM US Central / 7 PM US Eastern) | No – scheduled only, does not gate PRs |
+
+The weekly Playwright workflow runs a full browser smoke-test suite every Sunday night. You can also trigger it manually via **workflow_dispatch** from the Actions tab.
+
+> **Deployment Policy:** The Amplify build is gated on the GitHub Actions Required Checks. The build will not start until all required workflows return a success status. See [LAUNCH_CHECKLIST.md](./LAUNCH_CHECKLIST.md) for the full deployment and rollback policy.
 
 ## Development
 
