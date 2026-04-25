@@ -1,6 +1,36 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 
+// ---------------------------------------------------------------------------
+// Authorization Matrix (enforced at the API layer via Cognito group claims)
+//
+// Model / Scope        | MEMBER              | PLANNER             | ADMIN
+// ---------------------|---------------------|---------------------|------------------
+// Profile (user)       | Read, Update own    | Read, Update own    | Full CRUD
+// Family (family)      | Read, Create        | Read, Create        | Full CRUD
+// FamilyMember (family)| Read, Create (join) | Read, Create (join) | Full CRUD (roles)
+// Vacation / TripPlan  | Read, Update        | Full CRUD           | Full CRUD
+// Chore                | Read, Update        | Full CRUD           | Full CRUD
+// ChoreAssignment      | Read                | Full CRUD           | Full CRUD
+// ChoreCompletion      | Read, Create, Update| Full CRUD           | Full CRUD
+// Car / CarService     | Read                | Full CRUD           | Full CRUD
+// Recipe               | Read                | Full CRUD           | Full CRUD
+// Property / P&L       | No access           | No access           | Full CRUD
+//
+// Tenant Isolation: all family-scoped queries MUST be filtered by familyId in
+// application code (see src/utils/familyContext.ts and module components).
+// The Amplify group rules below prevent cross-role mutations; row-level isolation
+// is enforced at the application layer through familyId query filters.
+// ---------------------------------------------------------------------------
+
 const schema = a.schema({
+  // -------------------------------------------------------------------------
+  // Family management
+  // -------------------------------------------------------------------------
+
+  // Family – family-scoped metadata.
+  // Any authenticated user may create or read a Family (new users start in
+  // MEMBER group and must be able to create their first family).
+  // Only ADMIN may update or delete family metadata.
   Family: a
     .model({
       name: a.string().required(),
@@ -10,9 +40,14 @@ const schema = a.schema({
       members: a.hasMany('FamilyMember', 'familyId'),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
+      allow.groups(['ADMIN']).to(['update', 'delete']),
     ]),
 
+  // FamilyMember – tracks which user belongs to which family and their role.
+  // Any authenticated user may read members and create a membership record
+  // (required to create or join a family).  Only ADMIN may update roles or
+  // remove members, enforcing the "Role Changes → ADMIN only" requirement.
   FamilyMember: a
     .model({
       familyId: a.id().required(),
@@ -22,9 +57,18 @@ const schema = a.schema({
       displayName: a.string(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
+      allow.groups(['ADMIN']).to(['update', 'delete']),
     ]),
 
+  // -------------------------------------------------------------------------
+  // User profile
+  // -------------------------------------------------------------------------
+
+  // Profile – user-scoped record.
+  // All authenticated users may read any profile and create their own.
+  // A user may update their own profile (owner rule); ADMIN may update or
+  // delete any profile.
   Profile: a
     .model({
       userId: a.id().required(),
@@ -33,10 +77,18 @@ const schema = a.schema({
       role: a.enum(['ADMIN', 'PLANNER', 'MEMBER']),
     })
     .authorization((allow) => [
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
       allow.ownerDefinedIn('userId').to(['read', 'update']),
-      allow.authenticated().to(['read']),
+      allow.groups(['ADMIN']).to(['update', 'delete']),
     ]),
 
+  // -------------------------------------------------------------------------
+  // Vacation planning – Chore / Vacation category from the auth matrix
+  // -------------------------------------------------------------------------
+
+  // Vacation – family-scoped.
+  // All groups may read and update (e.g. status changes); PLANNER and ADMIN
+  // have full CRUD including create and delete.
   Vacation: a
     .model({
       familyId: a.id().required(),
@@ -53,9 +105,11 @@ const schema = a.schema({
       flightSegments: a.hasMany('FlightSegment', 'vacationId'),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'update']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'delete']),
     ]),
 
+  // FlightSegment – child of Vacation; PLANNER/ADMIN manage, all groups read.
   FlightSegment: a
     .model({
       vacationId: a.id().required(),
@@ -70,9 +124,11 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update', 'delete']),
     ]),
 
+  // TripLeg – child of Vacation; PLANNER/ADMIN manage, all groups read.
   TripLeg: a
     .model({
       vacationId: a.id().required(),
@@ -89,9 +145,11 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'tripLegId'),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update', 'delete']),
     ]),
 
+  // TransportSegment – child of TripLeg; PLANNER/ADMIN manage, all groups read.
   TransportSegment: a
     .model({
       tripLegId: a.id().required(),
@@ -107,9 +165,11 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update', 'delete']),
     ]),
 
+  // AccommodationStay – child of TripLeg; PLANNER/ADMIN manage, all groups read.
   AccommodationStay: a
     .model({
       tripLegId: a.id().required(),
@@ -123,9 +183,11 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update', 'delete']),
     ]),
 
+  // CruisePortStop – child of TripLeg; PLANNER/ADMIN manage, all groups read.
   CruisePortStop: a
     .model({
       tripLegId: a.id().required(),
@@ -138,9 +200,12 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'cruisePortStopId'),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update', 'delete']),
     ]),
 
+  // ExcursionOption – all groups may propose (create) and read; PLANNER/ADMIN
+  // may update status, edit details, or delete.
   ExcursionOption: a
     .model({
       tripLegId: a.id(),
@@ -158,9 +223,11 @@ const schema = a.schema({
       comments: a.hasMany('ExcursionComment', 'excursionOptionId'),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['update', 'delete']),
     ]),
 
+  // ExcursionVote – all groups may vote (create/update); PLANNER/ADMIN may delete.
   ExcursionVote: a
     .model({
       excursionOptionId: a.id().required(),
@@ -169,9 +236,11 @@ const schema = a.schema({
       vote: a.enum(['UP', 'DOWN']),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['delete']),
     ]),
 
+  // ExcursionComment – all groups may comment (create/update); PLANNER/ADMIN may delete.
   ExcursionComment: a
     .model({
       excursionOptionId: a.id().required(),
@@ -181,9 +250,11 @@ const schema = a.schema({
       createdAt: a.datetime(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['delete']),
     ]),
 
+  // Activity – child of Vacation; PLANNER/ADMIN manage, all groups read.
   Activity: a
     .model({
       vacationId: a.id().required(),
@@ -195,9 +266,11 @@ const schema = a.schema({
       feedbacks: a.hasMany('Feedback', 'activityId'),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update', 'delete']),
     ]),
 
+  // Feedback – all groups may submit feedback (create/update); PLANNER/ADMIN may delete.
   Feedback: a
     .model({
       activityId: a.id().required(),
@@ -208,9 +281,11 @@ const schema = a.schema({
       createdAt: a.datetime(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['delete']),
     ]),
 
+  // TripFeedback – all groups may submit feedback (create/update); PLANNER/ADMIN may delete.
   TripFeedback: a
     .model({
       vacationId: a.id().required(),
@@ -222,9 +297,13 @@ const schema = a.schema({
       recommend: a.boolean(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['delete']),
     ]),
 
+  // TripPlan – family-scoped planning record (Chore/Vacation category).
+  // All groups may read and update (e.g. status changes); PLANNER and ADMIN
+  // have full CRUD.
   TripPlan: a
     .model({
       familyId: a.id().required(),
@@ -239,8 +318,13 @@ const schema = a.schema({
       createdBy: a.string().required(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'update']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'delete']),
     ]),
+
+  // -------------------------------------------------------------------------
+  // Property & P&L – strictly ADMIN only (MEMBER and PLANNER have no access)
+  // -------------------------------------------------------------------------
 
   Property: a
     .model({
@@ -251,7 +335,7 @@ const schema = a.schema({
       transactions: a.hasMany('PropertyTransaction', 'propertyId'),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   PropertyTransactionCategory: a.enum([
@@ -273,8 +357,13 @@ const schema = a.schema({
       category: a.ref('PropertyTransactionCategory').required(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
+
+  // -------------------------------------------------------------------------
+  // Cookbook – Recipe model (treated as Chore/Vacation category)
+  // MEMBER may read; PLANNER and ADMIN have full CRUD.
+  // -------------------------------------------------------------------------
 
   Recipe: a
     .model({
@@ -289,8 +378,14 @@ const schema = a.schema({
       imageUrl: a.string(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update', 'delete']),
     ]),
+
+  // -------------------------------------------------------------------------
+  // Cars & Service – Car / Service category from the auth matrix.
+  // MEMBER may read; PLANNER and ADMIN have full CRUD.
+  // -------------------------------------------------------------------------
 
   Car: a
     .model({
@@ -306,7 +401,8 @@ const schema = a.schema({
       services: a.hasMany('CarService', 'carId'),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update', 'delete']),
     ]),
 
   CarService: a
@@ -321,8 +417,15 @@ const schema = a.schema({
       provider: a.string(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update', 'delete']),
     ]),
+
+  // -------------------------------------------------------------------------
+  // Chores – Chore / Vacation category from the auth matrix.
+  // MEMBER may read and update status; PLANNER and ADMIN have full CRUD.
+  // ChoreCompletion may be created/updated by any member (logging completions).
+  // -------------------------------------------------------------------------
 
   Chore: a
     .model({
@@ -339,7 +442,8 @@ const schema = a.schema({
       completions: a.hasMany('ChoreCompletion', 'choreId'),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'update']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'delete']),
     ]),
 
   ChoreAssignment: a
@@ -353,9 +457,12 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update', 'delete']),
     ]),
 
+  // ChoreCompletion – any member can log a completion (create/update);
+  // PLANNER/ADMIN may delete completion records.
   ChoreCompletion: a
     .model({
       choreId: a.id().required(),
@@ -366,7 +473,8 @@ const schema = a.schema({
       pointsEarned: a.integer(),
     })
     .authorization((allow) => [
-      allow.authenticated().to(['read', 'create', 'update', 'delete']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
+      allow.groups(['ADMIN', 'PLANNER']).to(['delete']),
     ]),
 });
 
