@@ -133,7 +133,7 @@ test.describe('Vacations', () => {
     await expect(vacationsPage.vacationCard(title)).toBeVisible();
   });
 
-  test('Vacation - Add a flight segment with valid departure and arrival', async ({
+  test('Vacation - Add a flight segment with valid departure and arrival times', async ({
     vacationsPage,
     loginAs,
   }) => {
@@ -220,7 +220,7 @@ test.describe('Vacations', () => {
     await expect(vacationsPage.page.locator('h5', { hasText: 'Sightseeing tour' })).toBeVisible();
   });
 
-  test('Vacation - Voting up on an excursion increments the upvote', async ({
+  test('Vacation - Voting up on an excursion increments the upvote count', async ({
     vacationsPage,
     loginAs,
   }) => {

@@ -178,7 +178,7 @@ test.describe('Property', () => {
     );
   });
 
-  test('Property - Transaction ledger displays newest transactions first', async ({
+  test('Property - Transaction ledger displays newest transactions at the top', async ({
     propertyPage,
     loginAs,
   }) => {
