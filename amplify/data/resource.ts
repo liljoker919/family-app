@@ -1,6 +1,7 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 import { updateMemberRoleFn } from '../functions/update-member-role/resource';
 import { createInviteFn } from '../functions/create-invite/resource';
+import { redeemInviteFn } from '../functions/redeem-invite/resource';
 
 // ---------------------------------------------------------------------------
 // Authorization Matrix (enforced at the API layer via Cognito group claims)
@@ -599,6 +600,33 @@ const schema = a.schema({
     .returns(a.ref('CreateInviteResult').required())
     .authorization((allow) => [allow.groups(['ADMIN'])])
     .handler(a.handler.function(createInviteFn)),
+
+  // -------------------------------------------------------------------------
+  // Invite redemption – invitee-facing token exchange
+  // -------------------------------------------------------------------------
+
+  // Result shape returned by the redeemInvite mutation.
+  RedeemInviteResult: a.customType({
+    familyId: a.id().required(),
+    familyName: a.string().required(),
+    role: a.string().required(),
+  }),
+
+  // redeemInvite – authenticated mutation called by the invited user after
+  // sign-up.  The Lambda resolver:
+  //   • Validates the token maps to a PENDING, non-expired invite.
+  //   • Verifies the invite email matches the caller's authenticated email.
+  //   • Creates a FamilyMember record with the role specified in the invite.
+  //   • Marks the invite status as ACCEPTED.
+  //   • Returns familyId, familyName, and role so the UI can set membership.
+  redeemInvite: a
+    .mutation()
+    .arguments({
+      token: a.string().required(),
+    })
+    .returns(a.ref('RedeemInviteResult').required())
+    .authorization((allow) => [allow.groups(['ADMIN', 'PLANNER', 'MEMBER'])])
+    .handler(a.handler.function(redeemInviteFn)),
 });
 
 export type Schema = ClientSchema<typeof schema>;
