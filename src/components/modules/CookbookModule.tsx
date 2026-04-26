@@ -43,6 +43,7 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
   const [showForm, setShowForm] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<any>(null);
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [ingredientInput, setIngredientInput] = useState('');
   const [form, setForm] = useState({
     title: '',
@@ -175,9 +176,14 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
     });
   };
 
-  const filteredRecipes = filterCategory === 'ALL'
-    ? recipes
-    : recipes.filter((r) => r.category === filterCategory);
+  const filteredRecipes = recipes.filter((r) => {
+    const matchesCategory = filterCategory === 'ALL' || r.category === filterCategory;
+    const query = searchQuery.trim().toLowerCase();
+    const matchesSearch = !query
+      || (r.title && r.title.toLowerCase().includes(query))
+      || (Array.isArray(r.ingredients) && r.ingredients.some((ing: string) => ing && ing.toLowerCase().includes(query)));
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div>
@@ -207,6 +213,39 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
         >
           Add Recipe
         </button>
+      </div>
+
+      {/* Search Bar */}
+      <div className="mb-4">
+        <div className="relative">
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by ingredient or recipe name..."
+            aria-label="Search recipes by ingredient or name"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              aria-label="Clear search"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Category Filter */}
@@ -479,8 +518,8 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
           <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
           </svg>
-          <p className="text-lg font-medium">No recipes yet</p>
-          <p className="text-sm">Add your first family recipe!</p>
+          <p className="text-lg font-medium">{searchQuery || filterCategory !== 'ALL' ? 'No matching recipes' : 'No recipes yet'}</p>
+          <p className="text-sm">{searchQuery || filterCategory !== 'ALL' ? 'Try adjusting your search or filter.' : 'Add your first family recipe!'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
