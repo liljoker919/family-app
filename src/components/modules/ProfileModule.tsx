@@ -114,7 +114,7 @@ export default function ProfileModule({ user, membership, onSignOut }: ProfileMo
   const handleRequestEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setEmailError(null);
-    if (!newEmail || !newEmail.includes('@')) {
+    if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
       setEmailError('Please enter a valid email address.');
       return;
     }
@@ -165,8 +165,13 @@ export default function ProfileModule({ user, membership, onSignOut }: ProfileMo
       if (key === 'globalUnsubscribe') {
         return { ...prev, globalUnsubscribe: !prev.globalUnsubscribe };
       }
-      // Individual toggle – also clear globalUnsubscribe if re-enabling something
-      return { ...prev, [key]: !prev[key] };
+      // Individual toggle – clear globalUnsubscribe if re-enabling a preference
+      const newValue = !prev[key];
+      return {
+        ...prev,
+        [key]: newValue,
+        globalUnsubscribe: newValue ? false : prev.globalUnsubscribe,
+      };
     });
   };
 
@@ -730,16 +735,17 @@ interface NotifToggleRowProps {
 
 function NotifToggleRow({ id, label, description, checked, disabled, onToggle }: NotifToggleRowProps) {
   const isOn = checked && !disabled;
+  const btnId = `${id}-toggle`;
   return (
     <div className="flex items-center justify-between py-2">
       <div className="flex-1 mr-4">
-        <label htmlFor={id} className={`text-sm font-medium ${disabled ? 'text-gray-400' : 'text-gray-700'}`}>
+        <label htmlFor={btnId} className={`text-sm font-medium ${disabled ? 'text-gray-400' : 'text-gray-700'}`}>
           {label}
         </label>
         <p className={`text-xs mt-0.5 ${disabled ? 'text-gray-300' : 'text-gray-500'}`}>{description}</p>
       </div>
       <button
-        id={id}
+        id={btnId}
         type="button"
         role="switch"
         aria-checked={isOn}
