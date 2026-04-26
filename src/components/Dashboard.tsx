@@ -12,6 +12,7 @@ import CookbookModule from './modules/CookbookModule';
 import ChoresModule from './modules/ChoresModule';
 import ReportingModule from './modules/ReportingModule';
 import AdminModule from './modules/AdminModule';
+import ProfileModule from './modules/ProfileModule';
 import FamilySetup from './FamilySetup';
 import type { ActiveModule } from '../utils/dashboardModules';
 import { canAccessModule } from '../utils/dashboardModules';
@@ -328,6 +329,23 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
                   </button>
                 </li>
               )}
+              <li>
+                <button
+                  onClick={() => setActiveModule('profile')}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                    activeModule === 'profile'
+                      ? 'bg-royal-blue-600 text-white'
+                      : 'text-gray-700 hover:bg-royal-blue-50'
+                  }`}
+                >
+                  <span className="flex items-center">
+                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Profile
+                  </span>
+                </button>
+              </li>
             </ul>
           </nav>
         </aside>
@@ -353,6 +371,7 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
           {activeModule === 'chores' && <ChoresModule user={user} familyId={familyId} role={membership.role} />}
           {activeModule === 'reporting' && <ReportingModule user={user} familyId={familyId} role={membership.role} />}
           {activeModule === 'admin' && <AdminModule user={user} familyId={familyId} membership={membership} />}
+          {activeModule === 'profile' && <ProfileModule user={user} membership={membership} onSignOut={signOut} />}
             </>
           )}
         </main>

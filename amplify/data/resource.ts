@@ -120,7 +120,7 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
-      allow.ownerDefinedIn('userId').to(['read', 'update']),
+      allow.ownerDefinedIn('userId').to(['read', 'update', 'delete']),
       allow.groups(['ADMIN']).to(['update', 'delete']),
     ]),
 
