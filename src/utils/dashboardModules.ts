@@ -10,6 +10,7 @@ export const DASHBOARD_MODULES = [
   'chores',
   'reporting',
   'admin',
+  'profile',
 ] as const;
 
 export type ActiveModule = (typeof DASHBOARD_MODULES)[number];
@@ -28,6 +29,7 @@ export const MODULE_ROLE_REQUIREMENTS: Record<ActiveModule, FamilyRole[] | null>
   chores: null,
   reporting: ['ADMIN', 'PLANNER'],
   admin: ['ADMIN'],
+  profile: null,
 };
 
 /**

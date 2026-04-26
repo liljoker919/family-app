@@ -15,14 +15,14 @@ describe('dashboard navigation modules', () => {
   });
 
   it('includes all required navigation modules', () => {
-    const required = ['vacations', 'planning', 'property', 'cars', 'calendar', 'cookbook', 'chores', 'reporting', 'admin'] as const;
+    const required = ['vacations', 'planning', 'property', 'cars', 'calendar', 'cookbook', 'chores', 'reporting', 'admin', 'profile'] as const;
     for (const mod of required) {
       expect(DASHBOARD_MODULES).toContain(mod);
     }
   });
 
-  it('lists admin as the last navigation item', () => {
-    expect(DASHBOARD_MODULES[DASHBOARD_MODULES.length - 1]).toBe('admin');
+  it('lists profile as the last navigation item', () => {
+    expect(DASHBOARD_MODULES[DASHBOARD_MODULES.length - 1]).toBe('profile');
   });
 });
 
@@ -40,6 +40,10 @@ describe('MODULE_ROLE_REQUIREMENTS', () => {
     for (const mod of openModules) {
       expect(MODULE_ROLE_REQUIREMENTS[mod]).toBeNull();
     }
+  });
+
+  it('leaves the profile module unrestricted (null)', () => {
+    expect(MODULE_ROLE_REQUIREMENTS.profile).toBeNull();
   });
 });
 
@@ -70,6 +74,13 @@ describe('canAccessModule', () => {
     const openModules = ['vacations', 'planning', 'property', 'cars', 'calendar', 'cookbook', 'chores'] as const;
     for (const mod of openModules) {
       expect(canAccessModule(mod, 'MEMBER')).toBe(true);
+    }
+  });
+
+  it('allows all roles to access the profile module', () => {
+    const roles = ['ADMIN', 'PLANNER', 'MEMBER'] as const;
+    for (const role of roles) {
+      expect(canAccessModule('profile', role)).toBe(true);
     }
   });
 });
