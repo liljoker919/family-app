@@ -320,3 +320,31 @@ describe('security.schema.CarService – authorization rules', () => {
     expect(containsGroupRule(block!, ['ADMIN'], ['delete'])).toBe(true);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Invite – ADMIN only; MEMBER and PLANNER have no direct access
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('security.schema.Invite – ADMIN-only authorization', () => {
+  it('security.schema.Invite.only-admin-can-create', () => {
+    const block = extractAuthBlock('Invite');
+    expect(block, 'Invite authorization block not found').not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN'], ['create'])).toBe(true);
+  });
+
+  it('security.schema.Invite.only-admin-has-full-crud', () => {
+    const block = extractAuthBlock('Invite');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN'], ['create', 'read', 'update', 'delete'])).toBe(true);
+  });
+
+  it('security.schema.Invite.member-and-planner-have-no-access', () => {
+    const block = extractAuthBlock('Invite');
+    expect(block).not.toBeNull();
+    // MEMBER and PLANNER must NOT appear in the Invite authorization block.
+    expect(block).not.toMatch(/allow\.groups\(\['ADMIN',\s*'PLANNER',\s*'MEMBER'/);
+    expect(block).not.toMatch(/allow\.groups\(\['PLANNER'/);
+    expect(block).not.toMatch(/allow\.groups\(\['MEMBER'/);
+  });
+});
+
