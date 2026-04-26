@@ -88,6 +88,47 @@ interface InviteAuthFlowProps {
   email: string | null;
 }
 
+// Inner component that receives `user` as a prop so we can safely use
+// useEffect to trigger redemption — avoids calling async state-setters
+// directly inside the Authenticator render prop.
+interface RedemptionHandlerProps {
+  user: any;
+  token: string;
+  redeemError: string | null;
+  setRedeemError: (e: string | null) => void;
+  redeeming: boolean;
+  setRedeeming: (r: boolean) => void;
+}
+
+function RedemptionHandler({
+  user,
+  token,
+  redeemError,
+  setRedeemError,
+  redeeming,
+  setRedeeming,
+}: RedemptionHandlerProps) {
+  useEffect(() => {
+    if (!user || redeeming || redeemError) return;
+
+    setRedeeming(true);
+    redeemInviteToken(token)
+      .then(() => {
+        window.location.href = '/dashboard';
+      })
+      .catch((err: any) => {
+        setRedeemError(err.message ?? 'Failed to redeem invite. Please contact the family admin.');
+        setRedeeming(false);
+      });
+  }, [user]);
+
+  return (
+    <div className="bg-white rounded-xl p-6 text-center">
+      <p className="text-gray-600">Signed in. Linking you to your family…</p>
+    </div>
+  );
+}
+
 function InviteAuthFlow({ token, email }: InviteAuthFlowProps) {
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeeming, setRedeeming] = useState(false);
@@ -129,22 +170,6 @@ function InviteAuthFlow({ token, email }: InviteAuthFlowProps) {
     },
   };
 
-  const handleAuthenticated = async (user: any) => {
-    if (!user || redeeming) return;
-    setRedeeming(true);
-    setRedeemError(null);
-
-    try {
-      // Redeem the invite token to link this user to the family.
-      await redeemInviteToken(token);
-      // Redirect to dashboard — family membership is now established.
-      window.location.href = '/dashboard';
-    } catch (err: any) {
-      setRedeemError(err.message ?? 'Failed to redeem invite. Please contact the family admin.');
-      setRedeeming(false);
-    }
-  };
-
   return (
     <div>
       {redeemError && (
@@ -169,16 +194,16 @@ function InviteAuthFlow({ token, email }: InviteAuthFlowProps) {
         initialState="signUp"
         formFields={formFields}
       >
-        {({ user }) => {
-          if (user && !redeeming && !redeemError) {
-            handleAuthenticated(user);
-          }
-          return (
-            <div className="bg-white rounded-xl p-6 text-center">
-              <p className="text-gray-600">Signed in. Linking you to your family…</p>
-            </div>
-          );
-        }}
+        {({ user }) => (
+          <RedemptionHandler
+            user={user}
+            token={token}
+            redeemError={redeemError}
+            setRedeemError={setRedeemError}
+            redeeming={redeeming}
+            setRedeeming={setRedeeming}
+          />
+        )}
       </Authenticator>
     </div>
   );

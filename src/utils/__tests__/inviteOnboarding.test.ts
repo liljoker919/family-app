@@ -133,7 +133,7 @@ describe('redeemInviteToken – error cases', () => {
     await expect(redeemInviteToken('empty-token')).rejects.toThrow('Failed to redeem invite');
   });
 
-  it('throws with the first error message when multiple errors are returned', async () => {
+  it('throws with the joined error messages when multiple errors are returned', async () => {
     mockRedeemInvite.mockResolvedValue({
       data: null,
       errors: [
@@ -143,7 +143,7 @@ describe('redeemInviteToken – error cases', () => {
     });
 
     await expect(redeemInviteToken('expired-token')).rejects.toThrow(
-      'This invite has expired.'
+      'This invite has expired., Secondary error.'
     );
   });
 
