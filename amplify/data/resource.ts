@@ -111,12 +111,30 @@ const schema = a.schema({
   // All authenticated users may read any profile and create their own.
   // A user may update their own profile (owner rule); ADMIN may update or
   // delete any profile.
+  //
+  // Notification preference fields (all optional; UI defaults to true/enabled
+  // when the field is absent so existing records are treated as fully opted-in):
+  //   notifyNewChore            – Immediate alert when a new chore is assigned.
+  //   notifyCarAlert            – Immediate alert for high-priority car events.
+  //   notifyVacationReminder    – Reminder for upcoming vacation activities.
+  //   notifyMarketingUpdates    – Product/marketing email updates (Kinsly news).
+  //   notifyByEmail             – Deliver notifications via email.
+  //   notifyByPush              – Deliver notifications via in-app/push.
+  //   globalUnsubscribe         – One-click opt-out of all non-essential comms.
   Profile: a
     .model({
       userId: a.id().required(),
       email: a.string().required(),
       displayName: a.string(),
       role: a.enum(['ADMIN', 'PLANNER', 'MEMBER']),
+      // ── Notification preferences ────────────────────────────────────────
+      notifyNewChore: a.boolean(),
+      notifyCarAlert: a.boolean(),
+      notifyVacationReminder: a.boolean(),
+      notifyMarketingUpdates: a.boolean(),
+      notifyByEmail: a.boolean(),
+      notifyByPush: a.boolean(),
+      globalUnsubscribe: a.boolean(),
     })
     .authorization((allow) => [
       allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
