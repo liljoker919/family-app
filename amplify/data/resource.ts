@@ -1,5 +1,6 @@
 import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 import { updateMemberRoleFn } from '../functions/update-member-role/resource';
+import { createInviteFn } from '../functions/create-invite/resource';
 
 // ---------------------------------------------------------------------------
 // Authorization Matrix (enforced at the API layer via Cognito group claims)
@@ -9,6 +10,7 @@ import { updateMemberRoleFn } from '../functions/update-member-role/resource';
 // Profile (user)       | Read, Update own    | Read, Update own    | Full CRUD
 // Family (family)      | Read, Create        | Read, Create        | Full CRUD
 // FamilyMember (family)| Read, Create (join) | Read, Create (join) | Full CRUD (roles)
+// Invite               | No access           | No access           | Full CRUD
 // Vacation / TripPlan  | Read, Update        | Create, Read, Update| Full CRUD
 // Chore                | Read, Update        | Create, Read, Update| Full CRUD
 // ChoreAssignment      | Read                | Create, Read, Update| Full CRUD
@@ -70,6 +72,34 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
       allow.groups(['ADMIN']).to(['update', 'delete']),
+    ]),
+
+  // -------------------------------------------------------------------------
+  // Invite – admin-led tokenized email invite system.
+  // Only ADMIN users may create, read, update, or delete invite records.
+  // -------------------------------------------------------------------------
+
+  // Invite – represents a one-time invite link sent to an email address.
+  // The token field holds a UUID that is embedded in the invite URL.
+  // status transitions: PENDING → ACCEPTED (when the invitee signs up).
+  // expiresAt is set to now + 7 days by the createInvite Lambda resolver.
+  Invite: a
+    .model({
+      familyId: a.id().required(),
+      email: a.string().required(),
+      token: a.string().required(),
+      role: a.enum(['MEMBER', 'PLANNER']),
+      expiresAt: a.datetime().required(),
+      status: a.enum(['PENDING', 'ACCEPTED']),
+    })
+    .secondaryIndexes((index) => [
+      // Enables efficient token-based lookup when processing invite redemption.
+      index('token'),
+      // Enables efficient family-scoped invite listing for the admin panel.
+      index('familyId'),
+    ])
+    .authorization((allow) => [
+      allow.groups(['ADMIN']).to(['create', 'read', 'update', 'delete']),
     ]),
 
   // -------------------------------------------------------------------------
@@ -536,6 +566,39 @@ const schema = a.schema({
     .returns(a.ref('UpdatedMemberResult').required())
     .authorization((allow) => [allow.groups(['ADMIN'])])
     .handler(a.handler.function(updateMemberRoleFn)),
+
+  // -------------------------------------------------------------------------
+  // Invite management – admin-led tokenized email invite system
+  // -------------------------------------------------------------------------
+
+  // Result shape returned by the createInvite mutation.
+  CreateInviteResult: a.customType({
+    id: a.id().required(),
+    familyId: a.id().required(),
+    email: a.string().required(),
+    token: a.string().required(),
+    role: a.string().required(),
+    expiresAt: a.string().required(),
+    status: a.string().required(),
+    inviteUrl: a.string().required(),
+  }),
+
+  // createInvite – admin-only mutation that generates a one-time invite link.
+  // The Lambda resolver:
+  //   • Validates the role is MEMBER or PLANNER.
+  //   • Generates a UUID token and sets a 7-day expiry.
+  //   • Persists an Invite record with status PENDING.
+  //   • Returns the shareable invite URL.
+  createInvite: a
+    .mutation()
+    .arguments({
+      familyId: a.id().required(),
+      email: a.string().required(),
+      role: a.string().required(),
+    })
+    .returns(a.ref('CreateInviteResult').required())
+    .authorization((allow) => [allow.groups(['ADMIN'])])
+    .handler(a.handler.function(createInviteFn)),
 });
 
 export type Schema = ClientSchema<typeof schema>;
