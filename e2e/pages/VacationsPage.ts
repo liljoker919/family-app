@@ -55,6 +55,7 @@ export class VacationsPage {
   readonly addVacationBtn: Locator;
 
   // ── Vacation form modal fields ───────────────────────────────────────────
+  readonly addVacationModalHeading: Locator;
   readonly titleInput: Locator;
   readonly descriptionInput: Locator;
   readonly startDateInput: Locator;
@@ -95,6 +96,7 @@ export class VacationsPage {
     // so we scope each to the form that contains the "Create Vacation" submit button
     // then locate by CSS adjacent-sibling combinator.
     const modal = page.locator('form').filter({ has: page.getByRole('button', { name: 'Create Vacation' }) });
+    this.addVacationModalHeading = page.getByRole('heading', { name: 'Add New Vacation' });
     this.titleInput = modal.locator('label:has-text("Title") + input');
     this.descriptionInput = modal.locator('label:has-text("Description") + textarea');
     this.startDateInput = modal.locator('label:has-text("Start Date") + input');
@@ -183,6 +185,8 @@ export class VacationsPage {
 
   /**
    * Opens the Add Vacation modal, fills all provided fields, and submits the form.
+   * Waits for the modal to close before returning so callers can immediately
+   * assert on the updated vacation list.
    */
   async createVacation(details: VacationDetails): Promise<void> {
     await this.addVacationBtn.click();
@@ -202,6 +206,9 @@ export class VacationsPage {
       await this.accommodationsInput.fill(details.accommodations);
     }
     await this.createVacationBtn.click();
+    // Wait for the modal to close – confirms the API call succeeded and the
+    // vacation list will start refreshing.
+    await this.addVacationModalHeading.waitFor({ state: 'hidden' });
   }
 
   /**

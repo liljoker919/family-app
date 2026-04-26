@@ -13,6 +13,8 @@ const baseURL = configuredBaseUrl || 'https://main.d1gak7oijss0a0.amplifyapp.com
 
 export default defineConfig({
   testDir: './e2e',
+  /** Per-test timeout: 60 s is enough for login + navigation + a single Amplify mutation. */
+  timeout: 60_000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -21,12 +23,19 @@ export default defineConfig({
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
     ['junit', { outputFile: 'test-results/playwright-junit.xml' }],
   ],
+  /** Raise the default assertion (expect) timeout so UI updates after Amplify API
+   *  calls have enough time to propagate before the assertion gives up. */
+  expect: {
+    timeout: 15_000,
+  },
   use: {
     baseURL,
     headless: true,
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     trace: 'retain-on-failure',
+    /** Per-action timeout (clicks, fills, etc.): 15 s covers auth round-trips. */
+    actionTimeout: 15_000,
   },
   ...(configuredBaseUrl || process.env.CI
     ? {}

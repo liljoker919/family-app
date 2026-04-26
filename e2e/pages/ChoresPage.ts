@@ -186,6 +186,8 @@ export class ChoresPage {
 
   /**
    * Opens the Add Chore modal, fills all provided fields, and submits the form.
+   * Waits for the modal to close before returning so callers can immediately
+   * assert on the updated chore list.
    */
   async createChore(details: ChoreDetails): Promise<void> {
     await this.addChoreBtn.click();
@@ -203,11 +205,14 @@ export class ChoresPage {
       await this.pointValueInput.fill(details.pointValue);
     }
     await this.saveChoreBtn.click();
+    // Wait for the modal to close – confirms the API call succeeded.
+    await this.choreFormHeading.waitFor({ state: 'hidden' });
   }
 
   /**
    * Opens the Edit Chore form for the chore identified by title, updates the
    * provided fields, and submits the form.  Assumes the All Chores tab is active.
+   * Waits for the modal to close before returning.
    */
   async editChore(choreTitle: string, updates: Partial<ChoreDetails>): Promise<void> {
     const row = this.getChoreRow(choreTitle);
@@ -227,6 +232,8 @@ export class ChoresPage {
       await this.recurrenceSelect.selectOption(updates.recurrence);
     }
     await this.updateChoreBtn.click();
+    // Wait for the modal to close – confirms the API call succeeded.
+    await this.choreFormHeading.waitFor({ state: 'hidden' });
   }
 
   /**
@@ -243,18 +250,22 @@ export class ChoresPage {
   /**
    * Opens the Assign form for a chore identified by title, fills the provided
    * assignment details, and submits.  Assumes the All Chores tab is active.
+   * Waits for the Assign form to close before returning.
    */
   async assignChore(choreTitle: string, details: AssignmentDetails): Promise<void> {
     const row = this.getChoreRow(choreTitle);
     await row.getByRole('button', { name: 'Assign' }).click();
     await this.assignedToInput.fill(details.assignedTo);
     await this.assignBtn.click();
+    // Wait for the Assign modal to close – confirms the API call succeeded.
+    await this.assignFormHeading.waitFor({ state: 'hidden' });
   }
 
   /**
    * Opens the Log Completion form for the chore identified by title and
    * submits it.  Assumes the All Chores tab is active and the current user has
    * permission (is a manager or assigned to the chore).
+   * Waits for the Log Completion form to close before returning.
    */
   async logChoreCompletion(choreTitle: string, details?: Partial<CompletionDetails>): Promise<void> {
     const row = this.getChoreRow(choreTitle);
@@ -264,6 +275,8 @@ export class ChoresPage {
       await this.completedByInput.fill(details.completedBy);
     }
     await this.logCompletionBtn.click();
+    // Wait for the Log Completion modal to close – confirms the API call succeeded.
+    await this.logCompletionHeading.waitFor({ state: 'hidden' });
   }
 
   // ── Assertion helpers ────────────────────────────────────────────────────
