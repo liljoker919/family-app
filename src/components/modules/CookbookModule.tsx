@@ -181,7 +181,7 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
     const query = searchQuery.trim().toLowerCase();
     const matchesSearch = !query
       || (r.title && r.title.toLowerCase().includes(query))
-      || (Array.isArray(r.ingredients) && r.ingredients.some((ing: string) => ing.toLowerCase().includes(query)));
+      || (Array.isArray(r.ingredients) && r.ingredients.some((ing: string) => ing && ing.toLowerCase().includes(query)));
     return matchesCategory && matchesSearch;
   });
 
@@ -231,6 +231,7 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by ingredient or recipe name..."
+            aria-label="Search recipes by ingredient or name"
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
           />
           {searchQuery && (
@@ -239,7 +240,9 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               aria-label="Clear search"
             >
-              ×
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           )}
         </div>
