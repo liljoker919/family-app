@@ -21,7 +21,7 @@ describe('dashboard navigation modules', () => {
     }
   });
 
-  it('lists admin as the last navigation item', () => {
+  it('lists profile as the last navigation item', () => {
     expect(DASHBOARD_MODULES[DASHBOARD_MODULES.length - 1]).toBe('profile');
   });
 });
@@ -82,9 +82,5 @@ describe('canAccessModule', () => {
     for (const role of roles) {
       expect(canAccessModule('profile', role)).toBe(true);
     }
-  });
-
-  it('includes profile module', () => {
-    expect(DASHBOARD_MODULES).toContain('profile');
   });
 });
