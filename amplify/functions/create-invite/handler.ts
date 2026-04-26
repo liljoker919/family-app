@@ -65,6 +65,11 @@ export const handler: AppSyncResolverHandler<CreateInviteArgs, CreateInviteResul
   const expiresAt = new Date(now.getTime() + INVITE_TTL_MS).toISOString();
 
   // ── 4. Persist the invite record ──────────────────────────────────────────
+  // Email is normalised to lowercase for consistent comparisons during invite
+  // redemption.  RFC 5321 treats the local part as case-sensitive in theory,
+  // but in practice all major providers (Gmail, Outlook, etc.) are case-
+  // insensitive.  The redemption flow must also lowercase the incoming email
+  // before looking up the invite record.
   const item = {
     id,
     familyId: familyId.trim(),

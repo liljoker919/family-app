@@ -283,7 +283,7 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
                   className="flex-1 border border-green-300 rounded-lg px-3 py-1.5 text-xs bg-white text-gray-700 truncate"
                 />
                 <button
-                  onClick={() => copyInviteUrl(generatedInvite.inviteUrl!)}
+                  onClick={() => copyInviteUrl(generatedInvite.inviteUrl)}
                   className="shrink-0 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs transition"
                 >
                   {inviteCopied ? 'Copied!' : 'Copy'}
