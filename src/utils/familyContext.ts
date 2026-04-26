@@ -177,3 +177,53 @@ export async function joinFamily(
     familyJoinCode: family.joinCode ?? null,
   };
 }
+
+/**
+ * Redeem a one-time invite token after the user has authenticated.
+ *
+ * Calls the `redeemInvite` Lambda mutation which:
+ *   - Validates the token (PENDING, not expired, email match).
+ *   - Creates a FamilyMember record with the role from the invite.
+ *   - Marks the invite ACCEPTED.
+ *
+ * Returns a FamilyMembership on success, or throws on any validation failure.
+ */
+export async function redeemInviteToken(token: string): Promise<FamilyMembership> {
+  const { data: result, errors } = await (client.mutations as any).redeemInvite({ token });
+
+  if (errors || !result) {
+    throw new Error(
+      errors?.map((e: { message: string }) => e.message).join(', ') ??
+        'Failed to redeem invite. Please try again.'
+    );
+  }
+
+  return {
+    familyId: result.familyId,
+    role: result.role as FamilyRole,
+    displayName: null,
+    familyName: result.familyName,
+    familyJoinCode: null,
+  };
+}
+
+/**
+ * Parse invite URL parameters from a URL search string.
+ *
+ * Returns the token, email, role, and family name embedded in the invite URL,
+ * or null for any field that is absent or empty.
+ */
+export function parseInviteParams(search: string): {
+  token: string | null;
+  email: string | null;
+  role: string | null;
+  family: string | null;
+} {
+  const params = new URLSearchParams(search);
+  return {
+    token: params.get('token') || null,
+    email: params.get('email') || null,
+    role: params.get('role') || null,
+    family: params.get('family') || null,
+  };
+}

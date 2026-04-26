@@ -1,12 +1,13 @@
 import type { AppSyncResolverHandler } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'node:crypto';
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient());
 
 // Injected by the Amplify backend at deploy time (see amplify/backend.ts).
 const INVITE_TABLE_NAME = process.env.INVITE_TABLE_NAME!;
+const FAMILY_TABLE_NAME = process.env.FAMILY_TABLE_NAME!;
 const APP_BASE_URL = process.env.APP_BASE_URL ?? 'https://kinsly.app';
 
 const VALID_INVITE_ROLES = ['MEMBER', 'PLANNER'] as const;
@@ -94,7 +95,28 @@ export const handler: AppSyncResolverHandler<CreateInviteArgs, CreateInviteResul
   );
 
   // ── 5. Build and return the invite URL ────────────────────────────────────
-  const inviteUrl = `${APP_BASE_URL}/invite?token=${token}`;
+  // Fetch the family name so the invite landing page can show it without
+  // requiring a separate authenticated API call before sign-up.
+  let familyName = '';
+  try {
+    const familyResult = await ddb.send(
+      new GetCommand({
+        TableName: FAMILY_TABLE_NAME,
+        Key: { id: familyId.trim() },
+      })
+    );
+    familyName = familyResult.Item?.name ?? '';
+  } catch {
+    // Best-effort: if the family lookup fails the invite URL still works;
+    // the landing page will just not show the family name.
+  }
+
+  const inviteUrl =
+    `${APP_BASE_URL}/invite` +
+    `?token=${token}` +
+    `&email=${encodeURIComponent(item.email)}` +
+    `&role=${encodeURIComponent(role)}` +
+    (familyName ? `&family=${encodeURIComponent(familyName)}` : '');
 
   return {
     id,
