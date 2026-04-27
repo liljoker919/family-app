@@ -280,6 +280,34 @@ describe('security.schema.PropertyTransaction – ADMIN-only authorization', () 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Family – ADMIN has full CRUD; PLANNER and MEMBER may only read and create
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('security.schema.Family – authorization rules', () => {
+  it('security.schema.Family.planner-and-member-can-read-and-create', () => {
+    const block = extractAuthBlock('Family');
+    expect(block, 'Family authorization block not found').not.toBeNull();
+    expect(containsGroupRule(block!, ['PLANNER', 'MEMBER'], ['read', 'create'])).toBe(true);
+  });
+
+  it('security.schema.Family.admin-has-full-crud', () => {
+    const block = extractAuthBlock('Family');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN'], ['read', 'create', 'update', 'delete'])).toBe(true);
+  });
+
+  it('security.schema.Family.no-duplicate-admin-groups-rule', () => {
+    const block = extractAuthBlock('Family');
+    expect(block).not.toBeNull();
+    // ADMIN must not appear alongside other groups in a combined rule –
+    // that would produce a duplicate staticGroup:ADMIN auth directive and
+    // break CDK synthesis (AmplifyDataConstructInitializationError).
+    expect(block).not.toMatch(/allow\.groups\(\[\s*'ADMIN',\s*'PLANNER'/);
+    expect(block).not.toMatch(/allow\.groups\(\[\s*'ADMIN',\s*'PLANNER',\s*'MEMBER'/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // FamilyMember – role management (ADMIN only for update/delete)
 // ─────────────────────────────────────────────────────────────────────────────
 
