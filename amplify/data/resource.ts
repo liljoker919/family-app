@@ -71,8 +71,8 @@ const schema = a.schema({
       index('familyId'),
     ])
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
-      allow.groups(['ADMIN']).to(['update', 'delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read', 'create']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   // -------------------------------------------------------------------------
