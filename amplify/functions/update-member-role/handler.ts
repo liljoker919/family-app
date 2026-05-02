@@ -5,6 +5,7 @@ import {
   GetCommand,
   ScanCommand,
   UpdateCommand,
+  TransactWriteCommand,
 } from '@aws-sdk/lib-dynamodb';
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient());
@@ -36,6 +37,8 @@ interface MemberItem {
  *   2. Privilege-escalation protection – caller must be ADMIN.
  *   3. Cross-family protection – caller and target must share the same familyId.
  *   4. Last-admin guard – the final ADMIN in a family may not be demoted.
+ *      Implemented with TransactWriteItems to prevent the race condition where
+ *      two admins demote themselves simultaneously.
  */
 export const handler: AppSyncResolverHandler<UpdateMemberRoleArgs, MemberItem> = async (
   event
@@ -99,13 +102,13 @@ export const handler: AppSyncResolverHandler<UpdateMemberRoleArgs, MemberItem> =
     throw new Error('Unauthorized: Cannot update members from a different family.');
   }
 
-  // ── 7. Last-admin guard: prevent demoting the final ADMIN ────────────────
+  // ── 7. Last-admin guard: atomic demotion via TransactWriteItems ──────────
   if (targetMember.role === 'ADMIN' && newRole !== 'ADMIN') {
-    // Scan the table filtered by familyId to count ADMIN members.  As above,
-    // a Query on a familyId GSI would be more efficient at scale; the
+    // Find all ADMIN members in the family to enforce last-admin protection.
+    // A Query on a familyId GSI would be more efficient at scale; the
     // familyId-index GSI defined in the schema supports this optimisation.
     // Family member tables are small (<100 rows per family), so Scan is fine.
-    const adminCountResult = await ddb.send(
+    const adminScanResult = await ddb.send(
       new ScanCommand({
         TableName: TABLE_NAME,
         FilterExpression: 'familyId = :familyId AND #role = :admin',
@@ -116,14 +119,76 @@ export const handler: AppSyncResolverHandler<UpdateMemberRoleArgs, MemberItem> =
         },
       })
     );
-    const adminCount =
-      adminCountResult.Count ?? adminCountResult.Items?.length ?? 0;
-    if (adminCount <= 1) {
+    const adminMembers = (adminScanResult.Items ?? []) as MemberItem[];
+
+    if (adminMembers.length <= 1) {
       throw new Error('A family must have at least one administrator.');
     }
+
+    // Pick any other admin (not the target) as the anchor for the condition
+    // check.  If no other admin is found treat the target as the last admin.
+    const otherAdmin = adminMembers.find((m) => m.id !== memberId);
+    if (!otherAdmin) {
+      throw new Error('A family must have at least one administrator.');
+    }
+
+    // Perform the role update as a DynamoDB transaction so the last-admin
+    // check and the write are atomic.  The ConditionCheck on otherAdmin
+    // guarantees that, at commit time, another ADMIN still exists in the
+    // family.  This prevents the race condition where two admins call this
+    // mutation concurrently: only one transaction can commit; the second will
+    // fail because the ConditionCheck will no longer hold after the first
+    // transaction changes otherAdmin's role (or the Update condition on the
+    // target fails if the target's role was already changed).
+    try {
+      await ddb.send(
+        new TransactWriteCommand({
+          TransactItems: [
+            {
+              // Verify at commit time that another ADMIN still exists.
+              ConditionCheck: {
+                TableName: TABLE_NAME,
+                Key: { id: otherAdmin.id },
+                ConditionExpression: '#role = :admin',
+                ExpressionAttributeNames: { '#role': 'role' },
+                ExpressionAttributeValues: { ':admin': 'ADMIN' },
+              },
+            },
+            {
+              // Apply the role update only if the target is still ADMIN
+              // (optimistic-lock guard against concurrent mutations).
+              Update: {
+                TableName: TABLE_NAME,
+                Key: { id: memberId },
+                UpdateExpression: 'SET #role = :newRole',
+                ConditionExpression: '#role = :currentRole',
+                ExpressionAttributeNames: { '#role': 'role' },
+                ExpressionAttributeValues: {
+                  ':newRole': newRole,
+                  ':currentRole': 'ADMIN',
+                },
+              },
+            },
+          ],
+        })
+      );
+    } catch (err: any) {
+      if (err.name === 'TransactionCanceledException') {
+        throw new Error('A family must have at least one administrator.');
+      }
+      throw err;
+    }
+
+    return {
+      id: memberId,
+      familyId: targetMember.familyId,
+      userId: targetMember.userId,
+      role: newRole as FamilyRole,
+      displayName: targetMember.displayName ?? undefined,
+    };
   }
 
-  // ── 8. Apply the role update ───────────────────────────────────────────────
+  // ── 8. Apply the role update (non-admin-demotion cases) ───────────────────
   await ddb.send(
     new UpdateCommand({
       TableName: TABLE_NAME,
