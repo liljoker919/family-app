@@ -487,7 +487,7 @@ describe('security.rbac – last-admin guard (data integrity)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Simulates the AppSync allow.groupsDefinedIn('familyId') check.
+ * Simulates the AppSync allow.groupDefinedIn('familyId') check.
  *
  * AppSync evaluates the rule by looking up the record's familyId field value
  * and checking whether that value appears as a group in the caller's JWT
@@ -529,7 +529,7 @@ describe('security.rbac – tenant isolation (cross-family access)', () => {
 
   it('security.rbac.cross-family-read-denied-for-admin-of-other-family', () => {
     // An ADMIN of family A has groups: ['ADMIN', FAMILY_A]
-    // They must NOT be able to read family B's data via the groupsDefinedIn rule.
+    // They must NOT be able to read family B's data via the groupDefinedIn rule.
     const callerGroups = ['ADMIN', FAMILY_A];
     const allowed = simulateGroupsDefinedInCheck(callerGroups, FAMILY_B);
     expect(allowed).toBe(false);

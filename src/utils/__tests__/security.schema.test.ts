@@ -91,20 +91,20 @@ function containsGroupRule(
 }
 
 /**
- * Returns true when the authorization block contains an allow.groupsDefinedIn
+ * Returns true when the authorization block contains an allow.groupDefinedIn
  * rule for the given field and grants the specified operations.
  *
- * Example: containsGroupsDefinedInRule(block, 'familyId', ['read'])  → true when
- *   allow.groupsDefinedIn('familyId').to(['read'])  is present.
+ * Example: containsGroupDefinedInRule(block, 'familyId', ['read'])  → true when
+ *   allow.groupDefinedIn('familyId').to(['read'])  is present.
  */
-function containsGroupsDefinedInRule(
+function containsGroupDefinedInRule(
   block: string,
   field: string,
   operations: string[]
 ): boolean {
   const opsLiteral = operations.map((o) => `'${o}'`).join(`(?:'[^']*'|[^\\]'])*`);
   const pattern = new RegExp(
-    `allow\\.groupsDefinedIn\\(\\s*'${field}'\\s*\\)\\.to\\(\\[\\s*${opsLiteral}`,
+    `allow\\.groupDefinedIn\\(\\s*'${field}'\\s*\\)\\.to\\(\\[\\s*${opsLiteral}`,
     's'
   );
   return pattern.test(block);
@@ -115,11 +115,11 @@ function containsGroupsDefinedInRule(
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.Vacation – authorization rules', () => {
-  it('security.schema.Vacation.family-members-can-read-via-groupsDefinedIn', () => {
+  it('security.schema.Vacation.family-members-can-read-via-groupDefinedIn', () => {
     const block = extractAuthBlock('Vacation');
     expect(block, 'Vacation authorization block not found').not.toBeNull();
     // Server-side tenant isolation: read is gated by familyId group membership.
-    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
   });
 
   it('security.schema.Vacation.no-broad-read-for-all-role-groups', () => {
@@ -147,10 +147,10 @@ describe('security.schema.Vacation – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.TripPlan – authorization rules', () => {
-  it('security.schema.TripPlan.family-members-can-read-via-groupsDefinedIn', () => {
+  it('security.schema.TripPlan.family-members-can-read-via-groupDefinedIn', () => {
     const block = extractAuthBlock('TripPlan');
     expect(block).not.toBeNull();
-    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
   });
 
   it('security.schema.TripPlan.no-broad-read-for-all-role-groups', () => {
@@ -177,10 +177,10 @@ describe('security.schema.TripPlan – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.Car – authorization rules', () => {
-  it('security.schema.Car.family-members-can-read-via-groupsDefinedIn', () => {
+  it('security.schema.Car.family-members-can-read-via-groupDefinedIn', () => {
     const block = extractAuthBlock('Car');
     expect(block).not.toBeNull();
-    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
   });
 
   it('security.schema.Car.no-broad-read-for-all-role-groups', () => {
@@ -207,10 +207,10 @@ describe('security.schema.Car – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.Chore – authorization rules', () => {
-  it('security.schema.Chore.family-members-can-read-via-groupsDefinedIn', () => {
+  it('security.schema.Chore.family-members-can-read-via-groupDefinedIn', () => {
     const block = extractAuthBlock('Chore');
     expect(block).not.toBeNull();
-    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
   });
 
   it('security.schema.Chore.no-broad-read-for-all-role-groups', () => {
@@ -237,10 +237,10 @@ describe('security.schema.Chore – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.ChoreAssignment – authorization rules', () => {
-  it('security.schema.ChoreAssignment.family-members-can-read-via-groupsDefinedIn', () => {
+  it('security.schema.ChoreAssignment.family-members-can-read-via-groupDefinedIn', () => {
     const block = extractAuthBlock('ChoreAssignment');
     expect(block).not.toBeNull();
-    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
   });
 
   it('security.schema.ChoreAssignment.no-broad-read-for-all-role-groups', () => {
@@ -267,11 +267,11 @@ describe('security.schema.ChoreAssignment – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.ChoreCompletion – authorization rules', () => {
-  it('security.schema.ChoreCompletion.family-members-can-read-via-groupsDefinedIn', () => {
+  it('security.schema.ChoreCompletion.family-members-can-read-via-groupDefinedIn', () => {
     const block = extractAuthBlock('ChoreCompletion');
     expect(block).not.toBeNull();
     // Read is gated by family membership (tenant isolation).
-    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
   });
 
   it('security.schema.ChoreCompletion.no-broad-read-for-all-role-groups', () => {
@@ -299,10 +299,10 @@ describe('security.schema.ChoreCompletion – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.Recipe – authorization rules', () => {
-  it('security.schema.Recipe.family-members-can-read-via-groupsDefinedIn', () => {
+  it('security.schema.Recipe.family-members-can-read-via-groupDefinedIn', () => {
     const block = extractAuthBlock('Recipe');
     expect(block).not.toBeNull();
-    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
   });
 
   it('security.schema.Recipe.no-broad-read-for-all-role-groups', () => {
@@ -329,12 +329,12 @@ describe('security.schema.Recipe – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.Property – ADMIN-only authorization', () => {
-  it('security.schema.Property.family-members-can-read-via-groupsDefinedIn', () => {
+  it('security.schema.Property.family-members-can-read-via-groupDefinedIn', () => {
     const block = extractAuthBlock('Property');
     expect(block).not.toBeNull();
     // Read is gated by familyId group (tenant isolation); Property records are
     // family-scoped so family-group members can read them.
-    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
   });
 
   it('security.schema.Property.only-admin-can-write', () => {
@@ -419,10 +419,10 @@ describe('security.schema.FamilyMember – role management authorization', () =>
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.CarService – authorization rules', () => {
-  it('security.schema.CarService.family-members-can-read-via-groupsDefinedIn', () => {
+  it('security.schema.CarService.family-members-can-read-via-groupDefinedIn', () => {
     const block = extractAuthBlock('CarService');
     expect(block).not.toBeNull();
-    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
   });
 
   it('security.schema.CarService.no-broad-read-for-all-role-groups', () => {
@@ -472,10 +472,10 @@ describe('security.schema.Invite – ADMIN-only authorization', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tenant Isolation – groupsDefinedIn('familyId') is present on all family-scoped models
+// Tenant Isolation – groupDefinedIn('familyId') is present on all family-scoped models
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('security.schema – tenant isolation via groupsDefinedIn', () => {
+describe('security.schema – tenant isolation via groupDefinedIn', () => {
   const familyScopedModels = [
     'Vacation',
     'TripPlan',
@@ -489,12 +489,12 @@ describe('security.schema – tenant isolation via groupsDefinedIn', () => {
   ] as const;
 
   for (const model of familyScopedModels) {
-    it(`security.schema.${model}.groupsDefinedIn-familyId-enforces-read-isolation`, () => {
+    it(`security.schema.${model}.groupDefinedIn-familyId-enforces-read-isolation`, () => {
       const block = extractAuthBlock(model);
       expect(block, `${model} authorization block not found`).not.toBeNull();
       expect(
-        containsGroupsDefinedInRule(block!, 'familyId', ['read']),
-        `${model} is missing allow.groupsDefinedIn('familyId').to(['read'])`
+        containsGroupDefinedInRule(block!, 'familyId', ['read']),
+        `${model} is missing allow.groupDefinedIn('familyId').to(['read'])`
       ).toBe(true);
     });
   }

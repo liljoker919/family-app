@@ -33,7 +33,7 @@ interface AddToFamilyGroupResult {
  *   3. Adds the caller to that Cognito group.
  *
  * After this mutation completes, the caller's JWT will include the familyId
- * as a Cognito group, which satisfies the `allow.groupsDefinedIn('familyId')`
+ * as a Cognito group, which satisfies the `allow.groupDefinedIn('familyId')`
  * authorization rule on all family-scoped models.
  *
  * This mutation must be called after:

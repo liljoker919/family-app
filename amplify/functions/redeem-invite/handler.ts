@@ -36,7 +36,7 @@ interface RedeemInviteResult {
 
 /**
  * Ensures a Cognito group named after the familyId exists, then adds the user.
- * This satisfies the allow.groupsDefinedIn('familyId') authorization rule on
+ * This satisfies the allow.groupDefinedIn('familyId') authorization rule on
  * all family-scoped models, completing server-side tenant isolation.
  */
 async function addUserToFamilyGroup(
@@ -86,7 +86,7 @@ async function addUserToFamilyGroup(
  *   4. Idempotent: if the caller is already a member of the family the invite
  *      refers to, the existing membership is returned without error.
  *   5. Adds the caller to the family's Cognito group for server-side tenant
- *      isolation (satisfies allow.groupsDefinedIn('familyId') on all models).
+ *      isolation (satisfies allow.groupDefinedIn('familyId') on all models).
  */
 export const handler: AppSyncResolverHandler<RedeemInviteArgs, RedeemInviteResult> = async (
   event
