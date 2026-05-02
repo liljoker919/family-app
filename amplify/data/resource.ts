@@ -293,6 +293,8 @@ const schema = a.schema({
       category: a.string(),
       status: a.enum(['PROPOSED', 'UNDER_REVIEW', 'SELECTED', 'BOOKED', 'REJECTED']),
       proposedBy: a.string(),
+      upVoteCount: a.integer(),
+      downVoteCount: a.integer(),
       votes: a.hasMany('ExcursionVote', 'excursionOptionId'),
       comments: a.hasMany('ExcursionComment', 'excursionOptionId'),
     })
@@ -427,6 +429,7 @@ const schema = a.schema({
 
   PropertyTransaction: a
     .model({
+      familyId: a.id().required(),
       propertyId: a.id().required(),
       property: a.belongsTo('Property', 'propertyId'),
       type: a.enum(['income', 'expense']),
