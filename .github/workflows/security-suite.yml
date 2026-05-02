@@ -69,8 +69,6 @@ jobs:
   security-e2e-tests:
     name: Security E2E Tests (Playwright)
     runs-on: ubuntu-latest
-    # E2E tests skip gracefully when role-specific credentials are absent;
-    # genuine failures now block the PR.
     permissions:
       contents: read
 
@@ -90,6 +88,31 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Validate required credentials on protected branches
+        if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
+        env:
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_PLANNER_EMAIL: ${{ secrets.E2E_PLANNER_EMAIL }}
+          E2E_MEMBER_EMAIL: ${{ secrets.E2E_MEMBER_EMAIL }}
+          E2E_VALID_PASSWORD: ${{ secrets.E2E_VALID_PASSWORD }}
+        run: |
+          missing=()
+          [[ -z "$E2E_ADMIN_EMAIL" ]]    && missing+=("E2E_ADMIN_EMAIL")
+          [[ -z "$E2E_PLANNER_EMAIL" ]]  && missing+=("E2E_PLANNER_EMAIL")
+          [[ -z "$E2E_MEMBER_EMAIL" ]]   && missing+=("E2E_MEMBER_EMAIL")
+          [[ -z "$E2E_VALID_PASSWORD" ]] && missing+=("E2E_VALID_PASSWORD")
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "❌ ERROR: The following required secrets are not configured on this protected branch:"
+            for secret in "${missing[@]}"; do
+              echo "  - $secret"
+            done
+            echo ""
+            echo "Security RBAC tests cannot run without role-specific credentials."
+            echo "Configure these secrets in Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "✅ All required role credentials are configured."
+
       - name: Run security E2E tests
         id: run-security-e2e
         run: npx playwright test e2e/tests/security.spec.ts
@@ -105,6 +128,36 @@ jobs:
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_PLANNER_EMAIL: ${{ secrets.E2E_PLANNER_EMAIL }}
           E2E_MEMBER_EMAIL: ${{ secrets.E2E_MEMBER_EMAIL }}
+
+      - name: Fail on skipped security tests
+        if: always()
+        run: |
+          JUNIT_FILE="test-results/playwright-junit.xml"
+          if [[ ! -f "$JUNIT_FILE" ]]; then
+            if [[ "${{ steps.run-security-e2e.outcome }}" == "skipped" ]]; then
+              echo "ℹ️ JUnit report not found – security E2E tests did not run (a prior step failed)."
+              exit 0
+            fi
+            echo "❌ JUnit report not found at $JUNIT_FILE but E2E tests were expected to run."
+            exit 1
+          fi
+          python3 - << 'PYEOF'
+import xml.etree.ElementTree as ET, sys
+tree = ET.parse("test-results/playwright-junit.xml")
+root = tree.getroot()
+skipped = [tc.get("name", "unknown") for tc in root.iter("testcase") if tc.find("skipped") is not None]
+if skipped:
+    print(f"❌ ERROR: {len(skipped)} security test(s) were skipped - blocking merge.")
+    print("")
+    print("All security RBAC tests must execute and pass. Skipped tests indicate")
+    print("missing credentials or unresolvable test preconditions.")
+    print("")
+    print("Skipped test names:")
+    for name in skipped:
+        print(f"  - {name}")
+    sys.exit(1)
+print("✅ No security tests were skipped.")
+PYEOF
 
       - name: Upload security E2E report
         if: always()
@@ -128,13 +181,13 @@ jobs:
           echo "## Security E2E Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.run-security-e2e.outcome }}" = "success" ]; then
-            echo "✅ All security E2E tests passed." >> $GITHUB_STEP_SUMMARY
+            echo "✅ All security E2E tests passed and none were skipped." >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ Some security E2E tests failed or were skipped." >> $GITHUB_STEP_SUMMARY
+            echo "❌ Security E2E tests **FAILED** or tests were skipped." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Tests that require role-specific users (E2E_ADMIN_EMAIL," >> $GITHUB_STEP_SUMMARY
-            echo "E2E_PLANNER_EMAIL, E2E_MEMBER_EMAIL) are automatically skipped" >> $GITHUB_STEP_SUMMARY
-            echo "when those secrets are not configured." >> $GITHUB_STEP_SUMMARY
+            echo "All security RBAC tests must run and pass. Skipped tests are treated" >> $GITHUB_STEP_SUMMARY
+            echo "as failures. Ensure all required secrets are configured:" >> $GITHUB_STEP_SUMMARY
+            echo "E2E_ADMIN_EMAIL, E2E_PLANNER_EMAIL, E2E_MEMBER_EMAIL, E2E_VALID_PASSWORD." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Download the **security-e2e-report** artifact for the HTML report." >> $GITHUB_STEP_SUMMARY
           fi
