@@ -5,6 +5,7 @@ import { postConfirmation } from './functions/post-confirmation/resource';
 import { updateMemberRoleFn } from './functions/update-member-role/resource';
 import { createInviteFn } from './functions/create-invite/resource';
 import { redeemInviteFn } from './functions/redeem-invite/resource';
+import { addToFamilyGroupFn } from './functions/add-to-family-group/resource';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
 const backend = defineBackend({
@@ -14,6 +15,7 @@ const backend = defineBackend({
   updateMemberRoleFn,
   createInviteFn,
   redeemInviteFn,
+  addToFamilyGroupFn,
 });
 
 // Grant permission to assign users to Cognito groups
@@ -86,4 +88,55 @@ backend.redeemInviteFn.resources.lambda.addEnvironment(
 backend.redeemInviteFn.resources.lambda.addEnvironment(
   'FAMILY_TABLE_NAME',
   backend.data.resources.tables['Family'].tableName,
+);
+
+// ── addToFamilyGroup Lambda ───────────────────────────────────────────────────
+// Grant the addToFamilyGroup Lambda read access to the FamilyMember table so it
+// can verify that the caller is a member of the requested family before adding
+// them to the corresponding Cognito group.
+backend.data.resources.tables['FamilyMember'].grantReadData(
+  backend.addToFamilyGroupFn.resources.lambda,
+);
+
+// Inject table name and User Pool ID for the addToFamilyGroup Lambda.
+backend.addToFamilyGroupFn.resources.lambda.addEnvironment(
+  'FAMILY_MEMBER_TABLE_NAME',
+  backend.data.resources.tables['FamilyMember'].tableName,
+);
+backend.addToFamilyGroupFn.resources.lambda.addEnvironment(
+  'USER_POOL_ID',
+  backend.auth.resources.userPool.userPoolId,
+);
+
+// Grant Cognito group management permissions to the addToFamilyGroup Lambda.
+// This allows it to create groups (one per family) and add users to them,
+// which satisfies the groupsDefinedIn('familyId') authorization rule.
+backend.addToFamilyGroupFn.resources.lambda.addToRolePolicy(
+  new PolicyStatement({
+    actions: [
+      'cognito-idp:GetGroup',
+      'cognito-idp:CreateGroup',
+      'cognito-idp:AdminAddUserToGroup',
+    ],
+    resources: ['*'],
+  }),
+);
+
+// Grant the redeemInvite Lambda Cognito group management permissions so it can
+// add the newly-onboarded user to their family group during invite redemption,
+// completing the tenant-isolation bootstrapping without requiring a separate
+// client-side addSelfToFamilyGroup call.
+backend.redeemInviteFn.resources.lambda.addToRolePolicy(
+  new PolicyStatement({
+    actions: [
+      'cognito-idp:GetGroup',
+      'cognito-idp:CreateGroup',
+      'cognito-idp:AdminAddUserToGroup',
+    ],
+    resources: ['*'],
+  }),
+);
+backend.redeemInviteFn.resources.lambda.addEnvironment(
+  'USER_POOL_ID',
+  backend.auth.resources.userPool.userPoolId,
 );

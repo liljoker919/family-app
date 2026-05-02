@@ -481,3 +481,128 @@ describe('security.rbac – last-admin guard (data integrity)', () => {
     ).toBeNull();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tenant Isolation – cross-family data access must fail
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Simulates the AppSync allow.groupsDefinedIn('familyId') check.
+ *
+ * AppSync evaluates the rule by looking up the record's familyId field value
+ * and checking whether that value appears as a group in the caller's JWT
+ * cognito:groups claim.  This helper replicates that logic so we can unit-test
+ * the authorization decision without a live backend.
+ *
+ * @param callerGroups - Cognito groups in the caller's JWT (role + family groups)
+ * @param recordFamilyId - The familyId stored on the record being accessed
+ * @returns true if access is allowed, false if it should be rejected
+ */
+function simulateGroupsDefinedInCheck(
+  callerGroups: string[],
+  recordFamilyId: string
+): boolean {
+  // AppSync grants access if the record's familyId value appears in the
+  // caller's cognito:groups claim array.
+  return callerGroups.includes(recordFamilyId);
+}
+
+describe('security.rbac – tenant isolation (cross-family access)', () => {
+  const FAMILY_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+  const FAMILY_B = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+  // ── Family A members cannot read Family B records ─────────────────────────
+
+  it('security.rbac.cross-family-read-denied-for-member', () => {
+    // A MEMBER of family A has groups: ['MEMBER', FAMILY_A]
+    const callerGroups = ['MEMBER', FAMILY_A];
+    const allowed = simulateGroupsDefinedInCheck(callerGroups, FAMILY_B);
+    expect(allowed).toBe(false);
+  });
+
+  it('security.rbac.cross-family-read-denied-for-planner', () => {
+    // A PLANNER of family A has groups: ['PLANNER', FAMILY_A]
+    const callerGroups = ['PLANNER', FAMILY_A];
+    const allowed = simulateGroupsDefinedInCheck(callerGroups, FAMILY_B);
+    expect(allowed).toBe(false);
+  });
+
+  it('security.rbac.cross-family-read-denied-for-admin-of-other-family', () => {
+    // An ADMIN of family A has groups: ['ADMIN', FAMILY_A]
+    // They must NOT be able to read family B's data via the groupsDefinedIn rule.
+    const callerGroups = ['ADMIN', FAMILY_A];
+    const allowed = simulateGroupsDefinedInCheck(callerGroups, FAMILY_B);
+    expect(allowed).toBe(false);
+  });
+
+  it('security.rbac.cross-family-read-denied-for-unauthenticated-user', () => {
+    // An unauthenticated user has no groups at all.
+    const callerGroups: string[] = [];
+    const allowed = simulateGroupsDefinedInCheck(callerGroups, FAMILY_A);
+    expect(allowed).toBe(false);
+  });
+
+  // ── Family A members CAN read their own records ───────────────────────────
+
+  it('security.rbac.same-family-read-allowed-for-member', () => {
+    const callerGroups = ['MEMBER', FAMILY_A];
+    const allowed = simulateGroupsDefinedInCheck(callerGroups, FAMILY_A);
+    expect(allowed).toBe(true);
+  });
+
+  it('security.rbac.same-family-read-allowed-for-planner', () => {
+    const callerGroups = ['PLANNER', FAMILY_A];
+    const allowed = simulateGroupsDefinedInCheck(callerGroups, FAMILY_A);
+    expect(allowed).toBe(true);
+  });
+
+  it('security.rbac.same-family-read-allowed-for-admin', () => {
+    const callerGroups = ['ADMIN', FAMILY_A];
+    const allowed = simulateGroupsDefinedInCheck(callerGroups, FAMILY_A);
+    expect(allowed).toBe(true);
+  });
+
+  // ── A user who is a member of multiple families ───────────────────────────
+
+  it('security.rbac.multi-family-user-can-read-own-families-only', () => {
+    // Edge case: a user who belongs to both family A and family B
+    // (e.g. after being moved, or as a system admin).  They should be able
+    // to read records from both families.
+    const callerGroups = ['ADMIN', FAMILY_A, FAMILY_B];
+    expect(simulateGroupsDefinedInCheck(callerGroups, FAMILY_A)).toBe(true);
+    expect(simulateGroupsDefinedInCheck(callerGroups, FAMILY_B)).toBe(true);
+    // But not a third unrelated family.
+    const FAMILY_C = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
+    expect(simulateGroupsDefinedInCheck(callerGroups, FAMILY_C)).toBe(false);
+  });
+
+  // ── Cross-family role update attempts ────────────────────────────────────
+
+  it('security.rbac.cross-family-role-update-denied-by-validateRoleUpdate', () => {
+    // Even if a user is ADMIN in family A, they must not update members
+    // of family B.  validateRoleUpdate enforces this check.
+    const result = validateRoleUpdate({
+      callerRole: 'ADMIN',
+      callerFamilyId: FAMILY_A,
+      targetCurrentRole: 'MEMBER',
+      targetFamilyId: FAMILY_B,
+      newRole: 'ADMIN',
+      adminCountInFamily: 2,
+    });
+    expect(result).not.toBeNull();
+    expect(result).toMatch(/different family/i);
+  });
+
+  it('security.rbac.same-family-role-update-permitted-by-validateRoleUpdate', () => {
+    const result = validateRoleUpdate({
+      callerRole: 'ADMIN',
+      callerFamilyId: FAMILY_A,
+      targetCurrentRole: 'MEMBER',
+      targetFamilyId: FAMILY_A,
+      newRole: 'PLANNER',
+      adminCountInFamily: 2,
+    });
+    expect(result).toBeNull();
+  });
+});
+

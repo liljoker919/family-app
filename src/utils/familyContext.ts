@@ -111,6 +111,18 @@ export async function createFamily(
     );
   }
 
+  // Assign the user to the family's Cognito group so that the server-side
+  // allow.groupsDefinedIn('familyId') rule on all family-scoped models is
+  // satisfied.  This call is best-effort: a failure here does not roll back
+  // the family/member records; the user can retry via addSelfToFamilyGroup.
+  try {
+    await (client.mutations as any).addSelfToFamilyGroup({ familyId: family.id });
+  } catch (err) {
+    // Non-fatal: the user can still use the app; group assignment can be
+    // retried, or an admin can use the Cognito console to add them.
+    console.warn('[createFamily] addSelfToFamilyGroup failed (non-fatal):', err);
+  }
+
   return {
     familyId: family.id,
     role: 'ADMIN',
@@ -167,6 +179,14 @@ export async function joinFamily(
     throw new Error(
       memberErrors?.map((e) => e.message).join(', ') ?? 'Failed to join family'
     );
+  }
+
+  // Assign the user to the family's Cognito group (tenant isolation).
+  try {
+    await (client.mutations as any).addSelfToFamilyGroup({ familyId: family.id });
+  } catch (err) {
+    // Non-fatal: best-effort group assignment.
+    console.warn('[joinFamily] addSelfToFamilyGroup failed (non-fatal):', err);
   }
 
   return {

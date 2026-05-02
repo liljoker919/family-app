@@ -7,14 +7,22 @@ import {
   PutCommand,
   GetCommand,
 } from '@aws-sdk/lib-dynamodb';
+import {
+  CognitoIdentityProviderClient,
+  CreateGroupCommand,
+  AdminAddUserToGroupCommand,
+  GetGroupCommand,
+} from '@aws-sdk/client-cognito-identity-provider';
 import { randomUUID } from 'node:crypto';
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient());
+const cognitoClient = new CognitoIdentityProviderClient();
 
 // Injected by the Amplify backend at deploy time (see amplify/backend.ts).
 const INVITE_TABLE_NAME = process.env.INVITE_TABLE_NAME!;
 const FAMILY_MEMBER_TABLE_NAME = process.env.FAMILY_MEMBER_TABLE_NAME!;
 const FAMILY_TABLE_NAME = process.env.FAMILY_TABLE_NAME!;
+const USER_POOL_ID = process.env.USER_POOL_ID!;
 
 interface RedeemInviteArgs {
   token: string;
@@ -27,6 +35,48 @@ interface RedeemInviteResult {
 }
 
 /**
+ * Ensures a Cognito group named after the familyId exists, then adds the user.
+ * This satisfies the allow.groupsDefinedIn('familyId') authorization rule on
+ * all family-scoped models, completing server-side tenant isolation.
+ */
+async function addUserToFamilyGroup(
+  username: string,
+  familyId: string
+): Promise<void> {
+  if (!USER_POOL_ID) {
+    // USER_POOL_ID not injected (local dev / test) – skip silently.
+    return;
+  }
+
+  // Ensure the group exists before adding the user.
+  try {
+    await cognitoClient.send(
+      new GetGroupCommand({ UserPoolId: USER_POOL_ID, GroupName: familyId })
+    );
+  } catch (err: any) {
+    if (err?.name === 'ResourceNotFoundException') {
+      await cognitoClient.send(
+        new CreateGroupCommand({
+          UserPoolId: USER_POOL_ID,
+          GroupName: familyId,
+          Description: `Tenant isolation group for family ${familyId}`,
+        })
+      );
+    } else {
+      throw err;
+    }
+  }
+
+  await cognitoClient.send(
+    new AdminAddUserToGroupCommand({
+      UserPoolId: USER_POOL_ID,
+      Username: username,
+      GroupName: familyId,
+    })
+  );
+}
+
+/**
  * AppSync Lambda resolver for the `redeemInvite` custom mutation.
  *
  * Enforces:
@@ -35,6 +85,8 @@ interface RedeemInviteResult {
  *   3. Invite email must match the caller's email (prevents link forwarding abuse).
  *   4. Idempotent: if the caller is already a member of the family the invite
  *      refers to, the existing membership is returned without error.
+ *   5. Adds the caller to the family's Cognito group for server-side tenant
+ *      isolation (satisfies allow.groupsDefinedIn('familyId') on all models).
  */
 export const handler: AppSyncResolverHandler<RedeemInviteArgs, RedeemInviteResult> = async (
   event
@@ -108,7 +160,16 @@ export const handler: AppSyncResolverHandler<RedeemInviteArgs, RedeemInviteResul
   const familyName: string = familyResult.Item?.name ?? 'Your Family';
 
   if (existingResult.Items && existingResult.Items.length > 0) {
-    // Already a member — return existing membership without error.
+    // Already a member — ensure Cognito group membership and return.
+    await addUserToFamilyGroup(callerEmail, invite.familyId).catch((err) => {
+      // Best-effort: group assignment failure should not block the response,
+      // but log so ops can detect and remediate via the Cognito console.
+      console.error(
+        `[redeemInvite] Failed to add ${callerEmail} to family group ${invite.familyId} (idempotent path):`,
+        err
+      );
+    });
+
     const existing = existingResult.Items[0];
     return {
       familyId: invite.familyId,
@@ -152,9 +213,20 @@ export const handler: AppSyncResolverHandler<RedeemInviteArgs, RedeemInviteResul
     })
   );
 
+  // ── 9. Add caller to family Cognito group (tenant isolation) ───────────────
+  // Best-effort: a Cognito API failure does not roll back the membership record.
+  // The client can call addSelfToFamilyGroup as a fallback if needed.
+  await addUserToFamilyGroup(callerEmail, invite.familyId).catch((err) => {
+    console.error(
+      `[redeemInvite] Failed to add ${callerEmail} to family group ${invite.familyId}:`,
+      err
+    );
+  });
+
   return {
     familyId: invite.familyId,
     familyName,
     role: invite.role,
   };
 };
+

@@ -90,15 +90,43 @@ function containsGroupRule(
   return pattern.test(block);
 }
 
+/**
+ * Returns true when the authorization block contains an allow.groupsDefinedIn
+ * rule for the given field and grants the specified operations.
+ *
+ * Example: containsGroupsDefinedInRule(block, 'familyId', ['read'])  → true when
+ *   allow.groupsDefinedIn('familyId').to(['read'])  is present.
+ */
+function containsGroupsDefinedInRule(
+  block: string,
+  field: string,
+  operations: string[]
+): boolean {
+  const opsLiteral = operations.map((o) => `'${o}'`).join(`(?:'[^']*'|[^\\]'])*`);
+  const pattern = new RegExp(
+    `allow\\.groupsDefinedIn\\(\\s*'${field}'\\s*\\)\\.to\\(\\[\\s*${opsLiteral}`,
+    's'
+  );
+  return pattern.test(block);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Vacation
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.Vacation – authorization rules', () => {
-  it('security.schema.Vacation.all-groups-can-read-and-update', () => {
+  it('security.schema.Vacation.family-members-can-read-via-groupsDefinedIn', () => {
     const block = extractAuthBlock('Vacation');
     expect(block, 'Vacation authorization block not found').not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(true);
+    // Server-side tenant isolation: read is gated by familyId group membership.
+    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+  });
+
+  it('security.schema.Vacation.no-broad-read-for-all-role-groups', () => {
+    const block = extractAuthBlock('Vacation');
+    expect(block).not.toBeNull();
+    // The broad all-groups read rule must be absent to enforce tenant isolation.
+    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(false);
   });
 
   it('security.schema.Vacation.planner-and-admin-can-create', () => {
@@ -119,10 +147,16 @@ describe('security.schema.Vacation – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.TripPlan – authorization rules', () => {
-  it('security.schema.TripPlan.all-groups-can-read-and-update', () => {
+  it('security.schema.TripPlan.family-members-can-read-via-groupsDefinedIn', () => {
     const block = extractAuthBlock('TripPlan');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(true);
+    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+  });
+
+  it('security.schema.TripPlan.no-broad-read-for-all-role-groups', () => {
+    const block = extractAuthBlock('TripPlan');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(false);
   });
 
   it('security.schema.TripPlan.planner-and-admin-can-create', () => {
@@ -143,10 +177,16 @@ describe('security.schema.TripPlan – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.Car – authorization rules', () => {
-  it('security.schema.Car.all-groups-can-read', () => {
+  it('security.schema.Car.family-members-can-read-via-groupsDefinedIn', () => {
     const block = extractAuthBlock('Car');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(true);
+    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+  });
+
+  it('security.schema.Car.no-broad-read-for-all-role-groups', () => {
+    const block = extractAuthBlock('Car');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(false);
   });
 
   it('security.schema.Car.planner-and-admin-can-create-and-update', () => {
@@ -167,10 +207,16 @@ describe('security.schema.Car – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.Chore – authorization rules', () => {
-  it('security.schema.Chore.all-groups-can-read-and-update', () => {
+  it('security.schema.Chore.family-members-can-read-via-groupsDefinedIn', () => {
     const block = extractAuthBlock('Chore');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(true);
+    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+  });
+
+  it('security.schema.Chore.no-broad-read-for-all-role-groups', () => {
+    const block = extractAuthBlock('Chore');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(false);
   });
 
   it('security.schema.Chore.planner-and-admin-can-create', () => {
@@ -191,10 +237,16 @@ describe('security.schema.Chore – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.ChoreAssignment – authorization rules', () => {
-  it('security.schema.ChoreAssignment.all-groups-can-read', () => {
+  it('security.schema.ChoreAssignment.family-members-can-read-via-groupsDefinedIn', () => {
     const block = extractAuthBlock('ChoreAssignment');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(true);
+    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+  });
+
+  it('security.schema.ChoreAssignment.no-broad-read-for-all-role-groups', () => {
+    const block = extractAuthBlock('ChoreAssignment');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(false);
   });
 
   it('security.schema.ChoreAssignment.planner-and-admin-can-create-and-update', () => {
@@ -215,11 +267,24 @@ describe('security.schema.ChoreAssignment – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.ChoreCompletion – authorization rules', () => {
-  it('security.schema.ChoreCompletion.all-groups-can-read-create-and-update', () => {
+  it('security.schema.ChoreCompletion.family-members-can-read-via-groupsDefinedIn', () => {
     const block = extractAuthBlock('ChoreCompletion');
     expect(block).not.toBeNull();
-    // All groups including MEMBER may create a completion record.
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read', 'create', 'update'])).toBe(true);
+    // Read is gated by family membership (tenant isolation).
+    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+  });
+
+  it('security.schema.ChoreCompletion.no-broad-read-for-all-role-groups', () => {
+    const block = extractAuthBlock('ChoreCompletion');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(false);
+  });
+
+  it('security.schema.ChoreCompletion.all-roles-can-create-and-update', () => {
+    const block = extractAuthBlock('ChoreCompletion');
+    expect(block).not.toBeNull();
+    // All roles including MEMBER may create a completion record.
+    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['create', 'update'])).toBe(true);
   });
 
   it('security.schema.ChoreCompletion.only-admin-can-delete', () => {
@@ -234,10 +299,16 @@ describe('security.schema.ChoreCompletion – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.Recipe – authorization rules', () => {
-  it('security.schema.Recipe.all-groups-can-read', () => {
+  it('security.schema.Recipe.family-members-can-read-via-groupsDefinedIn', () => {
     const block = extractAuthBlock('Recipe');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(true);
+    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+  });
+
+  it('security.schema.Recipe.no-broad-read-for-all-role-groups', () => {
+    const block = extractAuthBlock('Recipe');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(false);
   });
 
   it('security.schema.Recipe.planner-and-admin-can-create-and-update', () => {
@@ -258,14 +329,22 @@ describe('security.schema.Recipe – authorization rules', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.Property – ADMIN-only authorization', () => {
-  it('security.schema.Property.only-admin-has-any-access', () => {
+  it('security.schema.Property.family-members-can-read-via-groupsDefinedIn', () => {
     const block = extractAuthBlock('Property');
     expect(block).not.toBeNull();
-    // MEMBER and PLANNER must NOT appear in the Property authorization block.
+    // Read is gated by familyId group (tenant isolation); Property records are
+    // family-scoped so family-group members can read them.
+    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+  });
+
+  it('security.schema.Property.only-admin-can-write', () => {
+    const block = extractAuthBlock('Property');
+    expect(block).not.toBeNull();
+    // MEMBER and PLANNER must NOT appear in write rules.
     expect(block).not.toMatch(/allow\.groups\(\['ADMIN',\s*'PLANNER'/);
     expect(block).not.toMatch(/allow\.groups\(\['ADMIN',\s*'PLANNER',\s*'MEMBER'/);
-    // ADMIN-only rule must be present.
-    expect(containsGroupRule(block!, ['ADMIN'], ['read', 'create', 'update', 'delete'])).toBe(true);
+    // ADMIN-only create/update/delete must be present.
+    expect(containsGroupRule(block!, ['ADMIN'], ['create', 'update', 'delete'])).toBe(true);
   });
 });
 
@@ -340,10 +419,16 @@ describe('security.schema.FamilyMember – role management authorization', () =>
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('security.schema.CarService – authorization rules', () => {
-  it('security.schema.CarService.all-groups-can-read', () => {
+  it('security.schema.CarService.family-members-can-read-via-groupsDefinedIn', () => {
     const block = extractAuthBlock('CarService');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(true);
+    expect(containsGroupsDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+  });
+
+  it('security.schema.CarService.no-broad-read-for-all-role-groups', () => {
+    const block = extractAuthBlock('CarService');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(false);
   });
 
   it('security.schema.CarService.planner-and-admin-can-create-and-update', () => {
@@ -383,6 +468,41 @@ describe('security.schema.Invite – ADMIN-only authorization', () => {
     expect(block).not.toMatch(/allow\.groups\(\['ADMIN',\s*'PLANNER',\s*'MEMBER'/);
     expect(block).not.toMatch(/allow\.groups\(\['PLANNER'/);
     expect(block).not.toMatch(/allow\.groups\(\['MEMBER'/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tenant Isolation – groupsDefinedIn('familyId') is present on all family-scoped models
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('security.schema – tenant isolation via groupsDefinedIn', () => {
+  const familyScopedModels = [
+    'Vacation',
+    'TripPlan',
+    'Recipe',
+    'Car',
+    'CarService',
+    'Chore',
+    'ChoreAssignment',
+    'ChoreCompletion',
+    'Property',
+  ] as const;
+
+  for (const model of familyScopedModels) {
+    it(`security.schema.${model}.groupsDefinedIn-familyId-enforces-read-isolation`, () => {
+      const block = extractAuthBlock(model);
+      expect(block, `${model} authorization block not found`).not.toBeNull();
+      expect(
+        containsGroupsDefinedInRule(block!, 'familyId', ['read']),
+        `${model} is missing allow.groupsDefinedIn('familyId').to(['read'])`
+      ).toBe(true);
+    });
+  }
+
+  it('security.schema.tenant-isolation.no-allow-authenticated-in-schema', () => {
+    // allow.authenticated() must never appear in the schema – it would grant
+    // any logged-in user access to all records regardless of family membership.
+    expect(schema).not.toMatch(/allow\.authenticated\(\)/);
   });
 });
 

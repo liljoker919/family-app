@@ -2,6 +2,7 @@ import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
 import { updateMemberRoleFn } from '../functions/update-member-role/resource';
 import { createInviteFn } from '../functions/create-invite/resource';
 import { redeemInviteFn } from '../functions/redeem-invite/resource';
+import { addToFamilyGroupFn } from '../functions/add-to-family-group/resource';
 
 // ---------------------------------------------------------------------------
 // Authorization Matrix (enforced at the API layer via Cognito group claims)
@@ -20,12 +21,18 @@ import { redeemInviteFn } from '../functions/redeem-invite/resource';
 // Recipe               | Read                | Create, Read, Update| Full CRUD
 // Property / P&L       | No access           | No access           | Full CRUD
 //
-// Tenant Isolation: every family-scoped record carries a required familyId
-// attribute. Mutations that do not include the correct familyId are rejected
-// because the Amplify group rules below are the primary security gate.
-// Application-layer familyId filters are an additional defence-in-depth layer.
-// Delete operations are restricted to ADMIN at the API level to prevent
-// accidental or malicious data loss by lower-privilege roles.
+// Tenant Isolation:
+//   Every family-scoped record carries a required familyId attribute.
+//   READ operations on family-scoped models use allow.groupsDefinedIn('familyId')
+//   so that AppSync enforces isolation server-side: a caller can only read a
+//   record if their Cognito JWT contains the record's familyId as a group.
+//   When a user creates or joins a family (via invite redemption, join code, or
+//   direct family creation), a Cognito group named after the familyId is created
+//   and the user is added to it (see the add-to-family-group Lambda).
+//   WRITE operations (create, update, delete) remain role-gated so that the
+//   existing role hierarchy (ADMIN-only delete, PLANNER+ create) is preserved.
+//   Delete operations are restricted to ADMIN at the API level to prevent
+//   accidental or malicious data loss by lower-privilege roles.
 // ---------------------------------------------------------------------------
 
 const schema = a.schema({
@@ -147,8 +154,8 @@ const schema = a.schema({
   // -------------------------------------------------------------------------
 
   // Vacation – family-scoped.
-  // All groups may read and update (e.g. status changes); PLANNER and ADMIN
-  // may create; only ADMIN may delete.
+  // Read is gated by familyId group membership (server-side tenant isolation);
+  // update is role-gated; PLANNER and ADMIN may create; only ADMIN may delete.
   Vacation: a
     .model({
       familyId: a.id().required(),
@@ -165,7 +172,8 @@ const schema = a.schema({
       flightSegments: a.hasMany('FlightSegment', 'vacationId'),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'update']),
+      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['update']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
@@ -370,8 +378,8 @@ const schema = a.schema({
     ]),
 
   // TripPlan – family-scoped planning record (Chore/Vacation category).
-  // All groups may read and update (e.g. status changes); PLANNER and ADMIN
-  // may create; only ADMIN may delete.
+  // Read is gated by familyId group membership (server-side tenant isolation);
+  // update is role-gated; PLANNER and ADMIN may create; only ADMIN may delete.
   TripPlan: a
     .model({
       familyId: a.id().required(),
@@ -386,7 +394,8 @@ const schema = a.schema({
       createdBy: a.string().required(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'update']),
+      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['update']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
@@ -404,7 +413,8 @@ const schema = a.schema({
       transactions: a.hasMany('PropertyTransaction', 'propertyId'),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
+      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
   PropertyTransactionCategory: a.enum([
@@ -431,7 +441,8 @@ const schema = a.schema({
 
   // -------------------------------------------------------------------------
   // Cookbook – Recipe model (treated as Chore/Vacation category)
-  // MEMBER may read; PLANNER and ADMIN may create and update; only ADMIN may delete.
+  // Read is gated by familyId group membership; PLANNER and ADMIN may create
+  // and update; only ADMIN may delete.
   // -------------------------------------------------------------------------
 
   Recipe: a
@@ -447,14 +458,15 @@ const schema = a.schema({
       imageUrl: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groupsDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
 
   // -------------------------------------------------------------------------
   // Cars & Service – Car / Service category from the auth matrix.
-  // MEMBER may read; PLANNER and ADMIN may create and update; only ADMIN may delete.
+  // Read is gated by familyId group membership (server-side tenant isolation);
+  // PLANNER and ADMIN may create and update; only ADMIN may delete.
   // CarService carries familyId for direct family-scoped queries and
   // linkage integrity validation.
   // -------------------------------------------------------------------------
@@ -473,7 +485,7 @@ const schema = a.schema({
       services: a.hasMany('CarService', 'carId'),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groupsDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
@@ -491,14 +503,15 @@ const schema = a.schema({
       provider: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groupsDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
 
   // -------------------------------------------------------------------------
   // Chores – Chore / Vacation category from the auth matrix.
-  // MEMBER may read and update status; PLANNER and ADMIN may create and update;
+  // Read is gated by familyId group membership (server-side tenant isolation);
+  // MEMBER may update status; PLANNER and ADMIN may create and update;
   // only ADMIN may delete.
   // ChoreAssignment and ChoreCompletion carry familyId for direct family-scoped
   // queries and linkage integrity validation.
@@ -519,7 +532,8 @@ const schema = a.schema({
       completions: a.hasMany('ChoreCompletion', 'choreId'),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'update']),
+      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['update']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
@@ -536,7 +550,7 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
+      allow.groupsDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
@@ -554,7 +568,8 @@ const schema = a.schema({
       pointsEarned: a.integer(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
+      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
 
@@ -636,6 +651,7 @@ const schema = a.schema({
   //   • Verifies the invite email matches the caller's authenticated email.
   //   • Creates a FamilyMember record with the role specified in the invite.
   //   • Marks the invite status as ACCEPTED.
+  //   • Adds the caller to the family's Cognito group (tenant isolation).
   //   • Returns familyId, familyName, and role so the UI can set membership.
   redeemInvite: a
     .mutation()
@@ -645,6 +661,34 @@ const schema = a.schema({
     .returns(a.ref('RedeemInviteResult').required())
     .authorization((allow) => [allow.groups(['ADMIN', 'PLANNER', 'MEMBER'])])
     .handler(a.handler.function(redeemInviteFn)),
+
+  // -------------------------------------------------------------------------
+  // Family group management – server-side Cognito group assignment for
+  // tenant isolation.  Must be called after createFamily or joinFamily to
+  // ensure the caller's JWT includes the familyId group claim, which is
+  // required by the allow.groupsDefinedIn('familyId') authorization rule.
+  // -------------------------------------------------------------------------
+
+  // Result shape returned by the addSelfToFamilyGroup mutation.
+  AddToFamilyGroupResult: a.customType({
+    success: a.boolean().required(),
+    familyId: a.id().required(),
+  }),
+
+  // addSelfToFamilyGroup – authenticated mutation that:
+  //   • Verifies the caller is a FamilyMember of the given family.
+  //   • Creates the Cognito group named after the familyId if absent.
+  //   • Adds the caller to that Cognito group.
+  // After this mutation the caller can access family-scoped records because
+  // their JWT will contain the familyId in the cognito:groups claim.
+  addSelfToFamilyGroup: a
+    .mutation()
+    .arguments({
+      familyId: a.id().required(),
+    })
+    .returns(a.ref('AddToFamilyGroupResult').required())
+    .authorization((allow) => [allow.groups(['ADMIN', 'PLANNER', 'MEMBER'])])
+    .handler(a.handler.function(addToFamilyGroupFn)),
 });
 
 export type Schema = ClientSchema<typeof schema>;
