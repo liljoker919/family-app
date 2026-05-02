@@ -65,6 +65,7 @@ const schema = a.schema({
   // Lambda resolver's caller-lookup and admin-count operations.
   FamilyMember: a
     .model({
+      familyId: a.id().required(),
       family: a.belongsTo('Family', 'familyId'),
       userId: a.string().required(),
       role: a.enum(['ADMIN', 'PLANNER', 'MEMBER']),
