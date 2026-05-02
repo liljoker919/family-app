@@ -1,12 +1,30 @@
 version: 1
 backend:
   phases:
-    build:
+    preBuild:
       commands:
         - npm install
-        - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
+    build:
+      commands:
+        # Step 1: Run unit tests – a test failure blocks deployment.
+        - npm test
+        # Step 2: Verify the frontend build before deploying the backend.
+        # A build failure here prevents a partial/mismatched release.
+        - npm run build
+        # Step 3: Deploy backend only after tests and build are verified.
+        - |
+          npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID || {
+            echo "===ROLLBACK TRIGGER==="
+            echo "Backend deployment failed on branch: $AWS_BRANCH"
+            echo "The previous backend version remains active."
+            echo "To roll back manually: AWS Amplify Console -> App -> $AWS_BRANCH -> Redeploy last successful build."
+            exit 1
+          }
 frontend:
   phases:
+    preBuild:
+      commands:
+        - npm install
     build:
       commands:
         - npm run build
