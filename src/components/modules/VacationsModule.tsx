@@ -560,9 +560,11 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
     let newDownCount = currentDownCount;
     if (myCurrentEntry) {
       if (myCurrentEntry.vote === "UP" && vote === "DOWN") {
+        if (currentUpCount === 0) console.warn(`upVoteCount is 0 for excursion ${excursionOptionId} but user had an UP vote — possible data inconsistency.`);
         newUpCount = Math.max(0, currentUpCount - 1);
         newDownCount = currentDownCount + 1;
       } else if (myCurrentEntry.vote === "DOWN" && vote === "UP") {
+        if (currentDownCount === 0) console.warn(`downVoteCount is 0 for excursion ${excursionOptionId} but user had a DOWN vote — possible data inconsistency.`);
         newDownCount = Math.max(0, currentDownCount - 1);
         newUpCount = currentUpCount + 1;
       }
@@ -579,6 +581,10 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       } else {
         const { data: created } = await client.models.ExcursionVote.create({ excursionOptionId, userId: uid, vote });
         newVoteId = created?.id;
+        if (!newVoteId) {
+          console.error("ExcursionVote.create did not return an id; skipping local state update.");
+          return;
+        }
       }
       // Persist aggregate counts on the parent option
       await client.models.ExcursionOption.update({
@@ -589,7 +595,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       // Update local state (no extra fetches needed)
       setMyVotesByExcursion((prev) => ({
         ...prev,
-        [excursionOptionId]: { id: newVoteId ?? excursionOptionId, vote },
+        [excursionOptionId]: { id: newVoteId!, vote },
       }));
       setExcursionOptions((prev) =>
         prev.map((o) =>
