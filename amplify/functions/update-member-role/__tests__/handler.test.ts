@@ -113,8 +113,8 @@ describe('update-member-role handler – last-admin guard (atomic)', () => {
   it('blocks demotion when the target is the only admin (before transaction)', async () => {
     mockSend
       .mockResolvedValueOnce({ Item: adminTarget })      // get target
-      .mockResolvedValueOnce({ Items: [adminCaller] })   // scan caller (caller IS the target here, but same pattern)
-      .mockResolvedValueOnce({ Items: [adminTarget] });  // admin scan → only 1 admin
+      .mockResolvedValueOnce({ Items: [adminCaller] })   // scan caller
+      .mockResolvedValueOnce({ Items: [adminTarget] });  // admin scan → only 1 admin in family
 
     // caller is also an admin, but target is the only ADMIN in the family scan
     await expect(handler(makeEvent('target-id', 'MEMBER'), {} as any, vi.fn()))
