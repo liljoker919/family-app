@@ -144,9 +144,9 @@ const schema = a.schema({
       globalUnsubscribe: a.boolean(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
+      allow.groups(['ADMIN']).to(['create', 'read', 'update', 'delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read', 'create']),
       allow.ownerDefinedIn('userId').to(['read', 'update', 'delete']),
-      allow.groups(['ADMIN']).to(['update', 'delete']),
     ]),
 
   // -------------------------------------------------------------------------
