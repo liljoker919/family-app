@@ -73,7 +73,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
   const [accommodationStays, setAccommodationStays] = useState<any[]>([]);
   const [cruisePortStops, setCruisePortStops] = useState<any[]>([]);
   const [excursionOptions, setExcursionOptions] = useState<any[]>([]);
-  const [votesByExcursion, setVotesByExcursion] = useState<Record<string, any[]>>({});
+  const [myVotesByExcursion, setMyVotesByExcursion] = useState<Record<string, { id: string; vote: string } | undefined>>({});
   const [excursionComments, setExcursionComments] = useState<any[]>([]);
   const [feedbacksByTarget, setFeedbacksByTarget] = useState<Record<string, any[]>>({});
   const [selectedFeedbackTargetId, setSelectedFeedbackTargetId] = useState<string | null>(null);
@@ -298,29 +298,21 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
         data = result.data;
       }
       setExcursionOptions(data);
-      // Fetch votes for all excursion options at once for display
+      // Fetch current user's votes in a single query to show button state
       if (data.length > 0) {
-        const voteFetches = data.map((opt) =>
-          client.models.ExcursionVote.list({ filter: { excursionOptionId: { eq: opt.id } } })
-        );
-        const results = await Promise.all(voteFetches);
-        const votesMap: Record<string, any[]> = {};
-        data.forEach((opt, i) => { votesMap[opt.id] = results[i].data; });
-        setVotesByExcursion(votesMap);
+        const uid = user?.signInDetails?.loginId || "unknown";
+        const { data: userVotes } = await client.models.ExcursionVote.list({
+          filter: { userId: { eq: uid } },
+        });
+        const excursionIds = new Set(data.map((o: any) => o.id));
+        const myMap: Record<string, { id: string; vote: string }> = {};
+        userVotes
+          .filter((v: any) => excursionIds.has(v.excursionOptionId))
+          .forEach((v: any) => { myMap[v.excursionOptionId] = { id: v.id, vote: v.vote }; });
+        setMyVotesByExcursion(myMap);
       }
     } catch (error) {
       console.error("Error fetching excursion options:", error);
-    }
-  };
-
-  const fetchExcursionVotes = async (excursionOptionId: string) => {
-    try {
-      const { data } = await client.models.ExcursionVote.list({
-        filter: { excursionOptionId: { eq: excursionOptionId } },
-      });
-      setVotesByExcursion((prev) => ({ ...prev, [excursionOptionId]: data }));
-    } catch (error) {
-      console.error("Error fetching excursion votes:", error);
     }
   };
 
@@ -558,22 +550,56 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
 
   const handleVote = async (excursionOptionId: string, vote: "UP" | "DOWN") => {
     const uid = user?.signInDetails?.loginId || "unknown";
-    const currentVotes = votesByExcursion[excursionOptionId] ?? [];
-    const existing = currentVotes.find((v) => v.userId === uid);
-    if (existing) {
-      try {
-        await client.models.ExcursionVote.update({ id: existing.id, vote });
-        fetchExcursionVotes(excursionOptionId);
-      } catch (error) {
-        console.error("Error updating vote:", error);
+    const myCurrentEntry = myVotesByExcursion[excursionOptionId];
+    const currentOption = excursionOptions.find((o) => o.id === excursionOptionId);
+    const currentUpCount = currentOption?.upVoteCount ?? 0;
+    const currentDownCount = currentOption?.downVoteCount ?? 0;
+
+    // Compute updated aggregate counts
+    let newUpCount = currentUpCount;
+    let newDownCount = currentDownCount;
+    if (myCurrentEntry) {
+      if (myCurrentEntry.vote === "UP" && vote === "DOWN") {
+        newUpCount = Math.max(0, currentUpCount - 1);
+        newDownCount = currentDownCount + 1;
+      } else if (myCurrentEntry.vote === "DOWN" && vote === "UP") {
+        newDownCount = Math.max(0, currentDownCount - 1);
+        newUpCount = currentUpCount + 1;
       }
+      // Same direction — no count change needed
     } else {
-      try {
-        await client.models.ExcursionVote.create({ excursionOptionId, userId: uid, vote });
-        fetchExcursionVotes(excursionOptionId);
-      } catch (error) {
-        console.error("Error creating vote:", error);
+      if (vote === "UP") newUpCount = currentUpCount + 1;
+      else newDownCount = currentDownCount + 1;
+    }
+
+    try {
+      let newVoteId = myCurrentEntry?.id;
+      if (myCurrentEntry) {
+        await client.models.ExcursionVote.update({ id: myCurrentEntry.id, vote });
+      } else {
+        const { data: created } = await client.models.ExcursionVote.create({ excursionOptionId, userId: uid, vote });
+        newVoteId = created?.id;
       }
+      // Persist aggregate counts on the parent option
+      await client.models.ExcursionOption.update({
+        id: excursionOptionId,
+        upVoteCount: newUpCount,
+        downVoteCount: newDownCount,
+      });
+      // Update local state (no extra fetches needed)
+      setMyVotesByExcursion((prev) => ({
+        ...prev,
+        [excursionOptionId]: { id: newVoteId ?? excursionOptionId, vote },
+      }));
+      setExcursionOptions((prev) =>
+        prev.map((o) =>
+          o.id === excursionOptionId
+            ? { ...o, upVoteCount: newUpCount, downVoteCount: newDownCount }
+            : o
+        )
+      );
+    } catch (error) {
+      console.error("Error recording vote:", error);
     }
   };
 
@@ -2053,10 +2079,9 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
                             ) : (
                               <div className="space-y-4">
                                 {excursionOptions.map((excursion) => {
-                                  const excVotes = votesByExcursion[excursion.id] ?? [];
-                                  const excUpCount = excVotes.filter((v) => v.vote === "UP").length;
-                                  const excDownCount = excVotes.filter((v) => v.vote === "DOWN").length;
-                                  const excMyVote = excVotes.find((v) => v.userId === uid)?.vote;
+                                  const excUpCount = excursion.upVoteCount ?? 0;
+                                  const excDownCount = excursion.downVoteCount ?? 0;
+                                  const excMyVote = myVotesByExcursion[excursion.id]?.vote;
                                   const excFeedbacks = feedbacksByTarget[excursion.id] ?? [];
                                   const excAggregate = computeFeedbackAggregate(excFeedbacks);
                                   const myExcFeedback = excFeedbacks.find((f) => f.userId === uid);

@@ -43,23 +43,12 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
 
   const fetchAllData = async () => {
     try {
-      const { data: props } = await client.models.Property.list({
-        filter: { familyId: { eq: familyId } },
-      });
+      const [{ data: props }, { data: allTxns }] = await Promise.all([
+        client.models.Property.list({ filter: { familyId: { eq: familyId } } }),
+        client.models.PropertyTransaction.list({ filter: { familyId: { eq: familyId } } }),
+      ]);
       setProperties(props);
-
-      // Fetch only transactions for this family's properties
-      if (props.length > 0) {
-        const propertyIds = props.map((p: any) => p.id);
-        const txnFetches = propertyIds.map((id: string) =>
-          client.models.PropertyTransaction.list({ filter: { propertyId: { eq: id } } })
-        );
-        const results = await Promise.all(txnFetches);
-        const allTxns = results.flatMap((r) => r.data);
-        setAllTransactions(allTxns);
-      } else {
-        setAllTransactions([]);
-      }
+      setAllTransactions(allTxns);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -96,6 +85,7 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
     const categoryInfo = CATEGORIES[transactionForm.category];
     try {
       await client.models.PropertyTransaction.create({
+        familyId,
         propertyId: selectedProperty.id,
         type: categoryInfo.type,
         amount: parseFloat(transactionForm.amount),

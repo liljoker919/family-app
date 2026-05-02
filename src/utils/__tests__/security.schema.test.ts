@@ -506,3 +506,60 @@ describe('security.schema – tenant isolation via groupDefinedIn', () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// N+1 batch-query fields – schema sentinels for performance requirements
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns the text of the .model({…}) field block for the given model name,
+ * or null if not found.
+ */
+function extractModelFields(modelName: string): string | null {
+  const modelPattern = new RegExp(`\\b${modelName}:\\s*a\\b`);
+  const modelStart = schema.search(modelPattern);
+  if (modelStart === -1) return null;
+
+  const modelBlockPattern = /\.model\(\{/g;
+  modelBlockPattern.lastIndex = modelStart;
+  const modelBlockMatch = modelBlockPattern.exec(schema);
+  if (!modelBlockMatch) return null;
+
+  let depth = 0;
+  let i = modelBlockMatch.index + modelBlockMatch[0].length - 1;
+  for (; i < schema.length; i++) {
+    if (schema[i] === '{') depth++;
+    else if (schema[i] === '}') {
+      depth--;
+      if (depth === 0) break;
+    }
+  }
+  return schema.slice(modelBlockMatch.index, i + 1);
+}
+
+describe('schema.PropertyTransaction – batch-query field', () => {
+  it('schema.PropertyTransaction.has-familyId-for-single-batch-query', () => {
+    const fields = extractModelFields('PropertyTransaction');
+    expect(fields, 'PropertyTransaction model block not found').not.toBeNull();
+    // familyId must be a required field so all transactions can be fetched in
+    // a single query filtered by familyId (eliminates the N+1 per-property fetch).
+    expect(fields).toMatch(/familyId\s*:\s*a\.id\(\)\.required\(\)/);
+  });
+});
+
+describe('schema.ExcursionOption – on-write aggregate fields', () => {
+  it('schema.ExcursionOption.has-upVoteCount-aggregate-field', () => {
+    const fields = extractModelFields('ExcursionOption');
+    expect(fields, 'ExcursionOption model block not found').not.toBeNull();
+    // upVoteCount is maintained on-write so the display layer can read the
+    // count directly without fetching all ExcursionVote records per option.
+    expect(fields).toMatch(/upVoteCount\s*:\s*a\.integer\(\)/);
+  });
+
+  it('schema.ExcursionOption.has-downVoteCount-aggregate-field', () => {
+    const fields = extractModelFields('ExcursionOption');
+    expect(fields, 'ExcursionOption model block not found').not.toBeNull();
+    // downVoteCount mirrors upVoteCount for the opposing vote direction.
+    expect(fields).toMatch(/downVoteCount\s*:\s*a\.integer\(\)/);
+  });
+});
+
