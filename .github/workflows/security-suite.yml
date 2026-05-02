@@ -141,23 +141,23 @@ jobs:
             echo "❌ JUnit report not found at $JUNIT_FILE but E2E tests were expected to run."
             exit 1
           fi
-          python3 - << 'PYEOF'
-import xml.etree.ElementTree as ET, sys
-tree = ET.parse("test-results/playwright-junit.xml")
-root = tree.getroot()
-skipped = [tc.get("name", "unknown") for tc in root.iter("testcase") if tc.find("skipped") is not None]
-if skipped:
-    print(f"❌ ERROR: {len(skipped)} security test(s) were skipped - blocking merge.")
-    print("")
-    print("All security RBAC tests must execute and pass. Skipped tests indicate")
-    print("missing credentials or unresolvable test preconditions.")
-    print("")
-    print("Skipped test names:")
-    for name in skipped:
-        print(f"  - {name}")
-    sys.exit(1)
-print("✅ No security tests were skipped.")
-PYEOF
+          python3 -c '
+          import xml.etree.ElementTree as ET, sys
+          tree = ET.parse("test-results/playwright-junit.xml")
+          root = tree.getroot()
+          skipped = [tc.get("name", "unknown") for tc in root.iter("testcase") if tc.find("skipped") is not None]
+          if skipped:
+              print(f"❌ ERROR: {len(skipped)} security test(s) were skipped - blocking merge.")
+              print("")
+              print("All security RBAC tests must execute and pass. Skipped tests indicate")
+              print("missing credentials or unresolvable test preconditions.")
+              print("")
+              print("Skipped test names:")
+              for name in skipped:
+                  print(f"  - {name}")
+              sys.exit(1)
+          print("✅ No security tests were skipped.")
+          '
 
       - name: Upload security E2E report
         if: always()
