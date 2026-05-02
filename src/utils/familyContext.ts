@@ -112,7 +112,7 @@ export async function createFamily(
   }
 
   // Assign the user to the family's Cognito group so that the server-side
-  // allow.groupsDefinedIn('familyId') rule on all family-scoped models is
+  // allow.groupDefinedIn('familyId') rule on all family-scoped models is
   // satisfied.  This call is best-effort: a failure here does not roll back
   // the family/member records; the user can retry via addSelfToFamilyGroup.
   try {

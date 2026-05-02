@@ -23,7 +23,7 @@ import { addToFamilyGroupFn } from '../functions/add-to-family-group/resource';
 //
 // Tenant Isolation:
 //   Every family-scoped record carries a required familyId attribute.
-//   READ operations on family-scoped models use allow.groupsDefinedIn('familyId')
+//   READ operations on family-scoped models use allow.groupDefinedIn('familyId')
 //   so that AppSync enforces isolation server-side: a caller can only read a
 //   record if their Cognito JWT contains the record's familyId as a group.
 //   When a user creates or joins a family (via invite redemption, join code, or
@@ -172,7 +172,7 @@ const schema = a.schema({
       flightSegments: a.hasMany('FlightSegment', 'vacationId'),
     })
     .authorization((allow) => [
-      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groupDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['update']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create']),
       allow.groups(['ADMIN']).to(['delete']),
@@ -394,7 +394,7 @@ const schema = a.schema({
       createdBy: a.string().required(),
     })
     .authorization((allow) => [
-      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groupDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['update']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create']),
       allow.groups(['ADMIN']).to(['delete']),
@@ -413,7 +413,7 @@ const schema = a.schema({
       transactions: a.hasMany('PropertyTransaction', 'propertyId'),
     })
     .authorization((allow) => [
-      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groupDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
@@ -458,7 +458,7 @@ const schema = a.schema({
       imageUrl: a.string(),
     })
     .authorization((allow) => [
-      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groupDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
@@ -485,7 +485,7 @@ const schema = a.schema({
       services: a.hasMany('CarService', 'carId'),
     })
     .authorization((allow) => [
-      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groupDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
@@ -503,7 +503,7 @@ const schema = a.schema({
       provider: a.string(),
     })
     .authorization((allow) => [
-      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groupDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
@@ -532,7 +532,7 @@ const schema = a.schema({
       completions: a.hasMany('ChoreCompletion', 'choreId'),
     })
     .authorization((allow) => [
-      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groupDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['update']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create']),
       allow.groups(['ADMIN']).to(['delete']),
@@ -550,7 +550,7 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groupDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
@@ -568,7 +568,7 @@ const schema = a.schema({
       pointsEarned: a.integer(),
     })
     .authorization((allow) => [
-      allow.groupsDefinedIn('familyId').to(['read']),
+      allow.groupDefinedIn('familyId').to(['read']),
       allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['delete']),
     ]),
@@ -666,7 +666,7 @@ const schema = a.schema({
   // Family group management – server-side Cognito group assignment for
   // tenant isolation.  Must be called after createFamily or joinFamily to
   // ensure the caller's JWT includes the familyId group claim, which is
-  // required by the allow.groupsDefinedIn('familyId') authorization rule.
+  // required by the allow.groupDefinedIn('familyId') authorization rule.
   // -------------------------------------------------------------------------
 
   // Result shape returned by the addSelfToFamilyGroup mutation.

@@ -110,7 +110,7 @@ backend.addToFamilyGroupFn.resources.lambda.addEnvironment(
 
 // Grant Cognito group management permissions to the addToFamilyGroup Lambda.
 // This allows it to create groups (one per family) and add users to them,
-// which satisfies the groupsDefinedIn('familyId') authorization rule.
+// which satisfies the groupDefinedIn('familyId') authorization rule.
 backend.addToFamilyGroupFn.resources.lambda.addToRolePolicy(
   new PolicyStatement({
     actions: [
