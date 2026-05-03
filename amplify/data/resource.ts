@@ -586,8 +586,8 @@ const schema = a.schema({
       timezone: a.string(), // IANA timezone string, e.g. "America/Chicago"
 
       // Metadata
-      sourceType: a.string(), // source model name: "Vacation" | "Chore" | "Car" | "manual"
-      sourceId: a.string(),   // ID of the originating record (null for manual events)
+      sourceType: a.string(), // source model name for derived events, e.g. "Vacation" | "Chore" | "Car"; omit for manual events (use type = "manual")
+      sourceId: a.string(),   // ID of the originating record for derived events; omit for manual events
       sourceUpdatedAt: a.datetime(),
       isDeleted: a.boolean(),
 
