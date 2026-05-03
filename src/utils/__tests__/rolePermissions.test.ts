@@ -1,28 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { EDITOR_ROLES, ADMIN_ONLY_ROLES, canEditContent, canDeleteContent } from '../rolePermissions';
+import { ADMIN_ONLY_ROLES, canEditContent, canDeleteContent } from '../rolePermissions';
 import type { FamilyRole } from '../familyContext';
-
-describe('EDITOR_ROLES', () => {
-  it('includes ADMIN', () => {
-    expect(EDITOR_ROLES).toContain('ADMIN');
-  });
-
-  it('includes PLANNER', () => {
-    expect(EDITOR_ROLES).toContain('PLANNER');
-  });
-
-  it('does not include MEMBER', () => {
-    expect(EDITOR_ROLES).not.toContain('MEMBER');
-  });
-});
 
 describe('ADMIN_ONLY_ROLES', () => {
   it('includes ADMIN', () => {
     expect(ADMIN_ONLY_ROLES).toContain('ADMIN');
-  });
-
-  it('does not include PLANNER', () => {
-    expect(ADMIN_ONLY_ROLES).not.toContain('PLANNER');
   });
 
   it('does not include MEMBER', () => {
@@ -32,44 +14,40 @@ describe('ADMIN_ONLY_ROLES', () => {
 
 describe('canEditContent', () => {
   it('allows ADMIN to create/edit content', () => {
-    expect(canEditContent('ADMIN')).toBe(true);
+    expect(canEditContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 
-  it('allows PLANNER to create/edit content', () => {
-    expect(canEditContent('PLANNER')).toBe(true);
+  it('allows planning-enabled MEMBER to create/edit content', () => {
+    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
   });
 
-  it('denies MEMBER from creating/editing content', () => {
-    expect(canEditContent('MEMBER')).toBe(false);
-  });
-
-  it('covers all FamilyRole values without ambiguity', () => {
-    const allRoles: FamilyRole[] = ['ADMIN', 'PLANNER', 'MEMBER'];
-    const editorCount = allRoles.filter(canEditContent).length;
-    const readOnlyCount = allRoles.filter((r) => !canEditContent(r)).length;
-    expect(editorCount).toBe(2);   // ADMIN + PLANNER
-    expect(readOnlyCount).toBe(1); // MEMBER
+  it('denies planning-disabled MEMBER from creating/editing content', () => {
+    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 });
 
 describe('canDeleteContent', () => {
   it('allows ADMIN to delete records', () => {
-    expect(canDeleteContent('ADMIN')).toBe(true);
+    expect(canDeleteContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 
-  it('denies PLANNER from deleting records', () => {
-    expect(canDeleteContent('PLANNER')).toBe(false);
+  it('denies planning-enabled MEMBER from deleting records', () => {
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: true })).toBe(false);
   });
 
   it('denies MEMBER from deleting records', () => {
-    expect(canDeleteContent('MEMBER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('only ADMIN may delete – mirrors backend schema authorization', () => {
-    const allRoles: FamilyRole[] = ['ADMIN', 'PLANNER', 'MEMBER'];
-    const deleteCount = allRoles.filter(canDeleteContent).length;
-    const noDeleteCount = allRoles.filter((r) => !canDeleteContent(r)).length;
+    const memberships: Array<{ role: FamilyRole; canPlan: boolean }> = [
+      { role: 'ADMIN', canPlan: true },
+      { role: 'MEMBER', canPlan: true },
+      { role: 'MEMBER', canPlan: false },
+    ];
+    const deleteCount = memberships.filter(canDeleteContent).length;
+    const noDeleteCount = memberships.filter((m) => !canDeleteContent(m)).length;
     expect(deleteCount).toBe(1);   // ADMIN only
-    expect(noDeleteCount).toBe(2); // PLANNER + MEMBER
+    expect(noDeleteCount).toBe(2); // MEMBER (canPlan or not)
   });
 });

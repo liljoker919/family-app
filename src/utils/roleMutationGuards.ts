@@ -1,6 +1,13 @@
 import type { FamilyRole } from './familyContext';
 
 /**
+ * Stored role values in DynamoDB – includes the legacy PLANNER value for
+ * backward compatibility.  UI components use FamilyRole (ADMIN | MEMBER) with
+ * the canPlan flag; the backend still stores PLANNER for existing records.
+ */
+export type StoredMemberRole = FamilyRole | 'PLANNER';
+
+/**
  * Validates a role update request, enforcing:
  *   1. The new role must be a valid FamilyRole value.
  *   2. The caller must hold the ADMIN role (privilege-escalation protection).
@@ -15,11 +22,11 @@ import type { FamilyRole } from './familyContext';
  *          `null` when the update is permitted.
  */
 export function validateRoleUpdate(params: {
-  callerRole: FamilyRole;
+  callerRole: StoredMemberRole;
   callerFamilyId: string;
-  targetCurrentRole: FamilyRole;
+  targetCurrentRole: StoredMemberRole;
   targetFamilyId: string;
-  newRole: FamilyRole;
+  newRole: StoredMemberRole;
   adminCountInFamily: number;
 }): string | null {
   const {
@@ -31,7 +38,7 @@ export function validateRoleUpdate(params: {
     adminCountInFamily,
   } = params;
 
-  const VALID_ROLES: FamilyRole[] = ['ADMIN', 'PLANNER', 'MEMBER'];
+  const VALID_ROLES: StoredMemberRole[] = ['ADMIN', 'PLANNER', 'MEMBER'];
 
   if (!VALID_ROLES.includes(newRole)) {
     return `Invalid role: ${newRole}`;

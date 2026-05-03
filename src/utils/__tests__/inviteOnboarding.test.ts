@@ -105,14 +105,16 @@ describe('redeemInviteToken – success cases', () => {
     expect(mockRedeemInvite).toHaveBeenCalledWith({ token: 'valid-token' });
   });
 
-  it('returns PLANNER role when the invite role is PLANNER', async () => {
+  it('returns planning-enabled MEMBER when the invite role is PLANNER', async () => {
     mockRedeemInvite.mockResolvedValue({
       data: { familyId: 'fam-2', familyName: 'The Joneses', role: 'PLANNER' },
       errors: null,
     });
 
     const membership = await redeemInviteToken('planner-token');
-    expect(membership.role).toBe('PLANNER');
+    // Stored PLANNER is normalized to MEMBER with canPlan: true
+    expect(membership.role).toBe('MEMBER');
+    expect(membership.canPlan).toBe(true);
     expect(membership.familyName).toBe('The Joneses');
   });
 });

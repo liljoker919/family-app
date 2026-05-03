@@ -31,8 +31,8 @@ describe('MODULE_ROLE_REQUIREMENTS', () => {
     expect(MODULE_ROLE_REQUIREMENTS.admin).toEqual(['ADMIN']);
   });
 
-  it('restricts reporting module to ADMIN and PLANNER roles', () => {
-    expect(MODULE_ROLE_REQUIREMENTS.reporting).toEqual(['ADMIN', 'PLANNER']);
+  it('restricts reporting module to planning-enabled members and admins', () => {
+    expect(MODULE_ROLE_REQUIREMENTS.reporting).toBe('PLAN');
   });
 
   it('leaves general modules unrestricted (null)', () => {
@@ -49,38 +49,42 @@ describe('MODULE_ROLE_REQUIREMENTS', () => {
 
 describe('canAccessModule', () => {
   it('allows ADMIN to access all modules', () => {
+    const adminMembership = { role: 'ADMIN' as const, canPlan: true };
     for (const mod of DASHBOARD_MODULES) {
-      expect(canAccessModule(mod, 'ADMIN')).toBe(true);
+      expect(canAccessModule(mod, adminMembership)).toBe(true);
     }
   });
 
-  it('allows PLANNER to access reporting', () => {
-    expect(canAccessModule('reporting', 'PLANNER')).toBe(true);
+  it('allows planning-enabled MEMBER to access reporting', () => {
+    expect(canAccessModule('reporting', { role: 'MEMBER', canPlan: true })).toBe(true);
   });
 
-  it('denies PLANNER access to admin', () => {
-    expect(canAccessModule('admin', 'PLANNER')).toBe(false);
-  });
-
-  it('denies MEMBER access to reporting', () => {
-    expect(canAccessModule('reporting', 'MEMBER')).toBe(false);
+  it('denies planning-disabled MEMBER access to reporting', () => {
+    expect(canAccessModule('reporting', { role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('denies MEMBER access to admin', () => {
-    expect(canAccessModule('admin', 'MEMBER')).toBe(false);
+    expect(canAccessModule('admin', { role: 'MEMBER', canPlan: true })).toBe(false);
+    expect(canAccessModule('admin', { role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
-  it('allows MEMBER to access all open modules', () => {
+  it('allows MEMBER to access all open modules regardless of canPlan', () => {
     const openModules = ['vacations', 'planning', 'property', 'cars', 'calendar', 'cookbook', 'chores'] as const;
     for (const mod of openModules) {
-      expect(canAccessModule(mod, 'MEMBER')).toBe(true);
+      expect(canAccessModule(mod, { role: 'MEMBER', canPlan: false })).toBe(true);
+      expect(canAccessModule(mod, { role: 'MEMBER', canPlan: true })).toBe(true);
     }
   });
 
-  it('allows all roles to access the profile module', () => {
-    const roles = ['ADMIN', 'PLANNER', 'MEMBER'] as const;
-    for (const role of roles) {
-      expect(canAccessModule('profile', role)).toBe(true);
+  it('allows all memberships to access the profile module', () => {
+    const memberships = [
+      { role: 'ADMIN' as const, canPlan: true },
+      { role: 'MEMBER' as const, canPlan: false },
+      { role: 'MEMBER' as const, canPlan: true },
+    ];
+
+    for (const membership of memberships) {
+      expect(canAccessModule('profile', membership)).toBe(true);
     }
   });
 });

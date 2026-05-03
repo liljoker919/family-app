@@ -14,6 +14,7 @@ interface ChoresModuleProps {
   user: any;
   familyId: string;
   role: FamilyRole;
+  canPlan: boolean;
 }
 
 const RECURRENCES = ['DAILY', 'WEEKLY', 'MONTHLY', 'ONE_TIME'] as const;
@@ -61,7 +62,7 @@ const RECURRENCE_COLORS: Record<ChoreRecurrence, string> = {
 
 type ActiveTab = 'my-chores' | 'chores' | 'assignments' | 'completions';
 
-export default function ChoresModule({ user, familyId, role }: ChoresModuleProps) {
+export default function ChoresModule({ user, familyId, role, canPlan }: ChoresModuleProps) {
   const [chores, setChores] = useState<any[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -120,13 +121,13 @@ export default function ChoresModule({ user, familyId, role }: ChoresModuleProps
   }, []);
 
   const canManage = useMemo(
-    () => canEditContent(role),
-    [role]
+    () => canEditContent({ role, canPlan }),
+    [role, canPlan]
   );
 
   const canDelete = useMemo(
-    () => canDeleteContent(role),
-    [role]
+    () => canDeleteContent({ role, canPlan }),
+    [role, canPlan]
   );
 
   const fetchChores = async () => {

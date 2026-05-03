@@ -11,7 +11,6 @@
  * The tests below look for role-specific users through these env vars:
  *
  *   E2E_ADMIN_EMAIL   – email of a user whose Cognito group is ADMIN
- *   E2E_PLANNER_EMAIL – email of a user whose Cognito group is PLANNER
  *   E2E_MEMBER_EMAIL  – email of a user whose Cognito group is MEMBER
  *   E2E_VALID_PASSWORD – shared password for all role-specific users
  *
@@ -564,64 +563,6 @@ test.describe('security.rbac – ADMIN role management (positive)', () => {
     // should be visible.
     const adminHeading = page.getByRole('heading', { name: /admin/i });
     await expect(adminHeading.first()).toBeVisible();
-  });
-});
-
-test.describe('security.rbac – PLANNER create/update permissions (positive)', () => {
-  test('security.rbac.planner-add-vacation-button-visible', async ({
-    page,
-    authPage,
-    vacationsPage,
-  }) => {
-    const planner = getRoleUser('E2E_PLANNER_EMAIL');
-    if (!planner) {
-      test.skip(true, 'E2E_PLANNER_EMAIL not configured – skipping PLANNER role test');
-    }
-
-    await authPage.goto();
-    await authPage.login(planner!.email, planner!.password);
-    await vacationsPage.gotoViaUrl();
-
-    // PLANNER users should see the "Add Vacation" or equivalent create button.
-    const addBtn = page.getByRole('button', { name: /add vacation/i });
-    await expect(addBtn).toBeVisible();
-  });
-
-  test('security.rbac.planner-add-chore-button-visible', async ({
-    page,
-    authPage,
-    choresPage,
-  }) => {
-    const planner = getRoleUser('E2E_PLANNER_EMAIL');
-    if (!planner) {
-      test.skip(true, 'E2E_PLANNER_EMAIL not configured – skipping PLANNER role test');
-    }
-
-    await authPage.goto();
-    await authPage.login(planner!.email, planner!.password);
-    await choresPage.goto();
-
-    // PLANNER users should see the "Add Chore" button.
-    await expect(choresPage.addChoreBtn).toBeVisible();
-  });
-
-  test('security.rbac.planner-add-car-button-visible', async ({
-    page,
-    authPage,
-    carsPage,
-  }) => {
-    const planner = getRoleUser('E2E_PLANNER_EMAIL');
-    if (!planner) {
-      test.skip(true, 'E2E_PLANNER_EMAIL not configured – skipping PLANNER role test');
-    }
-
-    await authPage.goto();
-    await authPage.login(planner!.email, planner!.password);
-    await carsPage.goto();
-
-    // PLANNER users should see the "Add Car" button.
-    const addCarBtn = page.getByRole('button', { name: /add car/i });
-    await expect(addCarBtn).toBeVisible();
   });
 });
 

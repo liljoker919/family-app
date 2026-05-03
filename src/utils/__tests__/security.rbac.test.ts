@@ -29,9 +29,9 @@
 import { describe, it, expect } from 'vitest';
 import { canEditContent, canDeleteContent } from '../rolePermissions';
 import { validateRoleUpdate } from '../roleMutationGuards';
-import type { FamilyRole } from '../familyContext';
+import type { StoredMemberRole } from '../roleMutationGuards';
 
-const ALL_ROLES: FamilyRole[] = ['ADMIN', 'PLANNER', 'MEMBER'];
+const ALL_ROLES: StoredMemberRole[] = ['ADMIN', 'PLANNER', 'MEMBER'];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Negative Testing – The "Blocker" Suite
@@ -41,89 +41,89 @@ const ALL_ROLES: FamilyRole[] = ['ADMIN', 'PLANNER', 'MEMBER'];
 
 describe('security.rbac – delete gate (MEMBER blocked)', () => {
   it('security.rbac.member-cannot-delete-vacation', () => {
-    expect(canDeleteContent('MEMBER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-cannot-delete-tripplan', () => {
-    expect(canDeleteContent('MEMBER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-cannot-delete-chore', () => {
-    expect(canDeleteContent('MEMBER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-cannot-delete-chore-assignment', () => {
-    expect(canDeleteContent('MEMBER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-cannot-delete-chore-completion', () => {
-    expect(canDeleteContent('MEMBER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-cannot-delete-car', () => {
-    expect(canDeleteContent('MEMBER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-cannot-delete-car-service', () => {
-    expect(canDeleteContent('MEMBER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-cannot-delete-recipe', () => {
-    expect(canDeleteContent('MEMBER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 });
 
-describe('security.rbac – delete gate (PLANNER blocked)', () => {
+describe('security.rbac – delete gate (planning-enabled MEMBER blocked)', () => {
   it('security.rbac.planner-cannot-delete-vacation', () => {
-    expect(canDeleteContent('PLANNER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: true })).toBe(false);
   });
 
   it('security.rbac.planner-cannot-delete-tripplan', () => {
-    expect(canDeleteContent('PLANNER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: true })).toBe(false);
   });
 
   it('security.rbac.planner-cannot-delete-chore', () => {
-    expect(canDeleteContent('PLANNER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: true })).toBe(false);
   });
 
   it('security.rbac.planner-cannot-delete-chore-assignment', () => {
-    expect(canDeleteContent('PLANNER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: true })).toBe(false);
   });
 
   it('security.rbac.planner-cannot-delete-car', () => {
-    expect(canDeleteContent('PLANNER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: true })).toBe(false);
   });
 
   it('security.rbac.planner-cannot-delete-recipe', () => {
-    expect(canDeleteContent('PLANNER')).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: true })).toBe(false);
   });
 });
 
-// ── Create / edit gate: MEMBER is read-only for protected models ───────────────
+// ── Create / edit gate: MEMBER without canPlan is read-only ───────────────────
 
 describe('security.rbac – create/edit gate (MEMBER blocked)', () => {
   it('security.rbac.member-cannot-create-vacation', () => {
-    expect(canEditContent('MEMBER')).toBe(false);
+    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-cannot-create-tripplan', () => {
-    expect(canEditContent('MEMBER')).toBe(false);
+    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-cannot-create-chore', () => {
-    expect(canEditContent('MEMBER')).toBe(false);
+    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-cannot-create-chore-assignment', () => {
-    expect(canEditContent('MEMBER')).toBe(false);
+    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-cannot-create-car', () => {
-    expect(canEditContent('MEMBER')).toBe(false);
+    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-cannot-create-recipe', () => {
-    expect(canEditContent('MEMBER')).toBe(false);
+    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 });
 
@@ -248,27 +248,31 @@ describe('security.rbac – tenant isolation (cross-family access blocked)', () 
 
 describe('security.rbac – delete gate exhaustiveness', () => {
   it('security.rbac.only-admin-passes-delete-gate', () => {
-    const canDelete = ALL_ROLES.filter(canDeleteContent);
-    expect(canDelete).toEqual(['ADMIN']);
+    const memberships = [
+      { role: 'ADMIN' as const, canPlan: true },
+      { role: 'MEMBER' as const, canPlan: true },
+      { role: 'MEMBER' as const, canPlan: false },
+    ];
+    const canDelete = memberships.filter(canDeleteContent);
+    expect(canDelete).toHaveLength(1);
+    expect(canDelete[0].role).toBe('ADMIN');
   });
 
   it('security.rbac.delete-gate-rejects-non-admin-roles', () => {
-    const blocked = ALL_ROLES.filter((r) => !canDeleteContent(r));
-    expect(blocked).toEqual(expect.arrayContaining(['PLANNER', 'MEMBER']));
-    expect(blocked).toHaveLength(2);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: true })).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 });
 
 describe('security.rbac – create/edit gate exhaustiveness', () => {
-  it('security.rbac.only-admin-and-planner-pass-edit-gate', () => {
-    const canEdit = ALL_ROLES.filter(canEditContent);
-    expect(canEdit).toEqual(expect.arrayContaining(['ADMIN', 'PLANNER']));
-    expect(canEdit).not.toContain('MEMBER');
-    expect(canEdit).toHaveLength(2);
+  it('security.rbac.only-admin-and-planners-pass-edit-gate', () => {
+    expect(canEditContent({ role: 'ADMIN', canPlan: true })).toBe(true);
+    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
+    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-fails-edit-gate', () => {
-    expect(canEditContent('MEMBER')).toBe(false);
+    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 });
 
@@ -280,39 +284,39 @@ describe('security.rbac – create/edit gate exhaustiveness', () => {
 
 describe('security.rbac – ADMIN has full CRUD (positive)', () => {
   it('security.rbac.admin-can-delete-vacation', () => {
-    expect(canDeleteContent('ADMIN')).toBe(true);
+    expect(canDeleteContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.admin-can-delete-tripplan', () => {
-    expect(canDeleteContent('ADMIN')).toBe(true);
+    expect(canDeleteContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.admin-can-delete-chore', () => {
-    expect(canDeleteContent('ADMIN')).toBe(true);
+    expect(canDeleteContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.admin-can-delete-chore-assignment', () => {
-    expect(canDeleteContent('ADMIN')).toBe(true);
+    expect(canDeleteContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.admin-can-delete-car', () => {
-    expect(canDeleteContent('ADMIN')).toBe(true);
+    expect(canDeleteContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.admin-can-delete-recipe', () => {
-    expect(canDeleteContent('ADMIN')).toBe(true);
+    expect(canDeleteContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.admin-can-create-vacation', () => {
-    expect(canEditContent('ADMIN')).toBe(true);
+    expect(canEditContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.admin-can-create-chore', () => {
-    expect(canEditContent('ADMIN')).toBe(true);
+    expect(canEditContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.admin-can-create-car', () => {
-    expect(canEditContent('ADMIN')).toBe(true);
+    expect(canEditContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 });
 
@@ -387,39 +391,39 @@ describe('security.rbac – ADMIN role management (positive)', () => {
   });
 });
 
-// ── PLANNER: create and update permissions ────────────────────────────────────
+// ── Planning-enabled MEMBER: create and update permissions ────────────────────
 
-describe('security.rbac – PLANNER create/update permissions (positive)', () => {
+describe('security.rbac – planning-enabled MEMBER create/update permissions (positive)', () => {
   it('security.rbac.planner-can-create-vacation', () => {
-    expect(canEditContent('PLANNER')).toBe(true);
+    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.planner-can-update-vacation', () => {
-    expect(canEditContent('PLANNER')).toBe(true);
+    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.planner-can-create-tripplan', () => {
-    expect(canEditContent('PLANNER')).toBe(true);
+    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.planner-can-create-chore', () => {
-    expect(canEditContent('PLANNER')).toBe(true);
+    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.planner-can-update-chore', () => {
-    expect(canEditContent('PLANNER')).toBe(true);
+    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.planner-can-create-car', () => {
-    expect(canEditContent('PLANNER')).toBe(true);
+    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.planner-can-update-car', () => {
-    expect(canEditContent('PLANNER')).toBe(true);
+    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
   });
 
   it('security.rbac.planner-can-create-recipe', () => {
-    expect(canEditContent('PLANNER')).toBe(true);
+    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
   });
 });
 
@@ -427,10 +431,8 @@ describe('security.rbac – PLANNER create/update permissions (positive)', () =>
 
 describe('security.rbac – MEMBER read and chore completion (positive)', () => {
   it('security.rbac.member-read-is-permitted-canEditContent-is-false', () => {
-    // Read access for all groups is granted via allow.groups(['ADMIN','PLANNER','MEMBER']).to(['read']).
-    // canEditContent returning false means MEMBER cannot write, but read is still allowed.
-    expect(canEditContent('MEMBER')).toBe(false);
-    expect(canDeleteContent('MEMBER')).toBe(false);
+    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
+    expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
   it('security.rbac.member-can-log-chore-completion', () => {

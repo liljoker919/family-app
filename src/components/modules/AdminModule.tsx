@@ -11,10 +11,13 @@ interface AdminModuleProps {
   membership: FamilyMembership;
 }
 
+type StoredMemberRole = FamilyRole | 'PLANNER';
+type InvitePermission = 'MEMBER' | 'PLANNER';
+
 interface FamilyMemberRecord {
   id: string;
   userId: string;
-  role: FamilyRole;
+  role: StoredMemberRole;
   displayName: string | null | undefined;
   familyId: string;
 }
@@ -22,7 +25,7 @@ interface FamilyMemberRecord {
 interface InviteRecord {
   id: string;
   email: string;
-  role: 'MEMBER' | 'PLANNER';
+  role: InvitePermission;
   expiresAt: string;
   status: 'PENDING' | 'ACCEPTED';
   inviteUrl?: string;
@@ -30,15 +33,21 @@ interface InviteRecord {
 
 const ROLE_LABELS: Record<FamilyRole, string> = {
   ADMIN: 'Admin',
-  PLANNER: 'Planner',
   MEMBER: 'Member',
 };
 
 const ROLE_BADGE_CLASSES: Record<FamilyRole, string> = {
   ADMIN: 'bg-purple-100 text-purple-700',
-  PLANNER: 'bg-blue-100 text-blue-700',
   MEMBER: 'bg-gray-100 text-gray-700',
 };
+
+function normalizeRole(role: StoredMemberRole): FamilyRole {
+  return role === 'ADMIN' ? 'ADMIN' : 'MEMBER';
+}
+
+function hasPlanningPermission(role: StoredMemberRole): boolean {
+  return role === 'ADMIN' || role === 'PLANNER';
+}
 
 export default function AdminModule({ user, familyId, membership }: AdminModuleProps) {
   const [members, setMembers] = useState<FamilyMemberRecord[]>([]);
@@ -48,7 +57,7 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
 
   // Invite form state
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<'MEMBER' | 'PLANNER'>('MEMBER');
+  const [inviteCanPlan, setInviteCanPlan] = useState(false);
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [generatedInvite, setGeneratedInvite] = useState<InviteRecord | null>(null);
@@ -66,7 +75,7 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
         data.map((m: any) => ({
           id: m.id,
           userId: m.userId,
-          role: (m.role ?? 'MEMBER') as FamilyRole,
+          role: (m.role ?? 'MEMBER') as StoredMemberRole,
           displayName: m.displayName,
           familyId: m.familyId,
         }))
@@ -87,9 +96,9 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
     }
   }, [familyId, isAdmin, fetchMembers]);
 
-  const adminCount = members.filter((m) => m.role === 'ADMIN').length;
+  const adminCount = members.filter((m) => normalizeRole(m.role) === 'ADMIN').length;
 
-  const updateRole = async (memberId: string, newRole: FamilyRole) => {
+  const updateRole = async (memberId: string, newRole: StoredMemberRole) => {
     setError(null);
 
     const member = members.find((m) => m.id === memberId);
@@ -97,7 +106,7 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
 
     // Client-side fast-fail: mirrors the server-side last-admin guard so the
     // UI stays responsive without a round-trip for the most common block.
-    if (member.role === 'ADMIN' && newRole !== 'ADMIN' && adminCount <= 1) {
+    if (normalizeRole(member.role) === 'ADMIN' && newRole !== 'ADMIN' && adminCount <= 1) {
       setError('A family must have at least one administrator.');
       return;
     }
@@ -137,6 +146,7 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
 
     setInviteSubmitting(true);
     try {
+      const inviteRole: InvitePermission = inviteCanPlan ? 'PLANNER' : 'MEMBER';
       const result = await client.mutations.createInvite({
         familyId,
         email: trimmedEmail,
@@ -148,12 +158,13 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
         setGeneratedInvite({
           id: result.data.id,
           email: result.data.email,
-          role: result.data.role as 'MEMBER' | 'PLANNER',
+          role: result.data.role as InvitePermission,
           expiresAt: result.data.expiresAt,
           status: result.data.status as 'PENDING' | 'ACCEPTED',
           inviteUrl: result.data.inviteUrl,
         });
         setInviteEmail('');
+        setInviteCanPlan(false);
       }
     } catch (err: any) {
       const serverMsg: string | undefined =
@@ -236,19 +247,16 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
                 />
               </div>
 
-              <div>
-                <label htmlFor="invite-role" className="block text-sm font-medium text-gray-700 mb-1">
-                  Role
+              <div className="sm:pt-7">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={inviteCanPlan}
+                    onChange={(e) => setInviteCanPlan(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  Enable planning permissions
                 </label>
-                <select
-                  id="invite-role"
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as 'MEMBER' | 'PLANNER')}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="MEMBER">Member</option>
-                  <option value="PLANNER">Planner</option>
-                </select>
               </div>
 
               <div className="flex items-end">
@@ -273,7 +281,10 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
             <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-sm font-medium text-green-800 mb-2">
                 Invite created for <span className="font-semibold">{generatedInvite.email}</span> as{' '}
-                <span className="font-semibold">{ROLE_LABELS[generatedInvite.role]}</span>
+                <span className="font-semibold">Member</span>
+                {generatedInvite.role === 'PLANNER' && (
+                  <span className="ml-2 text-blue-700">(planning enabled)</span>
+                )}
               </p>
               <div className="flex items-center gap-2">
                 <input
@@ -320,8 +331,10 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
         ) : (
           <div className="space-y-3">
             {members.map((member) => {
+              const normalizedRole = normalizeRole(member.role);
+              const canPlan = hasPlanningPermission(member.role);
               const isCurrentUser = member.userId === currentUserId;
-              const isLastAdmin = member.role === 'ADMIN' && adminCount <= 1;
+              const isLastAdmin = normalizedRole === 'ADMIN' && adminCount <= 1;
               const isBusy = saving === member.id;
 
               return (
@@ -343,12 +356,28 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
 
                   <div className="flex items-center gap-3">
                     <span
-                      className={`text-xs font-medium px-3 py-1 rounded-full ${ROLE_BADGE_CLASSES[member.role]}`}
+                      className={`text-xs font-medium px-3 py-1 rounded-full ${ROLE_BADGE_CLASSES[normalizedRole]}`}
                     >
-                      {ROLE_LABELS[member.role]}
+                      {ROLE_LABELS[normalizedRole]}
                     </span>
 
-                    {member.role !== 'ADMIN' && (
+                    {normalizedRole === 'MEMBER' && canPlan && (
+                      <span className="text-xs font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-700">
+                        Planning Enabled
+                      </span>
+                    )}
+
+                    {normalizedRole === 'MEMBER' && (
+                      <button
+                        onClick={() => updateRole(member.id, canPlan ? 'MEMBER' : 'PLANNER')}
+                        disabled={isBusy}
+                        className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition disabled:opacity-50"
+                      >
+                        {isBusy ? 'Saving…' : canPlan ? 'Disable Planning' : 'Enable Planning'}
+                      </button>
+                    )}
+
+                    {normalizedRole !== 'ADMIN' && (
                       <button
                         onClick={() => updateRole(member.id, 'ADMIN')}
                         disabled={isBusy}
@@ -358,7 +387,7 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
                       </button>
                     )}
 
-                    {member.role === 'ADMIN' && (
+                    {normalizedRole === 'ADMIN' && (
                       <button
                         onClick={() => updateRole(member.id, 'MEMBER')}
                         disabled={isBusy || isLastAdmin}

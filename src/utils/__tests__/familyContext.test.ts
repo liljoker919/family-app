@@ -167,7 +167,9 @@ describe('joinFamily', () => {
     });
 
     const membership = await joinFamily('VALID1', 'user-3');
-    expect(membership?.role).toBe('PLANNER');
+    // Stored PLANNER is normalized to MEMBER with canPlan: true
+    expect(membership?.role).toBe('MEMBER');
+    expect(membership?.canPlan).toBe(true);
     expect(mockFamilyMember.create).not.toHaveBeenCalled();
   });
 });
