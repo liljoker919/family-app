@@ -20,6 +20,7 @@ import { addToFamilyGroupFn } from '../functions/add-to-family-group/resource';
 // Car / CarService     | Read                | Create, Read, Update| Full CRUD
 // Recipe               | Read                | Create, Read, Update| Full CRUD
 // Property / P&L       | No access           | No access           | Full CRUD
+// CalendarEvent        | Read, Create, Update| Create, Read, Update| Full CRUD
 //
 // Tenant Isolation:
 //   Every family-scoped record carries a required familyId attribute.
@@ -550,6 +551,56 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
       allow.groups(['PLANNER', 'MEMBER']).to(['create', 'update']),
+      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
+    ]),
+
+  // -------------------------------------------------------------------------
+  // CalendarEvent – normalized calendar data model acting as a single source
+  // of truth for the family calendar UI and dashboard.
+  //
+  // Ownership Rules:
+  //   • Manual events (type = 'manual'): fully editable in the Calendar UI.
+  //   • Linked events (type = 'vacation' | 'chore' | 'car'): projected from
+  //     their source module; edits must be made in the source module and then
+  //     reflected here via sourceType / sourceId.  isDeleted supports soft
+  //     removal without deleting the projection record.
+  //
+  // Tenant isolation: read is gated by familyId group membership.
+  // MEMBERs may create and update (manual events); only ADMIN may delete.
+  // sourceId + familyId together must be unique to prevent duplicate
+  // projections (enforced at the application layer).
+  // -------------------------------------------------------------------------
+
+  CalendarEvent: a
+    .model({
+      // Core
+      familyId: a.id().required(),
+      title: a.string().required(),
+      notes: a.string(),
+      type: a.enum(['vacation', 'chore', 'car', 'manual']).required(),
+
+      // Date / time logic
+      startDate: a.datetime().required(),
+      endDate: a.datetime(),
+      allDay: a.boolean(),
+      timezone: a.string(), // IANA timezone string, e.g. "America/Chicago"
+
+      // Metadata
+      sourceType: a.string(), // source model name for derived events, e.g. "Vacation" | "Chore" | "Car"; omit for manual events (use type = "manual")
+      sourceId: a.string(),   // ID of the originating record for derived events; omit for manual events
+      sourceUpdatedAt: a.datetime(),
+      isDeleted: a.boolean(),
+
+      // Google Calendar sync
+      googleCalendarEventId: a.string(),
+      syncStatus: a.enum(['PENDING', 'IN_SYNC', 'ERROR', 'NOT_SYNCED']),
+      lastSyncedAt: a.datetime(),
+      syncError: a.string(),
+    })
+    .authorization((allow) => [
+      allow.groupDefinedIn('familyId').to(['read']),
+      allow.groups(['MEMBER']).to(['create', 'update']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 

@@ -465,6 +465,7 @@ describe('security.schema – tenant isolation via groupDefinedIn', () => {
     'ChoreAssignment',
     'ChoreCompletion',
     'Property',
+    'CalendarEvent',
   ] as const;
 
   for (const model of familyScopedModels) {
@@ -482,6 +483,100 @@ describe('security.schema – tenant isolation via groupDefinedIn', () => {
     // allow.authenticated() must never appear in the schema – it would grant
     // any logged-in user access to all records regardless of family membership.
     expect(schema).not.toMatch(/allow\.authenticated\(\)/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CalendarEvent
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('security.schema.CalendarEvent – authorization rules', () => {
+  it('security.schema.CalendarEvent.family-members-can-read-via-groupDefinedIn', () => {
+    const block = extractAuthBlock('CalendarEvent');
+    expect(block, 'CalendarEvent authorization block not found').not.toBeNull();
+    // Server-side tenant isolation: read is gated by familyId group membership.
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+  });
+
+  it('security.schema.CalendarEvent.no-broad-read-for-all-role-groups', () => {
+    const block = extractAuthBlock('CalendarEvent');
+    expect(block).not.toBeNull();
+    // The broad all-groups read rule must be absent to enforce tenant isolation.
+    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(false);
+  });
+
+  it('security.schema.CalendarEvent.member-can-create-and-update', () => {
+    const block = extractAuthBlock('CalendarEvent');
+    expect(block).not.toBeNull();
+    // MEMBERs must be able to create and update manual events.
+    expect(containsGroupRule(block!, ['MEMBER'], ['create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.CalendarEvent.planner-can-create-and-update', () => {
+    const block = extractAuthBlock('CalendarEvent');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['PLANNER'], ['create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.CalendarEvent.only-admin-can-delete', () => {
+    const block = extractAuthBlock('CalendarEvent');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN'], ['delete'])).toBe(true);
+  });
+});
+
+describe('security.schema.CalendarEvent – required fields', () => {
+  it('security.schema.CalendarEvent.has-required-familyId', () => {
+    const fields = extractModelFields('CalendarEvent');
+    expect(fields, 'CalendarEvent model block not found').not.toBeNull();
+    expect(fields).toMatch(/familyId\s*:\s*a\.id\(\)\.required\(\)/);
+  });
+
+  it('security.schema.CalendarEvent.has-required-title', () => {
+    const fields = extractModelFields('CalendarEvent');
+    expect(fields).not.toBeNull();
+    expect(fields).toMatch(/title\s*:\s*a\.string\(\)\.required\(\)/);
+  });
+
+  it('security.schema.CalendarEvent.has-required-startDate', () => {
+    const fields = extractModelFields('CalendarEvent');
+    expect(fields).not.toBeNull();
+    expect(fields).toMatch(/startDate\s*:\s*a\.datetime\(\)\.required\(\)/);
+  });
+
+  it('security.schema.CalendarEvent.has-type-enum', () => {
+    const fields = extractModelFields('CalendarEvent');
+    expect(fields).not.toBeNull();
+    // type must be required and include the four allowed values
+    expect(fields).toMatch(/type\s*:\s*a\.enum\([\s\S]*?\)\.required\(\)/);
+    expect(fields).toMatch(/'vacation'/);
+    expect(fields).toMatch(/'chore'/);
+    expect(fields).toMatch(/'car'/);
+    expect(fields).toMatch(/'manual'/);
+  });
+
+  it('security.schema.CalendarEvent.has-syncStatus-enum', () => {
+    const fields = extractModelFields('CalendarEvent');
+    expect(fields).not.toBeNull();
+    expect(fields).toMatch(/syncStatus\s*:\s*a\.enum\(/);
+  });
+
+  it('security.schema.CalendarEvent.has-isDeleted-soft-delete-field', () => {
+    const fields = extractModelFields('CalendarEvent');
+    expect(fields).not.toBeNull();
+    expect(fields).toMatch(/isDeleted\s*:\s*a\.boolean\(\)/);
+  });
+
+  it('security.schema.CalendarEvent.has-sourceId-for-deduplication', () => {
+    const fields = extractModelFields('CalendarEvent');
+    expect(fields).not.toBeNull();
+    expect(fields).toMatch(/sourceId\s*:\s*a\.string\(\)/);
+  });
+
+  it('security.schema.CalendarEvent.has-googleCalendarEventId-for-sync', () => {
+    const fields = extractModelFields('CalendarEvent');
+    expect(fields).not.toBeNull();
+    expect(fields).toMatch(/googleCalendarEventId\s*:\s*a\.string\(\)/);
   });
 });
 
