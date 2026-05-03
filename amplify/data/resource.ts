@@ -173,8 +173,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['PLANNER', 'MEMBER']).to(['update']),
-      allow.groups(['PLANNER']).to(['create']),
+      allow.groups(['MEMBER']).to(['update']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
@@ -193,8 +193,8 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['PLANNER', 'MEMBER']).to(['read']),
-      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
@@ -215,8 +215,8 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'tripLegId'),
     })
     .authorization((allow) => [
-      allow.groups(['PLANNER', 'MEMBER']).to(['read']),
-      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
@@ -236,8 +236,8 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['PLANNER', 'MEMBER']).to(['read']),
-      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
@@ -255,8 +255,8 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['PLANNER', 'MEMBER']).to(['read']),
-      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
@@ -273,8 +273,8 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'cruisePortStopId'),
     })
     .authorization((allow) => [
-      allow.groups(['PLANNER', 'MEMBER']).to(['read']),
-      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
@@ -299,8 +299,8 @@ const schema = a.schema({
       comments: a.hasMany('ExcursionComment', 'excursionOptionId'),
     })
     .authorization((allow) => [
-      allow.groups(['PLANNER', 'MEMBER']).to(['read', 'create']),
-      allow.groups(['PLANNER']).to(['update']),
+      allow.groups(['MEMBER']).to(['read', 'create']),
+      allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
@@ -343,8 +343,8 @@ const schema = a.schema({
       feedbacks: a.hasMany('Feedback', 'activityId'),
     })
     .authorization((allow) => [
-      allow.groups(['PLANNER', 'MEMBER']).to(['read']),
-      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
@@ -397,8 +397,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['PLANNER', 'MEMBER']).to(['update']),
-      allow.groups(['PLANNER']).to(['create']),
+      allow.groups(['MEMBER']).to(['update']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
@@ -536,8 +536,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['PLANNER', 'MEMBER']).to(['update']),
-      allow.groups(['PLANNER']).to(['create']),
+      allow.groups(['MEMBER']).to(['update']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
@@ -702,6 +702,7 @@ export const data = defineData({
     defaultAuthorizationMode: 'userPool',
   },
 });
+
 
 
 
