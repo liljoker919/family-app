@@ -347,7 +347,7 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
           {activeModule === 'vacations' && <VacationsModule user={user} familyId={familyId} />}
           {activeModule === 'property' && <PropertyModule user={user} familyId={familyId} />}
           {activeModule === 'cars' && <CarsModule user={user} familyId={familyId} />}
-          {activeModule === 'calendar' && <CalendarModule />}
+          {activeModule === 'calendar' && <CalendarModule familyId={familyId} role={membership.role} canPlan={membership.canPlan} onNavigateTo={setActiveModule} />}
           {activeModule === 'cookbook' && <CookbookModule user={user} familyId={familyId} />}
           {activeModule === 'chores' && <ChoresModule user={user} familyId={familyId} role={membership.role} canPlan={membership.canPlan} />}
           {activeModule === 'reporting' && <ReportingModule user={user} familyId={familyId} role={membership.role} canPlan={membership.canPlan} />}
