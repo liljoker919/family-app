@@ -1,8 +1,521 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import AuthPage from '../components/AuthPage';
 ---
 
-<Layout title="Family App - Login">
-  <AuthPage client:only="react" />
+<Layout title="HeyFamly — Run your family like a team">
+  <!-- ═══════════════════════════════════════════════════════════════
+       NAVIGATION
+  ═══════════════════════════════════════════════════════════════ -->
+  <header class="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100 shadow-sm">
+    <nav class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+      <!-- Logo -->
+      <a href="/" class="flex items-center gap-2 font-display font-bold text-xl text-royal-blue-600 tracking-tight">
+        <span class="text-2xl">🏠</span>
+        HeyFamly
+      </a>
+
+      <!-- Desktop nav -->
+      <ul class="hidden md:flex items-center gap-8 text-sm font-medium text-gray-700">
+        <li><a href="#features" class="hover:text-royal-blue-600 transition-colors">Features</a></li>
+        <li><a href="#pricing" class="hover:text-royal-blue-600 transition-colors">Pricing</a></li>
+        <li>
+          <a
+            href="/login"
+            class="inline-flex items-center px-4 py-2 rounded-xl bg-royal-blue-600 text-white font-semibold text-sm hover:bg-royal-blue-700 transition-colors shadow-sm"
+          >
+            Sign In
+          </a>
+        </li>
+      </ul>
+
+      <!-- Mobile hamburger -->
+      <button
+        id="menu-toggle"
+        aria-label="Open menu"
+        class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+      >
+        <svg id="icon-open" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        <svg id="icon-close" class="w-6 h-6 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </nav>
+
+    <!-- Mobile menu drawer -->
+    <div id="mobile-menu" class="hidden md:hidden border-t border-gray-100 bg-white">
+      <ul class="flex flex-col gap-1 px-4 py-3 text-sm font-medium text-gray-700">
+        <li><a href="#features" class="block py-2 hover:text-royal-blue-600 transition-colors" id="mobile-features">Features</a></li>
+        <li><a href="#pricing" class="block py-2 hover:text-royal-blue-600 transition-colors" id="mobile-pricing">Pricing</a></li>
+        <li class="pt-2">
+          <a
+            href="/login"
+            class="flex justify-center items-center px-4 py-2 rounded-xl bg-royal-blue-600 text-white font-semibold hover:bg-royal-blue-700 transition-colors"
+          >
+            Sign In
+          </a>
+        </li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       HERO SECTION
+  ═══════════════════════════════════════════════════════════════ -->
+  <section class="relative overflow-hidden bg-gradient-to-br from-royal-blue-900 via-royal-blue-700 to-royal-blue-500 text-white">
+    <!-- Subtle background pattern -->
+    <div class="absolute inset-0 opacity-10" aria-hidden="true">
+      <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+      </svg>
+    </div>
+
+    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-24 sm:py-32 text-center">
+      <!-- Eyebrow pill -->
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 text-royal-blue-100 text-sm font-medium mb-6 border border-white/20">
+        <span>✨</span> The family dashboard that finally makes sense
+      </div>
+
+      <h1 class="font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6 text-white">
+        Run your family like a team —<br class="hidden sm:block" />
+        <span class="text-royal-blue-200">not a group chat.</span>
+      </h1>
+
+      <p class="text-lg sm:text-xl text-royal-blue-100 max-w-2xl mx-auto mb-10 leading-relaxed">
+        HeyFamly puts chores, trips, schedules, and everything in one shared dashboard —
+        so everyone knows what's happening <em>(without asking you).</em>
+      </p>
+
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a
+          href="/login"
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-white text-royal-blue-700 font-display font-bold text-lg hover:bg-royal-blue-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+        >
+          🚀 Start Your Free Family Dashboard
+        </a>
+        <a
+          href="#features"
+          class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl border-2 border-white/40 text-white font-semibold text-base hover:bg-white/10 transition-colors"
+        >
+          See how it works ↓
+        </a>
+      </div>
+
+      <!-- Social proof nudge -->
+      <p class="mt-8 text-royal-blue-200 text-sm">
+        No credit card required &nbsp;·&nbsp; Free forever for families
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       MODULE SHOWCASES  (#features)
+  ═══════════════════════════════════════════════════════════════ -->
+  <section id="features" class="py-20 sm:py-28 bg-soft-gray">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Section header -->
+      <div class="text-center mb-16">
+        <p class="text-royal-blue-600 font-semibold text-sm uppercase tracking-widest mb-3">Everything your family needs</p>
+        <h2 class="font-display text-3xl sm:text-4xl font-bold text-ink mb-4">Less chaos. More high-fives.</h2>
+        <p class="text-gray-500 max-w-xl mx-auto">One place for every moving part of family life — because sticky notes on the fridge stopped working in 2009.</p>
+      </div>
+
+      <!-- Feature cards -->
+      <div class="space-y-16">
+
+        <!-- ─── Dashboard Feature ─── -->
+        <div class="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
+          <div class="lg:w-1/2 order-2 lg:order-1">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-royal-blue-100 text-royal-blue-700 text-xs font-semibold uppercase tracking-wider mb-4">
+              📊 Family Dashboard
+            </div>
+            <h3 class="font-display text-2xl sm:text-3xl font-bold text-ink mb-4">See Everything at a Glance</h3>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+              One screen. Every module. Your family's full picture — from upcoming vacations to whose turn it is to walk the dog.
+              No more "I didn't know about that!" at the dinner table.
+            </p>
+            <ul class="space-y-3 text-sm text-gray-700">
+              <li class="flex items-start gap-3">
+                <span class="mt-0.5 w-5 h-5 rounded-full bg-mint-fresh/20 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                Real-time family activity feed
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="mt-0.5 w-5 h-5 rounded-full bg-mint-fresh/20 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                Quick-access widgets for every module
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="mt-0.5 w-5 h-5 rounded-full bg-mint-fresh/20 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                Role-based views so kids see what kids need
+              </li>
+            </ul>
+            <a href="/login" class="mt-8 inline-flex items-center gap-2 text-royal-blue-600 font-semibold text-sm hover:underline">
+              Explore the dashboard →
+            </a>
+          </div>
+          <div class="lg:w-1/2 order-1 lg:order-2">
+            <div class="rounded-2xl bg-white shadow-xl border border-gray-100 overflow-hidden">
+              <!-- Dashboard UI mockup -->
+              <div class="bg-royal-blue-600 px-5 py-3 flex items-center justify-between">
+                <span class="text-white font-display font-bold text-sm">🏠 The Johnson Family</span>
+                <div class="flex gap-1.5">
+                  <span class="w-3 h-3 rounded-full bg-coral-punch/70"></span>
+                  <span class="w-3 h-3 rounded-full bg-yellow-400/70"></span>
+                  <span class="w-3 h-3 rounded-full bg-mint-fresh/70"></span>
+                </div>
+              </div>
+              <div class="p-5 grid grid-cols-2 gap-3">
+                <div class="col-span-2 bg-royal-blue-50 rounded-xl p-4 border border-royal-blue-100">
+                  <p class="text-xs text-royal-blue-500 font-medium mb-1">NEXT ADVENTURE</p>
+                  <p class="font-display font-bold text-ink text-base">🏖️ Beach Trip — 12 days away</p>
+                </div>
+                <div class="bg-green-50 rounded-xl p-3 border border-green-100">
+                  <p class="text-xs text-green-600 font-medium mb-1">CHORES</p>
+                  <p class="font-bold text-ink text-sm">4 / 6 done</p>
+                  <div class="mt-2 h-1.5 bg-green-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-mint-fresh rounded-full" style="width:66%"></div>
+                  </div>
+                </div>
+                <div class="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
+                  <p class="text-xs text-indigo-500 font-medium mb-1">CALENDAR</p>
+                  <p class="font-bold text-ink text-sm">3 events this week</p>
+                  <p class="text-xs text-gray-500 mt-1">Soccer · Dentist · Movie night</p>
+                </div>
+                <div class="col-span-2 bg-amber-50 rounded-xl p-3 border border-amber-100">
+                  <p class="text-xs text-amber-600 font-medium mb-1">FAMILY ACTIVITY</p>
+                  <div class="space-y-1.5 mt-1">
+                    <p class="text-xs text-gray-700">🧹 Emma completed "Vacuum living room"</p>
+                    <p class="text-xs text-gray-700">✈️ Dad added hotel to Beach Trip</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Vacations Feature ─── -->
+        <div class="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
+          <div class="lg:w-1/2">
+            <div class="rounded-2xl bg-white shadow-xl border border-gray-100 overflow-hidden">
+              <!-- Vacation UI mockup -->
+              <div class="bg-gradient-to-r from-indigo-500 to-royal-blue-600 px-5 py-3 flex items-center gap-2">
+                <span class="text-white font-display font-bold text-sm">✈️ Trips & Adventures</span>
+              </div>
+              <div class="p-5 space-y-3">
+                <div class="flex items-center gap-4 p-3 bg-royal-blue-50 rounded-xl border border-royal-blue-100">
+                  <div class="w-10 h-10 bg-royal-blue-600 rounded-xl flex items-center justify-center text-white text-lg">🏖️</div>
+                  <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-ink text-sm">Outer Banks Beach Trip</p>
+                    <p class="text-xs text-gray-500">Aug 14 – 21 · 4 travelers · Hotel booked ✓</p>
+                  </div>
+                  <span class="text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-medium">Planning</span>
+                </div>
+                <div class="flex items-center gap-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-lg">🏔️</div>
+                  <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-ink text-sm">Colorado Ski Weekend</p>
+                    <p class="text-xs text-gray-500">Dec 27 – 30 · Flights TBD</p>
+                  </div>
+                  <span class="text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 font-medium">Wishlist</span>
+                </div>
+                <div class="mt-2 border-t pt-3">
+                  <button class="w-full py-2 rounded-xl border-2 border-dashed border-royal-blue-200 text-royal-blue-500 text-sm font-medium hover:border-royal-blue-400 transition-colors">
+                    + Add New Trip
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="lg:w-1/2">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-semibold uppercase tracking-wider mb-4">
+              ✈️ Trip Planner
+            </div>
+            <h3 class="font-display text-2xl sm:text-3xl font-bold text-ink mb-4">Plan Your Next Adventure — Together</h3>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+              Track every trip from "wouldn't it be fun if…" to "we're actually boarding the plane."
+              Hotels, flights, packing lists, and shared itineraries — all in one place that the whole family can see.
+            </p>
+            <ul class="space-y-3 text-sm text-gray-700">
+              <li class="flex items-start gap-3">
+                <span class="mt-0.5 w-5 h-5 rounded-full bg-mint-fresh/20 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                Shared trip timeline visible to all family members
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="mt-0.5 w-5 h-5 rounded-full bg-mint-fresh/20 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                Track bookings, budgets, and packing progress
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="mt-0.5 w-5 h-5 rounded-full bg-mint-fresh/20 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                Wishlist mode for "someday" trips worth dreaming about
+              </li>
+            </ul>
+            <a href="/login" class="mt-8 inline-flex items-center gap-2 text-royal-blue-600 font-semibold text-sm hover:underline">
+              Start planning →
+            </a>
+          </div>
+        </div>
+
+        <!-- ─── Chores Feature ─── -->
+        <div class="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
+          <div class="lg:w-1/2 order-2 lg:order-1">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold uppercase tracking-wider mb-4">
+              🧹 Chore Tracker
+            </div>
+            <h3 class="font-display text-2xl sm:text-3xl font-bold text-ink mb-4">Chores that actually get done.</h3>
+            <p class="text-gray-600 mb-6 leading-relaxed">
+              Assign tasks, set due dates, and watch the progress bars fill up — without yelling the same reminder 11 times.
+              Kids can mark things done and parents get the receipts.
+            </p>
+            <ul class="space-y-3 text-sm text-gray-700">
+              <li class="flex items-start gap-3">
+                <span class="mt-0.5 w-5 h-5 rounded-full bg-mint-fresh/20 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                Assign chores to specific family members
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="mt-0.5 w-5 h-5 rounded-full bg-mint-fresh/20 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                Visual progress tracking — everyone can see who's slacking
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="mt-0.5 w-5 h-5 rounded-full bg-mint-fresh/20 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                Recurring chores so the same thing doesn't get forgotten every week
+              </li>
+            </ul>
+            <a href="/login" class="mt-8 inline-flex items-center gap-2 text-royal-blue-600 font-semibold text-sm hover:underline">
+              Bring order to chore chaos →
+            </a>
+          </div>
+          <div class="lg:w-1/2 order-1 lg:order-2">
+            <div class="rounded-2xl bg-white shadow-xl border border-gray-100 overflow-hidden">
+              <!-- Chores UI mockup -->
+              <div class="bg-gradient-to-r from-green-500 to-mint-fresh px-5 py-3 flex items-center justify-between">
+                <span class="text-white font-display font-bold text-sm">🧹 This Week's Chores</span>
+                <span class="text-white/80 text-xs">4 of 6 done</span>
+              </div>
+              <div class="p-5 space-y-2.5">
+                <div class="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100">
+                  <span class="w-5 h-5 rounded-full bg-mint-fresh flex items-center justify-center text-white text-xs font-bold flex-shrink-0">✓</span>
+                  <div class="flex-1">
+                    <p class="text-sm font-medium text-ink line-through text-gray-400">Vacuum living room</p>
+                    <p class="text-xs text-gray-400">Emma · Done</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100">
+                  <span class="w-5 h-5 rounded-full bg-mint-fresh flex items-center justify-center text-white text-xs font-bold flex-shrink-0">✓</span>
+                  <div class="flex-1">
+                    <p class="text-sm font-medium text-ink line-through text-gray-400">Take out recycling</p>
+                    <p class="text-xs text-gray-400">Jake · Done</p>
+                  </div>
+                </div>
+                <div class="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                  <span class="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0"></span>
+                  <div class="flex-1">
+                    <p class="text-sm font-medium text-ink">Wash dishes</p>
+                    <p class="text-xs text-gray-500">Emma · Due today</p>
+                  </div>
+                  <span class="text-xs bg-coral-punch/10 text-coral-punch rounded-full px-2 py-0.5 font-medium">Pending</span>
+                </div>
+                <div class="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                  <span class="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0"></span>
+                  <div class="flex-1">
+                    <p class="text-sm font-medium text-ink">Mow the lawn</p>
+                    <p class="text-xs text-gray-500">Jake · Due Saturday</p>
+                  </div>
+                  <span class="text-xs bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 font-medium">Upcoming</span>
+                </div>
+                <div class="mt-2 pt-2 border-t">
+                  <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-mint-fresh rounded-full transition-all" style="width:66%"></div>
+                  </div>
+                  <p class="text-xs text-gray-500 mt-1 text-right">66% complete — not bad for a Tuesday</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /space-y-16 -->
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PRICING SECTION  (#pricing)
+  ═══════════════════════════════════════════════════════════════ -->
+  <section id="pricing" class="py-20 sm:py-28 bg-white">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <p class="text-royal-blue-600 font-semibold text-sm uppercase tracking-widest mb-3">Simple pricing</p>
+        <h2 class="font-display text-3xl sm:text-4xl font-bold text-ink mb-4">One price. Your whole family.</h2>
+        <p class="text-gray-500 max-w-xl mx-auto">No per-seat fees. No confusing tiers. Just one flat monthly rate for an entire household.</p>
+      </div>
+
+      <div class="flex flex-col md:flex-row items-stretch gap-6 justify-center">
+
+        <!-- Free tier -->
+        <div class="flex-1 max-w-sm rounded-2xl border-2 border-gray-200 bg-white p-8 flex flex-col">
+          <div class="mb-6">
+            <p class="font-display font-bold text-lg text-ink">Free</p>
+            <div class="mt-2 flex items-end gap-1">
+              <span class="font-display font-bold text-4xl text-ink">$0</span>
+              <span class="text-gray-500 mb-1">/ month</span>
+            </div>
+            <p class="text-gray-500 text-sm mt-2">Get started, no strings attached</p>
+          </div>
+          <ul class="space-y-3 text-sm text-gray-700 flex-1">
+            <li class="flex items-start gap-3">
+              <span class="w-5 h-5 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">✓</span>
+              Family Dashboard
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="w-5 h-5 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">✓</span>
+              Up to 5 family members
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="w-5 h-5 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">✓</span>
+              Chore tracking &amp; calendar
+            </li>
+          </ul>
+          <a
+            href="/login"
+            class="mt-8 block text-center py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold hover:border-gray-400 hover:bg-gray-50 transition-colors"
+          >
+            Get started free
+          </a>
+        </div>
+
+        <!-- Pro tier — highlighted -->
+        <div class="flex-1 max-w-sm rounded-2xl border-2 border-royal-blue-600 bg-royal-blue-600 p-8 flex flex-col relative overflow-hidden shadow-xl">
+          <!-- "Most popular" badge -->
+          <div class="absolute top-0 right-0 bg-coral-punch text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl uppercase tracking-wide">
+            🔥 Most Popular
+          </div>
+          <div class="mb-6">
+            <p class="font-display font-bold text-lg text-white">HeyFamly Pro</p>
+            <div class="mt-2 flex items-end gap-1">
+              <span class="font-display font-bold text-4xl text-white">$5</span>
+              <span class="text-royal-blue-200 mb-1">/ month per family</span>
+            </div>
+            <p class="text-royal-blue-200 text-sm mt-2 italic">
+              "Less than a coffee… to organize your entire household"
+            </p>
+          </div>
+          <ul class="space-y-3 text-sm text-white flex-1">
+            <li class="flex items-start gap-3">
+              <span class="w-5 h-5 rounded-full bg-white/20 text-white flex items-center justify-center text-xs flex-shrink-0 mt-0.5">✓</span>
+              Everything in Free
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="w-5 h-5 rounded-full bg-white/20 text-white flex items-center justify-center text-xs flex-shrink-0 mt-0.5">✓</span>
+              Unlimited family members
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="w-5 h-5 rounded-full bg-white/20 text-white flex items-center justify-center text-xs flex-shrink-0 mt-0.5">✓</span>
+              Trip planner &amp; vacation tracking
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="w-5 h-5 rounded-full bg-white/20 text-white flex items-center justify-center text-xs flex-shrink-0 mt-0.5">✓</span>
+              Vehicle &amp; property management
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="w-5 h-5 rounded-full bg-white/20 text-white flex items-center justify-center text-xs flex-shrink-0 mt-0.5">✓</span>
+              Family cookbook &amp; meal planning
+            </li>
+            <li class="flex items-start gap-3">
+              <span class="w-5 h-5 rounded-full bg-white/20 text-white flex items-center justify-center text-xs flex-shrink-0 mt-0.5">✓</span>
+              Priority support (from a real dad)
+            </li>
+          </ul>
+          <a
+            href="/login"
+            class="mt-8 block text-center py-3 rounded-xl bg-white text-royal-blue-700 font-display font-bold hover:bg-royal-blue-50 transition-colors shadow-md"
+          >
+            🚀 Start Your Free Family Dashboard
+          </a>
+        </div>
+
+      </div>
+
+      <p class="text-center text-gray-400 text-sm mt-8">
+        Cancel anytime. No contracts. No drama. Just a calmer household.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FINAL CTA BANNER
+  ═══════════════════════════════════════════════════════════════ -->
+  <section class="bg-gradient-to-r from-royal-blue-800 to-royal-blue-600 py-16 text-center text-white">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="font-display text-3xl sm:text-4xl font-bold mb-4">Ready to stop being the family's Siri?</h2>
+      <p class="text-royal-blue-200 mb-8 text-lg">
+        Give your family a shared brain. Start in minutes, free forever.
+      </p>
+      <a
+        href="/login"
+        class="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-white text-royal-blue-700 font-display font-bold text-lg hover:bg-royal-blue-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+      >
+        🚀 Start Your Free Family Dashboard
+      </a>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FOOTER
+  ═══════════════════════════════════════════════════════════════ -->
+  <footer class="bg-royal-blue-950 text-royal-blue-200 py-12">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col md:flex-row items-center md:items-start justify-between gap-8 mb-8">
+        <!-- Brand -->
+        <div>
+          <div class="flex items-center gap-2 font-display font-bold text-xl text-white mb-2">
+            <span class="text-2xl">🏠</span> HeyFamly
+          </div>
+          <p class="text-royal-blue-300 text-sm max-w-xs">
+            All your chaos. One place.
+          </p>
+        </div>
+
+        <!-- Links -->
+        <div class="flex flex-wrap justify-center md:justify-end gap-6 text-sm">
+          <a href="#features" class="hover:text-white transition-colors">Features</a>
+          <a href="#pricing" class="hover:text-white transition-colors">Pricing</a>
+          <a href="/login" class="hover:text-white transition-colors">Sign In</a>
+          <a href="/dashboard" class="hover:text-white transition-colors">Dashboard</a>
+        </div>
+      </div>
+
+      <div class="border-t border-royal-blue-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-royal-blue-400">
+        <p>&copy; {new Date().getFullYear()} HeyFamly. All rights reserved.</p>
+        <p class="italic font-medium text-royal-blue-300">"All your chaos. One place."</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Mobile menu toggle script -->
+  <script>
+    const toggle = document.getElementById('menu-toggle');
+    const menu = document.getElementById('mobile-menu');
+    const iconOpen = document.getElementById('icon-open');
+    const iconClose = document.getElementById('icon-close');
+
+    toggle?.addEventListener('click', () => {
+      const isOpen = !menu?.classList.contains('hidden');
+      menu?.classList.toggle('hidden', isOpen);
+      iconOpen?.classList.toggle('hidden', !isOpen);
+      iconClose?.classList.toggle('hidden', isOpen);
+    });
+
+    // Close mobile menu when a nav link is clicked
+    document.querySelectorAll('#mobile-menu a').forEach(link => {
+      link.addEventListener('click', () => {
+        menu?.classList.add('hidden');
+        iconOpen?.classList.remove('hidden');
+        iconClose?.classList.add('hidden');
+      });
+    });
+  </script>
 </Layout>
