@@ -14,7 +14,6 @@ export class DashboardPage {
 
   // ── Sidebar navigation ───────────────────────────────────────────────────
   readonly vacationsNavBtn: Locator;
-  readonly tripPlanningNavBtn: Locator;
   readonly propertyNavBtn: Locator;
   readonly carsNavBtn: Locator;
   readonly calendarNavBtn: Locator;
@@ -41,7 +40,6 @@ export class DashboardPage {
     // module content areas that may contain identically named buttons.
     const sidebar = page.locator('aside');
     this.vacationsNavBtn = sidebar.getByRole('button', { name: /^Vacations$/ });
-    this.tripPlanningNavBtn = sidebar.getByRole('button', { name: /^Trip Planning$/ });
     this.propertyNavBtn = sidebar.getByRole('button', { name: /^Property$/ });
     this.carsNavBtn = sidebar.getByRole('button', { name: /^Cars$/ });
     this.calendarNavBtn = sidebar.getByRole('button', { name: /^Calendar$/ });

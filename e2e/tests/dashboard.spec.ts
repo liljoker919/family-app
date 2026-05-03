@@ -29,7 +29,6 @@ test.describe('Dashboard', () => {
     // Always-visible sidebar modules in the order shown in the spec
     const alwaysVisibleModules = [
       dashboardPage.vacationsNavBtn,
-      dashboardPage.tripPlanningNavBtn,
       dashboardPage.propertyNavBtn,
       dashboardPage.carsNavBtn,
       dashboardPage.calendarNavBtn,
