@@ -15,7 +15,7 @@ describe('dashboard navigation modules', () => {
   });
 
   it('includes all required navigation modules', () => {
-    const required = ['vacations', 'planning', 'property', 'cars', 'calendar', 'cookbook', 'chores', 'reporting', 'admin', 'profile'] as const;
+    const required = ['vacations', 'property', 'cars', 'calendar', 'cookbook', 'chores', 'reporting', 'admin', 'profile'] as const;
     for (const mod of required) {
       expect(DASHBOARD_MODULES).toContain(mod);
     }
@@ -36,7 +36,7 @@ describe('MODULE_ROLE_REQUIREMENTS', () => {
   });
 
   it('leaves general modules unrestricted (null)', () => {
-    const openModules = ['vacations', 'planning', 'property', 'cars', 'calendar', 'cookbook', 'chores'] as const;
+    const openModules = ['vacations', 'property', 'cars', 'calendar', 'cookbook', 'chores'] as const;
     for (const mod of openModules) {
       expect(MODULE_ROLE_REQUIREMENTS[mod]).toBeNull();
     }
@@ -69,7 +69,7 @@ describe('canAccessModule', () => {
   });
 
   it('allows MEMBER to access all open modules regardless of canPlan', () => {
-    const openModules = ['vacations', 'planning', 'property', 'cars', 'calendar', 'cookbook', 'chores'] as const;
+    const openModules = ['vacations', 'property', 'cars', 'calendar', 'cookbook', 'chores'] as const;
     for (const mod of openModules) {
       expect(canAccessModule(mod, { role: 'MEMBER', canPlan: false })).toBe(true);
       expect(canAccessModule(mod, { role: 'MEMBER', canPlan: true })).toBe(true);

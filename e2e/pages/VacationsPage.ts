@@ -143,7 +143,7 @@ export class VacationsPage {
   async gotoViaSidebar(): Promise<void> {
     await expect(this.page).toHaveURL(/\/dashboard/i);
     // Switch to a different module first so the sidebar click is meaningful
-    await this.page.getByRole('button', { name: 'Trip Planning' }).click();
+    await this.page.getByRole('button', { name: 'Property' }).click();
     await this.sidebarLink.click();
     await expect(this.heading).toBeVisible();
   }

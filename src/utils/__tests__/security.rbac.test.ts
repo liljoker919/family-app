@@ -9,7 +9,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Model / Scope        | MEMBER              | PLANNER             | ADMIN
  * ---------------------|---------------------|---------------------|----------
- * Vacation / TripPlan  | Read, Update        | Create, Read, Update| Full CRUD
+ * Vacation             | Read, Update        | Create, Read, Update| Full CRUD
  * Chore                | Read, Update        | Create, Read, Update| Full CRUD
  * ChoreAssignment      | Read                | Create, Read, Update| Full CRUD
  * ChoreCompletion      | Read, Create, Update| Create, Read, Update| Full CRUD
@@ -44,7 +44,7 @@ describe('security.rbac – delete gate (MEMBER blocked)', () => {
     expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
-  it('security.rbac.member-cannot-delete-tripplan', () => {
+  it('security.rbac.member-cannot-delete-vacation-when-planning-feature-is-removed', () => {
     expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
@@ -78,7 +78,7 @@ describe('security.rbac – delete gate (planning-enabled MEMBER blocked)', () =
     expect(canDeleteContent({ role: 'MEMBER', canPlan: true })).toBe(false);
   });
 
-  it('security.rbac.planner-cannot-delete-tripplan', () => {
+  it('security.rbac.planner-cannot-delete-vacation-when-planning-feature-is-removed', () => {
     expect(canDeleteContent({ role: 'MEMBER', canPlan: true })).toBe(false);
   });
 
@@ -106,7 +106,7 @@ describe('security.rbac – create/edit gate (MEMBER blocked)', () => {
     expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
-  it('security.rbac.member-cannot-create-tripplan', () => {
+  it('security.rbac.member-cannot-create-vacation-when-planning-feature-is-removed', () => {
     expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
@@ -287,7 +287,7 @@ describe('security.rbac – ADMIN has full CRUD (positive)', () => {
     expect(canDeleteContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 
-  it('security.rbac.admin-can-delete-tripplan', () => {
+  it('security.rbac.admin-can-delete-vacation-when-planning-feature-is-removed', () => {
     expect(canDeleteContent({ role: 'ADMIN', canPlan: true })).toBe(true);
   });
 
@@ -402,7 +402,7 @@ describe('security.rbac – planning-enabled MEMBER create/update permissions (p
     expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
   });
 
-  it('security.rbac.planner-can-create-tripplan', () => {
+  it('security.rbac.planner-can-create-vacation-when-planning-feature-is-removed', () => {
     expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
   });
 

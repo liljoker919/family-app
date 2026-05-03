@@ -147,37 +147,6 @@ describe('security.schema.Vacation – authorization rules', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TripPlan
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('security.schema.TripPlan – authorization rules', () => {
-  it('security.schema.TripPlan.family-members-can-read-via-groupDefinedIn', () => {
-    const block = extractAuthBlock('TripPlan');
-    expect(block).not.toBeNull();
-    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
-  });
-
-  it('security.schema.TripPlan.no-broad-read-for-all-role-groups', () => {
-    const block = extractAuthBlock('TripPlan');
-    expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['read'])).toBe(false);
-  });
-
-  it('security.schema.TripPlan.planner-and-admin-can-create', () => {
-    const block = extractAuthBlock('TripPlan');
-    expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['PLANNER'], ['create'])).toBe(true);
-    expect(containsGroupRule(block!, ['ADMIN'], ['create'])).toBe(true);
-  });
-
-  it('security.schema.TripPlan.only-admin-can-delete', () => {
-    const block = extractAuthBlock('TripPlan');
-    expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN'], ['delete'])).toBe(true);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Car
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -489,7 +458,6 @@ describe('security.schema.Invite – ADMIN-only authorization', () => {
 describe('security.schema – tenant isolation via groupDefinedIn', () => {
   const familyScopedModels = [
     'Vacation',
-    'TripPlan',
     'Recipe',
     'Car',
     'CarService',

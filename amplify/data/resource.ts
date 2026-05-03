@@ -13,7 +13,7 @@ import { addToFamilyGroupFn } from '../functions/add-to-family-group/resource';
 // Family (family)      | Read, Create        | Read, Create        | Full CRUD
 // FamilyMember (family)| Read, Create (join) | Read, Create (join) | Full CRUD (roles)
 // Invite               | No access           | No access           | Full CRUD
-// Vacation / TripPlan  | Read, Update        | Create, Read, Update| Full CRUD
+// Vacation             | Read, Update        | Create, Read, Update| Full CRUD
 // Chore                | Read, Update        | Create, Read, Update| Full CRUD
 // ChoreAssignment      | Read                | Create, Read, Update| Full CRUD
 // ChoreCompletion      | Read, Create, Update| Create, Read, Update| Full CRUD
@@ -377,29 +377,6 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.groups(['PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
-    ]),
-
-  // TripPlan – family-scoped planning record (Chore/Vacation category).
-  // Read is gated by familyId group membership (server-side tenant isolation);
-  // update is role-gated; PLANNER and ADMIN may create; only ADMIN may delete.
-  TripPlan: a
-    .model({
-      familyId: a.id().required(),
-      title: a.string().required(),
-      destination: a.string().required(),
-      startDate: a.date(),
-      endDate: a.date(),
-      description: a.string(),
-      planningNotes: a.string(),
-      status: a.enum(['PROPOSED', 'PLANNING', 'BOOKED', 'CANCELED']),
-      bookedAt: a.datetime(),
-      createdBy: a.string().required(),
-    })
-    .authorization((allow) => [
-      allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['MEMBER']).to(['update']),
-      allow.groups(['PLANNER']).to(['create', 'update']),
-      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
   // -------------------------------------------------------------------------
