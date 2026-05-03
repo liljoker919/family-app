@@ -290,7 +290,7 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
                   </span>
                 </button>
               </li>
-              {canAccessModule('reporting', membership.role) && (
+              {canAccessModule('reporting', membership) && (
               <li>
                 <button
                   onClick={() => setActiveModule('reporting')}
@@ -309,7 +309,7 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
                 </button>
               </li>
               )}
-              {canAccessModule('admin', membership.role) && (
+              {canAccessModule('admin', membership) && (
                 <li>
                   <button
                     onClick={() => setActiveModule('admin')}
@@ -352,7 +352,7 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
 
         {/* Main Content */}
         <main className="flex-1 p-8">
-          {!canAccessModule(activeModule, membership.role) ? (
+          {!canAccessModule(activeModule, membership) ? (
             <div className="flex flex-col items-center justify-center h-64 text-center">
               <svg className="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -363,13 +363,13 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
           ) : (
             <>
           {activeModule === 'vacations' && <VacationsModule user={user} familyId={familyId} />}
-          {activeModule === 'planning' && <PlanningModule user={user} familyId={familyId} role={membership.role} />}
+          {activeModule === 'planning' && <PlanningModule user={user} familyId={familyId} role={membership.role} canPlan={membership.canPlan} />}
           {activeModule === 'property' && <PropertyModule user={user} familyId={familyId} />}
           {activeModule === 'cars' && <CarsModule user={user} familyId={familyId} />}
           {activeModule === 'calendar' && <CalendarModule />}
           {activeModule === 'cookbook' && <CookbookModule user={user} familyId={familyId} />}
-          {activeModule === 'chores' && <ChoresModule user={user} familyId={familyId} role={membership.role} />}
-          {activeModule === 'reporting' && <ReportingModule user={user} familyId={familyId} role={membership.role} />}
+          {activeModule === 'chores' && <ChoresModule user={user} familyId={familyId} role={membership.role} canPlan={membership.canPlan} />}
+          {activeModule === 'reporting' && <ReportingModule user={user} familyId={familyId} role={membership.role} canPlan={membership.canPlan} />}
           {activeModule === 'admin' && <AdminModule user={user} familyId={familyId} membership={membership} />}
           {activeModule === 'profile' && <ProfileModule user={user} membership={membership} onSignOut={signOut} />}
             </>

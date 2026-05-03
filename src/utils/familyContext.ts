@@ -11,11 +11,14 @@ import type { Schema } from '../../amplify/data/resource';
 
 const client = generateClient<Schema>();
 
-export type FamilyRole = 'ADMIN' | 'PLANNER' | 'MEMBER';
+type StoredMemberRole = 'ADMIN' | 'PLANNER' | 'MEMBER';
+
+export type FamilyRole = 'ADMIN' | 'MEMBER';
 
 export interface FamilyMembership {
   familyId: string;
   role: FamilyRole;
+  canPlan: boolean;
   displayName: string | null | undefined;
   familyName: string | null;
   familyJoinCode: string | null;
@@ -37,6 +40,21 @@ export function generateJoinCode(): string {
  * Look up the FamilyMember record for the given userId.
  * Returns null if the user has no family membership.
  */
+function normalizeMembershipRole(role: string | null | undefined): {
+  role: FamilyRole;
+  canPlan: boolean;
+} {
+  const storedRole = (role ?? 'MEMBER') as StoredMemberRole;
+  if (storedRole === 'ADMIN') {
+    return { role: 'ADMIN', canPlan: true };
+  }
+
+  return {
+    role: 'MEMBER',
+    canPlan: storedRole === 'PLANNER',
+  };
+}
+
 export async function getFamilyMembership(
   userId: string
 ): Promise<FamilyMembership | null> {
@@ -62,9 +80,12 @@ export async function getFamilyMembership(
       // Family lookup is best-effort
     }
 
+    const normalizedRole = normalizeMembershipRole(member.role ?? 'MEMBER');
+
     return {
       familyId: member.familyId,
-      role: (member.role ?? 'MEMBER') as FamilyRole,
+      role: normalizedRole.role,
+      canPlan: normalizedRole.canPlan,
       displayName: member.displayName,
       familyName,
       familyJoinCode,
@@ -126,6 +147,7 @@ export async function createFamily(
   return {
     familyId: family.id,
     role: 'ADMIN',
+    canPlan: true,
     displayName: member.displayName,
     familyName: family.name,
     familyJoinCode: family.joinCode ?? null,
@@ -159,9 +181,12 @@ export async function joinFamily(
   });
 
   if (existing && existing.length > 0) {
+    const normalizedRole = normalizeMembershipRole(existing[0].role ?? 'MEMBER');
+
     return {
       familyId: family.id,
-      role: (existing[0].role ?? 'MEMBER') as FamilyRole,
+      role: normalizedRole.role,
+      canPlan: normalizedRole.canPlan,
       displayName: existing[0].displayName,
       familyName: family.name,
       familyJoinCode: family.joinCode ?? null,
@@ -192,6 +217,7 @@ export async function joinFamily(
   return {
     familyId: family.id,
     role: 'MEMBER',
+    canPlan: false,
     displayName: member.displayName,
     familyName: family.name,
     familyJoinCode: family.joinCode ?? null,
@@ -218,9 +244,12 @@ export async function redeemInviteToken(token: string): Promise<FamilyMembership
     );
   }
 
+  const normalizedRole = normalizeMembershipRole(result.role as string);
+
   return {
     familyId: result.familyId,
-    role: result.role as FamilyRole,
+    role: normalizedRole.role,
+    canPlan: normalizedRole.canPlan,
     displayName: null,
     familyName: result.familyName,
     familyJoinCode: null,

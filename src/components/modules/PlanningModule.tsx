@@ -33,6 +33,7 @@ interface PlanningModuleProps {
   user: any;
   familyId: string;
   role: FamilyRole;
+  canPlan: boolean;
 }
 
 interface TripForm {
@@ -55,7 +56,7 @@ const emptyForm: TripForm = {
   status: 'PROPOSED',
 };
 
-export default function PlanningModule({ user, familyId, role }: PlanningModuleProps) {
+export default function PlanningModule({ user, familyId, role, canPlan }: PlanningModuleProps) {
   const [tripPlans, setTripPlans] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingTrip, setEditingTrip] = useState<any>(null);
@@ -69,7 +70,7 @@ export default function PlanningModule({ user, familyId, role }: PlanningModuleP
     fetchTripPlans();
   }, []);
 
-  const canEdit = canEditContent(role);
+  const canEdit = canEditContent({ role, canPlan });
 
   const fetchTripPlans = async () => {
     try {

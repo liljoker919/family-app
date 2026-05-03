@@ -15,9 +15,10 @@ interface ReportingModuleProps {
   user: any;
   familyId: string;
   role: FamilyRole;
+  canPlan: boolean;
 }
 
-export default function ReportingModule({ user, familyId, role }: ReportingModuleProps) {
+export default function ReportingModule({ user, familyId, role, canPlan }: ReportingModuleProps) {
   const [chores, setChores] = useState<any[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
@@ -53,7 +54,7 @@ export default function ReportingModule({ user, familyId, role }: ReportingModul
     }
   };
 
-  const canManage = useMemo(() => canEditContent(role), [role]);
+  const canManage = useMemo(() => canEditContent({ role, canPlan }), [role, canPlan]);
 
   const knownChildren = useMemo(
     () => deriveKnownChildren(completions, assignments),
