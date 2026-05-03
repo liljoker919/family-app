@@ -13,4 +13,5 @@ import { defineFunction } from '@aws-amplify/backend';
 export const createInviteFn = defineFunction({
   name: 'create-invite',
   entry: './handler.ts',
+  resourceGroupName: 'data',
 });

@@ -8,4 +8,5 @@ import { defineFunction } from '@aws-amplify/backend';
 export const updateMemberRoleFn = defineFunction({
   name: 'update-member-role',
   entry: './handler.ts',
+  resourceGroupName: 'data',
 });

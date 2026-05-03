@@ -16,4 +16,5 @@ import { defineFunction } from '@aws-amplify/backend';
 export const redeemInviteFn = defineFunction({
   name: 'redeem-invite',
   entry: './handler.ts',
+  resourceGroupName: 'data',
 });
