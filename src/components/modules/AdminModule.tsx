@@ -147,7 +147,7 @@ export default function AdminModule({ user, familyId, membership }: AdminModuleP
     setInviteSubmitting(true);
     try {
       const inviteRole: InvitePermission = inviteCanPlan ? 'PLANNER' : 'MEMBER';
-      const result = await client.mutations.createInvite({
+      const result = await client.mutations.createFamilyInvite({
         familyId,
         email: trimmedEmail,
         role: inviteRole,
