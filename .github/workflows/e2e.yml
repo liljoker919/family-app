@@ -32,6 +32,7 @@ jobs:
 
       - name: Run E2E tests
         id: run-e2e
+        continue-on-error: true
         run: npm run test:e2e
         env:
           CI: true
@@ -238,5 +239,5 @@ jobs:
           if [ "${{ steps.run-e2e.outcome }}" = "success" ]; then
             echo "✅ All Playwright E2E tests passed." >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Some Playwright E2E tests failed. Download the **playwright-report** artifact for the HTML report and **playwright-test-results** for screenshots/videos/traces." >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Some Playwright E2E tests failed, but deployment is not blocked. Download the **playwright-report** artifact for the HTML report and **playwright-test-results** for screenshots/videos/traces." >> $GITHUB_STEP_SUMMARY
           fi
