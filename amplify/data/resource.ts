@@ -115,9 +115,9 @@ const schema = a.schema({
   // -------------------------------------------------------------------------
 
   // Profile – user-scoped record.
-  // All authenticated users may read any profile and create their own.
-  // A user may update their own profile (owner rule); ADMIN may update or
-  // delete any profile.
+  // PLANNER/MEMBER may read and create profiles.
+  // ADMIN has full CRUD access. A user may also read/update/delete their own
+  // profile via owner rule.
   //
   // Notification preference fields (all optional; UI defaults to true/enabled
   // when the field is absent so existing records are treated as fully opted-in):
@@ -144,9 +144,9 @@ const schema = a.schema({
       globalUnsubscribe: a.boolean(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read', 'create']),
+      allow.groups(['ADMIN']).to(['create', 'read', 'update', 'delete']),
       allow.ownerDefinedIn('userId').to(['read', 'update', 'delete']),
-      allow.groups(['ADMIN']).to(['update', 'delete']),
     ]),
 
   // -------------------------------------------------------------------------
