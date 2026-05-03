@@ -608,7 +608,7 @@ const schema = a.schema({
   // Invite management – admin-led tokenized email invite system
   // -------------------------------------------------------------------------
 
-  // Result shape returned by the createInvite mutation.
+  // Result shape returned by the createFamilyInvite mutation.
   CreateInviteResult: a.customType({
     id: a.id().required(),
     familyId: a.id().required(),
@@ -620,13 +620,13 @@ const schema = a.schema({
     inviteUrl: a.string().required(),
   }),
 
-  // createInvite – admin-only mutation that generates a one-time invite link.
+  // createFamilyInvite – admin-only mutation that generates a one-time invite link.
   // The Lambda resolver:
   //   • Validates the role is MEMBER or PLANNER.
   //   • Generates a UUID token and sets a 7-day expiry.
   //   • Persists an Invite record with status PENDING.
   //   • Returns the shareable invite URL.
-  createInvite: a
+  createFamilyInvite: a
     .mutation()
     .arguments({
       familyId: a.id().required(),
