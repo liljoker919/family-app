@@ -78,16 +78,19 @@ function containsGroupRule(
   operations: string[]
 ): boolean {
   const groupsLiteral = groups.map((g) => `'${g}'`).join(',\\s*');
-  // Each operation must appear inside the .to([...]) array, separated only by
-  // commas and whitespace – using a narrow character class avoids false
-  // positives from comments or adjacent string literals.
-  const opsLiteral = operations.map((o) => `'${o}'`).join(`(?:'[^']*'|[^\\]'])*`);
-
   const pattern = new RegExp(
-    `allow\\.groups\\(\\[\\s*${groupsLiteral}\\s*\\]\\)\\.to\\(\\[\\s*${opsLiteral}`,
-    's'
+    `allow\\.groups\\(\\[\\s*${groupsLiteral}\\s*\\]\\)\\.to\\(\\[([^\\]]*)\\]\\)`,
+    'gs'
   );
-  return pattern.test(block);
+
+  for (const match of block.matchAll(pattern)) {
+    const opsSegment = match[1] ?? '';
+    const grantedOps = Array.from(opsSegment.matchAll(/'([^']+)'/g)).map((m) => m[1]);
+    if (operations.every((op) => grantedOps.includes(op))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -132,7 +135,8 @@ describe('security.schema.Vacation – authorization rules', () => {
   it('security.schema.Vacation.planner-and-admin-can-create', () => {
     const block = extractAuthBlock('Vacation');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER'], ['create'])).toBe(true);
+    expect(containsGroupRule(block!, ['PLANNER'], ['create'])).toBe(true);
+    expect(containsGroupRule(block!, ['ADMIN'], ['create'])).toBe(true);
   });
 
   it('security.schema.Vacation.only-admin-can-delete', () => {
@@ -162,7 +166,8 @@ describe('security.schema.TripPlan – authorization rules', () => {
   it('security.schema.TripPlan.planner-and-admin-can-create', () => {
     const block = extractAuthBlock('TripPlan');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER'], ['create'])).toBe(true);
+    expect(containsGroupRule(block!, ['PLANNER'], ['create'])).toBe(true);
+    expect(containsGroupRule(block!, ['ADMIN'], ['create'])).toBe(true);
   });
 
   it('security.schema.TripPlan.only-admin-can-delete', () => {
@@ -192,7 +197,8 @@ describe('security.schema.Car – authorization rules', () => {
   it('security.schema.Car.planner-and-admin-can-create-and-update', () => {
     const block = extractAuthBlock('Car');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER'], ['create'])).toBe(true);
+    expect(containsGroupRule(block!, ['PLANNER'], ['create', 'update'])).toBe(true);
+    expect(containsGroupRule(block!, ['ADMIN'], ['create', 'update'])).toBe(true);
   });
 
   it('security.schema.Car.only-admin-can-delete', () => {
@@ -222,7 +228,8 @@ describe('security.schema.Chore – authorization rules', () => {
   it('security.schema.Chore.planner-and-admin-can-create', () => {
     const block = extractAuthBlock('Chore');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER'], ['create'])).toBe(true);
+    expect(containsGroupRule(block!, ['PLANNER'], ['create'])).toBe(true);
+    expect(containsGroupRule(block!, ['ADMIN'], ['create'])).toBe(true);
   });
 
   it('security.schema.Chore.only-admin-can-delete', () => {
@@ -252,7 +259,8 @@ describe('security.schema.ChoreAssignment – authorization rules', () => {
   it('security.schema.ChoreAssignment.planner-and-admin-can-create-and-update', () => {
     const block = extractAuthBlock('ChoreAssignment');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER'], ['create'])).toBe(true);
+    expect(containsGroupRule(block!, ['PLANNER'], ['create', 'update'])).toBe(true);
+    expect(containsGroupRule(block!, ['ADMIN'], ['create', 'update'])).toBe(true);
   });
 
   it('security.schema.ChoreAssignment.only-admin-can-delete', () => {
@@ -284,7 +292,8 @@ describe('security.schema.ChoreCompletion – authorization rules', () => {
     const block = extractAuthBlock('ChoreCompletion');
     expect(block).not.toBeNull();
     // All roles including MEMBER may create a completion record.
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER', 'MEMBER'], ['create', 'update'])).toBe(true);
+    expect(containsGroupRule(block!, ['PLANNER', 'MEMBER'], ['create', 'update'])).toBe(true);
+    expect(containsGroupRule(block!, ['ADMIN'], ['create', 'update'])).toBe(true);
   });
 
   it('security.schema.ChoreCompletion.only-admin-can-delete', () => {
@@ -314,7 +323,8 @@ describe('security.schema.Recipe – authorization rules', () => {
   it('security.schema.Recipe.planner-and-admin-can-create-and-update', () => {
     const block = extractAuthBlock('Recipe');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER'], ['create'])).toBe(true);
+    expect(containsGroupRule(block!, ['PLANNER'], ['create', 'update'])).toBe(true);
+    expect(containsGroupRule(block!, ['ADMIN'], ['create', 'update'])).toBe(true);
   });
 
   it('security.schema.Recipe.only-admin-can-delete', () => {
@@ -434,7 +444,8 @@ describe('security.schema.CarService – authorization rules', () => {
   it('security.schema.CarService.planner-and-admin-can-create-and-update', () => {
     const block = extractAuthBlock('CarService');
     expect(block).not.toBeNull();
-    expect(containsGroupRule(block!, ['ADMIN', 'PLANNER'], ['create'])).toBe(true);
+    expect(containsGroupRule(block!, ['PLANNER'], ['create', 'update'])).toBe(true);
+    expect(containsGroupRule(block!, ['ADMIN'], ['create', 'update'])).toBe(true);
   });
 
   it('security.schema.CarService.only-admin-can-delete', () => {

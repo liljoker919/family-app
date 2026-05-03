@@ -173,9 +173,9 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['update']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['update']),
+      allow.groups(['PLANNER']).to(['create']),
+      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
   // FlightSegment – child of Vacation; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
@@ -193,9 +193,9 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   // TripLeg – child of Vacation; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
@@ -215,9 +215,9 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'tripLegId'),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   // TransportSegment – child of TripLeg; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
@@ -236,9 +236,9 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   // AccommodationStay – child of TripLeg; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
@@ -255,9 +255,9 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   // CruisePortStop – child of TripLeg; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
@@ -273,9 +273,9 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'cruisePortStopId'),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   // ExcursionOption – all groups may propose (create) and read; PLANNER/ADMIN
@@ -299,9 +299,9 @@ const schema = a.schema({
       comments: a.hasMany('ExcursionComment', 'excursionOptionId'),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read', 'create']),
+      allow.groups(['PLANNER']).to(['update']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   // ExcursionVote – all groups may vote (create/update); only ADMIN may delete.
@@ -313,8 +313,8 @@ const schema = a.schema({
       vote: a.enum(['UP', 'DOWN']),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   // ExcursionComment – all groups may comment (create/update); only ADMIN may delete.
@@ -327,8 +327,8 @@ const schema = a.schema({
       createdAt: a.datetime(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   // Activity – child of Vacation; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
@@ -343,9 +343,9 @@ const schema = a.schema({
       feedbacks: a.hasMany('Feedback', 'activityId'),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   // Feedback – all groups may submit feedback (create/update); only ADMIN may delete.
@@ -359,8 +359,8 @@ const schema = a.schema({
       createdAt: a.datetime(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   // TripFeedback – all groups may submit feedback (create/update); only ADMIN may delete.
@@ -375,8 +375,8 @@ const schema = a.schema({
       recommend: a.boolean(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['read', 'create', 'update']),
+      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
   // TripPlan – family-scoped planning record (Chore/Vacation category).
@@ -397,9 +397,9 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['update']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['update']),
+      allow.groups(['PLANNER']).to(['create']),
+      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
   // -------------------------------------------------------------------------
@@ -462,8 +462,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
   // -------------------------------------------------------------------------
@@ -489,8 +489,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
   CarService: a
@@ -507,8 +507,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
   // -------------------------------------------------------------------------
@@ -536,9 +536,9 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['update']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['update']),
+      allow.groups(['PLANNER']).to(['create']),
+      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
   ChoreAssignment: a
@@ -554,8 +554,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['ADMIN', 'PLANNER']).to(['create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER']).to(['create', 'update']),
+      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
   // ChoreCompletion – any member can log a completion (create/update);
@@ -572,8 +572,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['ADMIN', 'PLANNER', 'MEMBER']).to(['create', 'update']),
-      allow.groups(['ADMIN']).to(['delete']),
+      allow.groups(['PLANNER', 'MEMBER']).to(['create', 'update']),
+      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
   // -------------------------------------------------------------------------
@@ -702,3 +702,8 @@ export const data = defineData({
     defaultAuthorizationMode: 'userPool',
   },
 });
+
+
+
+
+
