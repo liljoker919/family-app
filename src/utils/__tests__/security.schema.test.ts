@@ -547,8 +547,9 @@ describe('security.schema.CalendarEvent – required fields', () => {
   it('security.schema.CalendarEvent.has-type-enum', () => {
     const fields = extractModelFields('CalendarEvent');
     expect(fields).not.toBeNull();
-    // type must include the four allowed values
+    // type must be required and include the four allowed values
     expect(fields).toMatch(/type\s*:\s*a\.enum\(/);
+    expect(fields).toMatch(/\.required\(\)/);
     expect(fields).toMatch(/'vacation'/);
     expect(fields).toMatch(/'chore'/);
     expect(fields).toMatch(/'car'/);

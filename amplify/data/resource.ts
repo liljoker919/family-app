@@ -577,7 +577,7 @@ const schema = a.schema({
       familyId: a.id().required(),
       title: a.string().required(),
       notes: a.string(),
-      type: a.enum(['vacation', 'chore', 'car', 'manual']),
+      type: a.enum(['vacation', 'chore', 'car', 'manual']).required(),
 
       // Date / time logic
       startDate: a.datetime().required(),
