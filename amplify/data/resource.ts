@@ -129,12 +129,19 @@ const schema = a.schema({
   //   notifyByEmail             – Deliver notifications via email.
   //   notifyByPush              – Deliver notifications via in-app/push.
   //   globalUnsubscribe         – One-click opt-out of all non-essential comms.
+  //
+  // Trial tracking fields (set when a user starts a solo trial):
+  //   trialStartDate            – ISO datetime when the 10-day trial began.
+  //   trialStatus               – TRIAL (active trial) | ACTIVE (subscribed) | EXPIRED.
   Profile: a
     .model({
       userId: a.id().required(),
       email: a.string().required(),
       displayName: a.string(),
       role: a.enum(['ADMIN', 'PLANNER', 'MEMBER']),
+      // ── Trial tracking ───────────────────────────────────────────────────
+      trialStartDate: a.datetime(),
+      trialStatus: a.enum(['TRIAL', 'ACTIVE', 'EXPIRED']),
       // ── Notification preferences ────────────────────────────────────────
       notifyNewChore: a.boolean(),
       notifyCarAlert: a.boolean(),

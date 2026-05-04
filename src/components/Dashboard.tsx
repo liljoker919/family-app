@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Authenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 import { Amplify } from 'aws-amplify';
+import { generateClient } from 'aws-amplify/data';
 import outputs from '../../amplify_outputs.json';
 import VacationsModule from './modules/VacationsModule';
 import PropertyModule from './modules/PropertyModule';
@@ -17,8 +18,12 @@ import type { ActiveModule } from '../utils/dashboardModules';
 import { canAccessModule } from '../utils/dashboardModules';
 import { getFamilyMembership } from '../utils/familyContext';
 import type { FamilyMembership } from '../utils/familyContext';
+import { getTrialInfo } from '../utils/trialUtils';
+import type { Schema } from '../../amplify/data/resource';
 
 Amplify.configure(outputs);
+
+const client = generateClient<Schema>();
 
 const formFields = {
   signIn: {
@@ -78,13 +83,36 @@ interface DashboardInnerProps {
 function DashboardInner({ user, signOut, activeModule, setActiveModule }: DashboardInnerProps) {
   const [membership, setMembership] = useState<FamilyMembership | null | undefined>(undefined);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
 
   const userId = user?.signInDetails?.loginId ?? user?.userId ?? '';
+  const userEmail = user?.signInDetails?.loginId ?? userId;
 
   useEffect(() => {
     if (userId) {
       getFamilyMembership(userId).then(setMembership);
     }
+  }, [userId]);
+
+  // Load trial info from the user's Profile once membership is known
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      try {
+        const result = await client.models.Profile.list({
+          filter: { userId: { eq: userId } },
+        });
+        const profile = result.data?.[0];
+        if (profile) {
+          const info = getTrialInfo(profile.trialStartDate ?? null, profile.trialStatus ?? null);
+          if (info.isActive) {
+            setTrialDaysLeft(info.daysLeft);
+          }
+        }
+      } catch {
+        // Best-effort: trial banner is non-critical
+      }
+    })();
   }, [userId]);
 
   // Still loading family membership
@@ -101,6 +129,7 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
     return (
       <FamilySetup
         userId={userId}
+        email={userEmail}
         onComplete={(m) => setMembership(m)}
         onSignOut={signOut}
       />
@@ -125,6 +154,13 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Trial banner */}
+      {trialDaysLeft !== null && trialDaysLeft > 0 && (
+        <div className="bg-amber-400 text-amber-900 text-center text-sm font-semibold px-4 py-2">
+          🕐 {trialDaysLeft} day{trialDaysLeft === 1 ? '' : 's'} left in your free trial — upgrade
+          anytime to keep full access.
+        </div>
+      )}
       {/* Header */}
       <header className="bg-royal-blue-700 text-white shadow-lg">
         <div className="container mx-auto px-4 py-4">
