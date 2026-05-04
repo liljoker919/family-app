@@ -1,8 +1,8 @@
 /**
  * Unit tests for CalendarModule utility constants.
  *
- * These tests verify the color map and label map are consistent and cover all
- * expected event types so that future type additions are caught by CI.
+ * These tests verify the color map and label map are consistent for the
+ * explicitly enumerated event types below, and that both maps stay in sync.
  */
 
 import { describe, it, expect } from 'vitest';
