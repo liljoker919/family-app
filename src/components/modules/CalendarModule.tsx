@@ -214,16 +214,15 @@ export default function CalendarModule({
     setPendingDelete({
       message: `Delete "${ev.title}"? This cannot be undone.`,
       onConfirm: async () => {
+        setPendingDelete(null);
         try {
           await client.models.CalendarEvent.delete({ id: ev.id });
-          setPendingDelete(null);
           setSelectedEvent(null);
           setToast({ message: 'Event deleted.', type: 'success' });
           await fetchEvents();
         } catch (err) {
           console.error('Error deleting calendar event:', err);
           setToast({ message: 'Failed to delete event.', type: 'error' });
-          setPendingDelete(null);
         }
       },
     });
