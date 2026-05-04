@@ -94,8 +94,11 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
     }
   }, [userId]);
 
-  // Load trial info from the user's Profile once membership is known
+  // Load trial info from the user's Profile once membership is known.
+  // Always reset to null first so a stale banner from a previous session is
+  // never shown to a different user or after a trial has expired.
   useEffect(() => {
+    setTrialDaysLeft(null);
     if (!userId) return;
     (async () => {
       try {
@@ -103,14 +106,14 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
           filter: { userId: { eq: userId } },
         });
         const profile = result.data?.[0];
-        if (profile) {
-          const info = getTrialInfo(profile.trialStartDate ?? null, profile.trialStatus ?? null);
-          if (info.isActive) {
-            setTrialDaysLeft(info.daysLeft);
-          }
-        }
+        const info = getTrialInfo(
+          profile?.trialStartDate ?? null,
+          profile?.trialStatus ?? null
+        );
+        setTrialDaysLeft(info.isActive ? info.daysLeft : null);
       } catch {
         // Best-effort: trial banner is non-critical
+        setTrialDaysLeft(null);
       }
     })();
   }, [userId]);
