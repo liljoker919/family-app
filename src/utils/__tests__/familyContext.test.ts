@@ -29,7 +29,7 @@ describe('generateJoinCode', () => {
 // These functions call the Amplify client, so we mock it.
 // vi.hoisted ensures the mock variables are defined before the module factory runs.
 // ---------------------------------------------------------------------------
-const { mockFamilyMember, mockFamily } = vi.hoisted(() => ({
+const { mockFamilyMember, mockFamily, mockProfile } = vi.hoisted(() => ({
   mockFamilyMember: {
     list: vi.fn(),
     create: vi.fn(),
@@ -39,6 +39,11 @@ const { mockFamilyMember, mockFamily } = vi.hoisted(() => ({
     list: vi.fn(),
     create: vi.fn(),
   },
+  mockProfile: {
+    list: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+  },
 }));
 
 vi.mock('aws-amplify/data', () => ({
@@ -46,6 +51,7 @@ vi.mock('aws-amplify/data', () => ({
     models: {
       FamilyMember: mockFamilyMember,
       Family: mockFamily,
+      Profile: mockProfile,
     },
   }),
 }));
@@ -54,6 +60,7 @@ import {
   getFamilyMembership,
   createFamily,
   joinFamily,
+  startSoloTrial,
 } from '../familyContext';
 
 beforeEach(() => {
@@ -171,5 +178,73 @@ describe('joinFamily', () => {
     expect(membership?.role).toBe('MEMBER');
     expect(membership?.canPlan).toBe(true);
     expect(mockFamilyMember.create).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// startSoloTrial
+// ---------------------------------------------------------------------------
+describe('startSoloTrial', () => {
+  /** Shared helper: set up the Family + FamilyMember mocks for createFamily */
+  function setupCreateFamily() {
+    mockFamily.create.mockResolvedValue({
+      data: { id: 'solo-family', name: 'My Family', joinCode: 'SOLO01' },
+    });
+    mockFamilyMember.create.mockResolvedValue({
+      data: { familyId: 'solo-family', userId: 'user-solo', role: 'ADMIN', displayName: 'Alice' },
+    });
+  }
+
+  it('updates an existing Profile with trial fields when one already exists', async () => {
+    setupCreateFamily();
+    mockProfile.list.mockResolvedValue({
+      data: [{ id: 'profile-1', userId: 'user-solo', email: 'alice@example.com' }],
+    });
+    mockProfile.update.mockResolvedValue({ data: {} });
+
+    const membership = await startSoloTrial('user-solo', 'alice@example.com', 'Alice');
+
+    expect(membership.familyId).toBe('solo-family');
+    expect(membership.role).toBe('ADMIN');
+    expect(mockProfile.list).toHaveBeenCalledOnce();
+    expect(mockProfile.update).toHaveBeenCalledOnce();
+    expect(mockProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'profile-1', trialStatus: 'TRIAL' })
+    );
+    expect(mockProfile.create).not.toHaveBeenCalled();
+  });
+
+  it('creates a new Profile with trial fields when none exists', async () => {
+    setupCreateFamily();
+    mockProfile.list.mockResolvedValue({ data: [] });
+    mockProfile.create.mockResolvedValue({ data: { id: 'profile-new' } });
+
+    const membership = await startSoloTrial('user-solo', 'alice@example.com');
+
+    expect(membership.familyId).toBe('solo-family');
+    expect(mockProfile.create).toHaveBeenCalledOnce();
+    expect(mockProfile.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-solo',
+        email: 'alice@example.com',
+        trialStatus: 'TRIAL',
+      })
+    );
+    expect(mockProfile.update).not.toHaveBeenCalled();
+  });
+
+  it('still returns membership when Profile write throws (non-fatal)', async () => {
+    setupCreateFamily();
+    mockProfile.list.mockRejectedValue(new Error('network error'));
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const membership = await startSoloTrial('user-solo', 'alice@example.com');
+
+    // Family creation succeeded — membership is returned despite profile error
+    expect(membership.familyId).toBe('solo-family');
+    expect(membership.role).toBe('ADMIN');
+    // The non-fatal error path should log a warning
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 });
