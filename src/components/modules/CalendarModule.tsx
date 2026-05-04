@@ -502,18 +502,24 @@ export default function CalendarModule({
                 </div>
               </div>
 
-              {/* All-day toggle */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="cal-allDay"
-                  checked={form.allDay}
-                  onChange={(e) => setForm({ ...form, allDay: e.target.checked })}
-                  className="w-4 h-4 text-royal-blue-600 border-gray-300 rounded"
-                />
-                <label htmlFor="cal-allDay" className="text-sm font-medium text-gray-700">
-                  All day
-                </label>
+              {/* All-day status */}
+              <div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="cal-allDay"
+                    checked={true}
+                    disabled
+                    aria-disabled="true"
+                    className="w-4 h-4 text-royal-blue-600 border-gray-300 rounded cursor-not-allowed"
+                  />
+                  <label htmlFor="cal-allDay" className="text-sm font-medium text-gray-700">
+                    All day
+                  </label>
+                </div>
+                <p className="mt-1 text-sm text-gray-500">
+                  This form currently supports date-only events. Time-specific events are not yet supported.
+                </p>
               </div>
 
               {/* Notes */}
