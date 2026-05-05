@@ -1,6 +1,7 @@
 import type { FamilyMembership, FamilyRole } from './familyContext';
 
 export const DASHBOARD_MODULES = [
+  'home',
   'vacations',
   'property',
   'cars',
@@ -22,6 +23,7 @@ export type ActiveModule = (typeof DASHBOARD_MODULES)[number];
 export type ModuleAccessRequirement = FamilyRole[] | 'PLAN' | null;
 
 export const MODULE_ROLE_REQUIREMENTS: Record<ActiveModule, ModuleAccessRequirement> = {
+  home: null,
   vacations: null,
   property: ['ADMIN'],
   cars: null,

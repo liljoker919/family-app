@@ -4,6 +4,7 @@ import '@aws-amplify/ui-react/styles.css';
 import { Amplify } from 'aws-amplify';
 import { generateClient } from 'aws-amplify/data';
 import outputs from '../../amplify_outputs.json';
+import UpcomingWidget from './modules/UpcomingWidget';
 import VacationsModule from './modules/VacationsModule';
 import PropertyModule from './modules/PropertyModule';
 import CarsModule from './modules/CarsModule';
@@ -62,7 +63,7 @@ const formFields = {
 };
 
 function DashboardContent() {
-  const [activeModule, setActiveModule] = useState<ActiveModule>('vacations');
+  const [activeModule, setActiveModule] = useState<ActiveModule>('home');
 
   return (
     <Authenticator formFields={formFields}>
@@ -209,6 +210,23 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
         <aside className="w-64 bg-white shadow-lg min-h-screen">
           <nav className="p-4">
             <ul className="space-y-2">
+              <li>
+                <button
+                  onClick={() => setActiveModule('home')}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition ${
+                    activeModule === 'home'
+                      ? 'bg-royal-blue-600 text-white'
+                      : 'text-gray-700 hover:bg-royal-blue-50'
+                  }`}
+                >
+                  <span className="flex items-center">
+                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                    Home
+                  </span>
+                </button>
+              </li>
               <li>
                 <button
                   onClick={() => setActiveModule('vacations')}
@@ -385,6 +403,7 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
             </div>
           ) : (
             <>
+          {activeModule === 'home' && <UpcomingWidget familyId={familyId} onNavigateTo={setActiveModule} />}
           {activeModule === 'vacations' && <VacationsModule user={user} familyId={familyId} />}
           {activeModule === 'property' && <PropertyModule user={user} familyId={familyId} />}
           {activeModule === 'cars' && <CarsModule user={user} familyId={familyId} />}
