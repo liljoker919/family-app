@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Authenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 import { Amplify } from 'aws-amplify';
+import { fetchUserAttributes } from 'aws-amplify/auth';
 import { generateClient } from 'aws-amplify/data';
 import outputs from '../../amplify_outputs.json';
 import UpcomingWidget from './modules/UpcomingWidget';
@@ -15,11 +16,13 @@ import ReportingModule from './modules/ReportingModule';
 import AdminModule from './modules/AdminModule';
 import ProfileModule from './modules/ProfileModule';
 import FamilySetup from './FamilySetup';
+import OnboardingWizard from './OnboardingWizard';
 import type { ActiveModule } from '../utils/dashboardModules';
 import { canAccessModule } from '../utils/dashboardModules';
 import { getFamilyMembership } from '../utils/familyContext';
 import type { FamilyMembership } from '../utils/familyContext';
 import { getTrialInfo } from '../utils/trialUtils';
+import { getDefaultFamilyName } from '../utils/onboardingUtils';
 import type { Schema } from '../../amplify/data/resource';
 
 Amplify.configure(outputs);
@@ -85,6 +88,8 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
   const [membership, setMembership] = useState<FamilyMembership | null | undefined>(undefined);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [userLastName, setUserLastName] = useState<string | null>(null);
 
   const userId = user?.signInDetails?.loginId ?? user?.userId ?? '';
   const userEmail = user?.signInDetails?.loginId ?? userId;
@@ -93,6 +98,20 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
     if (userId) {
       getFamilyMembership(userId).then(setMembership);
     }
+  }, [userId]);
+
+  // Fetch the user's last name (Cognito family_name attribute) so the wizard
+  // can pre-fill the family name suggestion.  Best-effort: a failure here
+  // does not block anything.
+  useEffect(() => {
+    (async () => {
+      try {
+        const attrs = await fetchUserAttributes();
+        setUserLastName(attrs.family_name ?? null);
+      } catch {
+        // Non-fatal: wizard will fall back to the existing family name.
+      }
+    })();
   }, [userId]);
 
   // Load trial info from the user's Profile once membership is known.
@@ -128,14 +147,35 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
     );
   }
 
-  // User has no family yet — show onboarding
+  // User has no family yet — show family setup
   if (membership === null) {
     return (
       <FamilySetup
         userId={userId}
         email={userEmail}
-        onComplete={(m) => setMembership(m)}
+        onComplete={(m) => {
+          setMembership(m);
+          setShowOnboarding(true);
+        }}
         onSignOut={signOut}
+      />
+    );
+  }
+
+  // New user: show the guided onboarding wizard
+  if (showOnboarding) {
+    const suggestedFamilyName = getDefaultFamilyName(userLastName);
+    return (
+      <OnboardingWizard
+        membership={membership}
+        userEmail={userEmail}
+        defaultFamilyName={suggestedFamilyName || undefined}
+        onComplete={(module) => {
+          setShowOnboarding(false);
+          if (module) {
+            setActiveModule(module);
+          }
+        }}
       />
     );
   }
