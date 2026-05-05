@@ -23,7 +23,7 @@ export type ModuleAccessRequirement = FamilyRole[] | 'PLAN' | null;
 
 export const MODULE_ROLE_REQUIREMENTS: Record<ActiveModule, ModuleAccessRequirement> = {
   vacations: null,
-  property: null,
+  property: ['ADMIN'],
   cars: null,
   calendar: null,
   cookbook: null,

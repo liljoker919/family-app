@@ -3,6 +3,7 @@ import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../../amplify/data/resource";
 import ConfirmModal from "../ConfirmModal";
 import Toast from "../Toast";
+import { useToast } from "../../utils/errorReporter";
 
 const client = generateClient<Schema>();
 
@@ -198,7 +199,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
   const [commentText, setCommentText] = useState("");
 
   const [pendingDelete, setPendingDelete] = useState<{ message: string; onConfirm: () => Promise<void> } | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const { toast, showError, showSuccess, clearToast } = useToast();
 
   useEffect(() => {
     fetchVacations();
@@ -212,6 +213,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       setVacations(data);
     } catch (error) {
       console.error("Error fetching vacations:", error);
+      showError("Failed to load vacations. Please try again.");
     }
   };
 
@@ -223,6 +225,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       setActivities(data);
     } catch (error) {
       console.error("Error fetching activities:", error);
+      showError("Failed to load activities. Please try again.");
     }
   };
 
@@ -234,6 +237,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       setFeedbacks(data);
     } catch (error) {
       console.error("Error fetching feedbacks:", error);
+      showError("Failed to load feedback. Please try again.");
     }
   };
 
@@ -246,6 +250,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       setLegs(sorted);
     } catch (error) {
       console.error("Error fetching trip legs:", error);
+      showError("Failed to load trip legs. Please try again.");
     }
   };
 
@@ -257,6 +262,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       setTransportSegments(data);
     } catch (error) {
       console.error("Error fetching transport segments:", error);
+      showError("Failed to load transport segments. Please try again.");
     }
   };
 
@@ -268,6 +274,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       setAccommodationStays(data);
     } catch (error) {
       console.error("Error fetching accommodation stays:", error);
+      showError("Failed to load accommodation stays. Please try again.");
     }
   };
 
@@ -280,6 +287,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       setCruisePortStops(sorted);
     } catch (error) {
       console.error("Error fetching cruise port stops:", error);
+      showError("Failed to load cruise port stops. Please try again.");
     }
   };
 
@@ -313,6 +321,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       }
     } catch (error) {
       console.error("Error fetching excursion options:", error);
+      showError("Failed to load excursion options. Please try again.");
     }
   };
 
@@ -324,6 +333,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       setExcursionComments(data);
     } catch (error) {
       console.error("Error fetching excursion comments:", error);
+      showError("Failed to load comments. Please try again.");
     }
   };
 
@@ -335,6 +345,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       setFlightSegments(data ?? []);
     } catch (error) {
       console.error("Error fetching flight segments:", error);
+      showError("Failed to load flight segments. Please try again.");
     }
   };
 
@@ -347,6 +358,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       return data;
     } catch (error) {
       console.error("Error fetching trip feedbacks:", error);
+      showError("Failed to load trip feedback. Please try again.");
       return [];
     }
   };
@@ -385,6 +397,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       fetchFeedbacksForTarget(targetId);
     } catch (error) {
       console.error("Error saving trip feedback:", error);
+      showError("Failed to save feedback. Please try again.");
     }
   };
 
@@ -430,6 +443,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       fetchVacations();
     } catch (error) {
       console.error("Error creating vacation:", error);
+      showError("Failed to create vacation. Please try again.");
     }
   };
 
@@ -443,6 +457,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       fetchActivities(selectedVacation.id);
     } catch (error) {
       console.error("Error creating activity:", error);
+      showError("Failed to create activity. Please try again.");
     }
   };
 
@@ -460,6 +475,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       fetchFeedbacks(selectedActivity.id);
     } catch (error) {
       console.error("Error creating feedback:", error);
+      showError("Failed to submit feedback. Please try again.");
     }
   };
 
@@ -477,6 +493,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       fetchLegs(selectedVacation.id);
     } catch (error) {
       console.error("Error creating trip leg:", error);
+      showError("Failed to create trip leg. Please try again.");
     }
   };
 
@@ -494,6 +511,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       fetchTransportSegments(selectedLeg.id);
     } catch (error) {
       console.error("Error creating transport segment:", error);
+      showError("Failed to create transport segment. Please try again.");
     }
   };
 
@@ -506,6 +524,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       fetchAccommodationStays(selectedLeg.id);
     } catch (error) {
       console.error("Error creating accommodation stay:", error);
+      showError("Failed to create accommodation stay. Please try again.");
     }
   };
 
@@ -523,6 +542,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       fetchCruisePortStops(selectedLeg.id);
     } catch (error) {
       console.error("Error creating port stop:", error);
+      showError("Failed to create port stop. Please try again.");
     }
   };
 
@@ -545,6 +565,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       }
     } catch (error) {
       console.error("Error creating excursion option:", error);
+      showError("Failed to create excursion option. Please try again.");
     }
   };
 
@@ -606,6 +627,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       );
     } catch (error) {
       console.error("Error recording vote:", error);
+      showError("Failed to record vote. Please try again.");
     }
   };
 
@@ -624,6 +646,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       fetchExcursionComments(selectedExcursion.id);
     } catch (error) {
       console.error("Error creating comment:", error);
+      showError("Failed to post comment. Please try again.");
     }
   };
 
@@ -637,10 +660,10 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
           if (selectedVacation?.id === id) {
             setSelectedVacation(null);
           }
-          setToast({ message: 'Vacation deleted successfully.', type: 'success' });
+          showSuccess('Vacation deleted successfully.');
         } catch (error) {
           console.error("Error deleting vacation:", error);
-          setToast({ message: 'Failed to delete vacation. Please try again.', type: 'error' });
+          showError('Failed to delete vacation. Please try again.');
         }
       },
     });
@@ -719,6 +742,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       fetchFlightSegments(selectedVacation.id);
     } catch (error) {
       console.error("Error deleting flight segment:", error);
+      showError("Failed to delete flight segment. Please try again.");
     }
   };
 
@@ -803,7 +827,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
         <Toast
           message={toast.message}
           type={toast.type}
-          onClose={() => setToast(null)}
+          onClose={clearToast}
         />
       )}
       <ConfirmModal

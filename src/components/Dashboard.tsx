@@ -226,6 +226,7 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
                   </span>
                 </button>
               </li>
+              {canAccessModule('property', membership) && (
               <li>
                 <button
                   onClick={() => setActiveModule('property')}
@@ -243,6 +244,7 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
                   </span>
                 </button>
               </li>
+              )}
               <li>
                 <button
                   onClick={() => setActiveModule('cars')}
