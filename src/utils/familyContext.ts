@@ -257,6 +257,56 @@ export async function redeemInviteToken(token: string): Promise<FamilyMembership
 }
 
 /**
+ * Create a solo family and start the 10-day free trial for a new user.
+ *
+ * This is the "Start Solo" onboarding path: no join code is required.  The
+ * user gets their own private family (named "My Family") and an ADMIN role so
+ * they can explore every feature during the trial window.
+ *
+ * Also creates (or updates) the user's Profile record with trial tracking
+ * fields (`trialStartDate` and `trialStatus = TRIAL`).  Profile setup is
+ * best-effort – a failure there does not block the user from reaching the
+ * dashboard.
+ *
+ * @param userId      – Cognito login ID (email) / user identifier.
+ * @param email       – The user's email address for the Profile record.
+ * @param displayName – Optional friendly display name.
+ */
+export async function startSoloTrial(
+  userId: string,
+  email: string,
+  displayName?: string
+): Promise<FamilyMembership> {
+  const membership = await createFamily('My Family', userId, displayName);
+
+  const now = new Date().toISOString();
+  try {
+    const { data: profiles } = await client.models.Profile.list({
+      filter: { userId: { eq: userId } },
+    });
+    if (profiles && profiles.length > 0) {
+      await client.models.Profile.update({
+        id: profiles[0].id,
+        trialStartDate: now,
+        trialStatus: 'TRIAL',
+      });
+    } else {
+      await client.models.Profile.create({
+        userId,
+        email,
+        trialStartDate: now,
+        trialStatus: 'TRIAL',
+      });
+    }
+  } catch (err) {
+    // Non-fatal: trial tracking failure must not block onboarding.
+    console.warn('[startSoloTrial] Profile trial setup failed (non-fatal):', err);
+  }
+
+  return membership;
+}
+
+/**
  * Parse invite URL parameters from a URL search string.
  *
  * Returns the token, email, role, and family name embedded in the invite URL,
