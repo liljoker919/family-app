@@ -35,8 +35,12 @@ describe('MODULE_ROLE_REQUIREMENTS', () => {
     expect(MODULE_ROLE_REQUIREMENTS.reporting).toBe('PLAN');
   });
 
+  it('restricts property module to ADMIN role only', () => {
+    expect(MODULE_ROLE_REQUIREMENTS.property).toEqual(['ADMIN']);
+  });
+
   it('leaves general modules unrestricted (null)', () => {
-    const openModules = ['vacations', 'property', 'cars', 'calendar', 'cookbook', 'chores'] as const;
+    const openModules = ['vacations', 'cars', 'calendar', 'cookbook', 'chores'] as const;
     for (const mod of openModules) {
       expect(MODULE_ROLE_REQUIREMENTS[mod]).toBeNull();
     }
@@ -68,8 +72,13 @@ describe('canAccessModule', () => {
     expect(canAccessModule('admin', { role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
+  it('denies MEMBER access to property', () => {
+    expect(canAccessModule('property', { role: 'MEMBER', canPlan: true })).toBe(false);
+    expect(canAccessModule('property', { role: 'MEMBER', canPlan: false })).toBe(false);
+  });
+
   it('allows MEMBER to access all open modules regardless of canPlan', () => {
-    const openModules = ['vacations', 'property', 'cars', 'calendar', 'cookbook', 'chores'] as const;
+    const openModules = ['vacations', 'cars', 'calendar', 'cookbook', 'chores'] as const;
     for (const mod of openModules) {
       expect(canAccessModule(mod, { role: 'MEMBER', canPlan: false })).toBe(true);
       expect(canAccessModule(mod, { role: 'MEMBER', canPlan: true })).toBe(true);
