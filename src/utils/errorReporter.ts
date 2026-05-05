@@ -26,5 +26,5 @@ export function useToast() {
     setToast(null);
   }, []);
 
-  return { toast, showError, showSuccess, clearToast, setToast };
+  return { toast, showError, showSuccess, clearToast };
 }
