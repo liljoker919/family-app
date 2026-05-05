@@ -46,18 +46,21 @@ export function getRelativeDayLabel(eventDate: Date, today: Date): string {
 
 /**
  * Given a raw list of CalendarEvent records (as returned from Amplify), returns
- * up to `maxCount` upcoming events (from `today` onward), sorted by start date
- * ascending, with relative day labels attached.
+ * up to `maxCount` upcoming events starting from `today` and within the next
+ * `maxDays` days, sorted by start date ascending, with relative day labels
+ * attached.
  *
- * Events with no `startDate`, or that have already passed before today, are
- * excluded.  Soft-deleted events (`isDeleted === true`) are also excluded.
+ * Events with no `startDate`, outside the window, or soft-deleted
+ * (`isDeleted === true`) are excluded.
  */
 export function getUpcomingEvents(
   events: Array<{ id: string; title: string; startDate: string; type?: string | null; isDeleted?: boolean | null }>,
   today: Date = new Date(),
   maxCount = 5,
+  maxDays = 7,
 ): UpcomingEventItem[] {
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const windowEnd = new Date(todayStart.getTime() + maxDays * 24 * 60 * 60 * 1000);
 
   return events
     .filter((ev) => {
@@ -65,7 +68,7 @@ export function getUpcomingEvents(
       if (ev.isDeleted) return false;
       const evDate = new Date(ev.startDate);
       const evStart = new Date(evDate.getFullYear(), evDate.getMonth(), evDate.getDate());
-      return evStart >= todayStart;
+      return evStart >= todayStart && evStart < windowEnd;
     })
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
     .slice(0, maxCount)

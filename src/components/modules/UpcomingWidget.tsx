@@ -70,7 +70,7 @@ export default function UpcomingWidget({ familyId, onNavigateTo }: UpcomingWidge
       )}
 
       {!loading && !error && items.length === 0 && (
-        <p className="text-gray-400 text-sm">No upcoming events this week.</p>
+        <p className="text-gray-400 text-sm">No events coming up this week.</p>
       )}
 
       {!loading && !error && items.length > 0 && (

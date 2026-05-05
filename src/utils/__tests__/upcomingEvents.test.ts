@@ -83,6 +83,15 @@ describe('getUpcomingEvents', () => {
     expect(result.map((e) => e.id)).toEqual(['2', '3']);
   });
 
+  it('excludes events beyond the 7-day window', () => {
+    const events = [
+      makeEvent('1', 'Within', '2024-03-26'), // 6 days out — included
+      makeEvent('2', 'Outside', '2024-03-27'), // 7 days out — excluded (< windowEnd)
+    ];
+    const result = getUpcomingEvents(events, TODAY);
+    expect(result.map((e) => e.id)).toEqual(['1']);
+  });
+
   it('excludes soft-deleted events', () => {
     const events = [
       makeEvent('1', 'Deleted', '2024-03-20', 'manual', true),
@@ -128,7 +137,8 @@ describe('getUpcomingEvents', () => {
   });
 
   it('defaults maxCount to 5', () => {
-    const events = Array.from({ length: 10 }, (_, i) =>
+    // 7 events all within the 7-day window; only 5 should be returned
+    const events = Array.from({ length: 7 }, (_, i) =>
       makeEvent(`${i}`, `Event ${i}`, `2024-03-${String(20 + i).padStart(2, '0')}`),
     );
     expect(getUpcomingEvents(events, TODAY)).toHaveLength(5);
