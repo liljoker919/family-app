@@ -15,10 +15,14 @@ describe('dashboard navigation modules', () => {
   });
 
   it('includes all required navigation modules', () => {
-    const required = ['vacations', 'property', 'cars', 'calendar', 'cookbook', 'chores', 'reporting', 'admin', 'profile'] as const;
+    const required = ['home', 'vacations', 'property', 'cars', 'calendar', 'cookbook', 'chores', 'reporting', 'admin', 'profile'] as const;
     for (const mod of required) {
       expect(DASHBOARD_MODULES).toContain(mod);
     }
+  });
+
+  it('lists home as the first navigation item', () => {
+    expect(DASHBOARD_MODULES[0]).toBe('home');
   });
 
   it('lists profile as the last navigation item', () => {
@@ -40,7 +44,7 @@ describe('MODULE_ROLE_REQUIREMENTS', () => {
   });
 
   it('leaves general modules unrestricted (null)', () => {
-    const openModules = ['vacations', 'cars', 'calendar', 'cookbook', 'chores'] as const;
+    const openModules = ['home', 'vacations', 'cars', 'calendar', 'cookbook', 'chores'] as const;
     for (const mod of openModules) {
       expect(MODULE_ROLE_REQUIREMENTS[mod]).toBeNull();
     }
