@@ -11,8 +11,6 @@ type WizardStep = 1 | 2 | 3;
 interface OnboardingWizardProps {
   /** The user's family membership, established right before the wizard. */
   membership: FamilyMembership;
-  /** User email, used as the pre-filled sender in the invite step. */
-  userEmail: string;
   /**
    * Default family name suggestion (e.g. "The Smiths"), derived from the
    * authenticated user's last name.  Falls back to `membership.familyName`.
@@ -27,7 +25,6 @@ interface OnboardingWizardProps {
 
 export default function OnboardingWizard({
   membership,
-  userEmail,
   defaultFamilyName,
   onComplete,
 }: OnboardingWizardProps) {
@@ -65,7 +62,7 @@ export default function OnboardingWizard({
         if (trimmed !== membership.familyName) {
           // We need the family record id; the membership only carries familyId
           // which IS the record id for a Family.
-          await (client.models as any).Family.update({
+          await client.models.Family.update({
             id: membership.familyId,
             name: trimmed,
           });
@@ -93,7 +90,7 @@ export default function OnboardingWizard({
     setInviteError(null);
     try {
       const inviteRole = inviteCanPlan ? 'PLANNER' : 'MEMBER';
-      const result = await (client.mutations as any).createFamilyInvite({
+      const result = await client.mutations.createFamilyInvite({
         familyId: membership.familyId,
         email: trimmedEmail,
         role: inviteRole,
@@ -173,9 +170,7 @@ export default function OnboardingWizard({
                 >
                   {label}
                 </span>
-                {idx < stepLabels.length - 1 && (
-                  <div className="absolute" />
-                )}
+                {idx < stepLabels.length - 1 && null}
               </div>
             );
           })}
@@ -341,7 +336,7 @@ export default function OnboardingWizard({
                 <span className="text-3xl">✈️</span>
                 <div>
                   <div className="font-semibold text-gray-800">Plan a Trip</div>
-                  <div className="text-sm text-gray-500">Organise your next family vacation</div>
+                  <div className="text-sm text-gray-500">Organize your next family vacation</div>
                 </div>
               </button>
 

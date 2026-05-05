@@ -168,7 +168,6 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
     return (
       <OnboardingWizard
         membership={membership}
-        userEmail={userEmail}
         defaultFamilyName={suggestedFamilyName || undefined}
         onComplete={(module) => {
           setShowOnboarding(false);
