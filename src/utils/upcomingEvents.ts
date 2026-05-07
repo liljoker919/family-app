@@ -17,16 +17,27 @@ export interface UpcomingEventItem {
   type: string;
 }
 
-function getUpcomingWindowBounds(today: Date, maxDays: number): { todayStart: Date; windowEnd: Date } {
-  const todayStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-  const windowEnd = new Date(todayStart);
-  windowEnd.setUTCDate(windowEnd.getUTCDate() + maxDays);
-  return { todayStart, windowEnd };
+function getUtcDayStart(date: Date): number {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function getUpcomingWindowBounds(today: Date, maxDays: number): { todayStart: number; windowEnd: number } {
+  const todayStart = getUtcDayStart(today);
+  const windowEndDate = new Date(todayStart);
+  windowEndDate.setUTCDate(windowEndDate.getUTCDate() + maxDays);
+  return { todayStart, windowEnd: windowEndDate.getTime() };
 }
 
 export function getUpcomingWindowIsoRange(today: Date = new Date(), maxDays = 7): { startIso: string; endIso: string } {
   const { todayStart, windowEnd } = getUpcomingWindowBounds(today, maxDays);
-  return { startIso: todayStart.toISOString(), endIso: windowEnd.toISOString() };
+  return { startIso: new Date(todayStart).toISOString(), endIso: new Date(windowEnd).toISOString() };
+}
+
+function formatUtcDate(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 /**
@@ -38,22 +49,17 @@ export function getUpcomingWindowIsoRange(today: Date = new Date(), maxDays = 7)
  * - Further out        → short ISO date (YYYY-MM-DD)
  */
 export function getRelativeDayLabel(eventDate: Date, today: Date): string {
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const eventStart = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
-
-  const diffMs = eventStart.getTime() - todayStart.getTime();
+  const todayStart = getUtcDayStart(today);
+  const eventStart = getUtcDayStart(eventDate);
+  const diffMs = eventStart - todayStart;
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Tomorrow';
   if (diffDays >= 2 && diffDays <= 6) {
-    return eventStart.toLocaleDateString('en-US', { weekday: 'long' });
+    return eventDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
   }
-  // Fallback: YYYY-MM-DD
-  const y = eventStart.getFullYear();
-  const m = String(eventStart.getMonth() + 1).padStart(2, '0');
-  const d = String(eventStart.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return formatUtcDate(eventDate);
 }
 
 /**
@@ -78,21 +84,18 @@ export function getUpcomingEvents(
       if (!ev.startDate) return false;
       if (ev.isDeleted) return false;
       const evDate = new Date(ev.startDate);
-      const evStart = new Date(evDate.getFullYear(), evDate.getMonth(), evDate.getDate());
+      const evStart = getUtcDayStart(evDate);
       return evStart >= todayStart && evStart < windowEnd;
     })
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
     .slice(0, maxCount)
     .map((ev) => {
       const evDate = new Date(ev.startDate);
-      const y = evDate.getFullYear();
-      const m = String(evDate.getMonth() + 1).padStart(2, '0');
-      const d = String(evDate.getDate()).padStart(2, '0');
       return {
         id: ev.id,
         title: ev.title,
         dayLabel: getRelativeDayLabel(evDate, today),
-        dateStr: `${y}-${m}-${d}`,
+        dateStr: formatUtcDate(evDate),
         type: ev.type ?? 'manual',
       };
     });
