@@ -21,6 +21,18 @@ function getUtcDayStart(date: Date): number {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
+function getUpcomingWindowBounds(today: Date, maxDays: number): { todayStart: number; windowEnd: number } {
+  const todayStart = getUtcDayStart(today);
+  const windowEndDate = new Date(todayStart);
+  windowEndDate.setUTCDate(windowEndDate.getUTCDate() + maxDays);
+  return { todayStart, windowEnd: windowEndDate.getTime() };
+}
+
+export function getUpcomingWindowIsoRange(today: Date = new Date(), maxDays = 7): { startIso: string; endIso: string } {
+  const { todayStart, windowEnd } = getUpcomingWindowBounds(today, maxDays);
+  return { startIso: new Date(todayStart).toISOString(), endIso: new Date(windowEnd).toISOString() };
+}
+
 function formatUtcDate(date: Date): string {
   const y = date.getUTCFullYear();
   const m = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -65,8 +77,7 @@ export function getUpcomingEvents(
   maxCount = 5,
   maxDays = 7,
 ): UpcomingEventItem[] {
-  const todayStart = getUtcDayStart(today);
-  const windowEnd = todayStart + maxDays * 24 * 60 * 60 * 1000;
+  const { todayStart, windowEnd } = getUpcomingWindowBounds(today, maxDays);
 
   return events
     .filter((ev) => {

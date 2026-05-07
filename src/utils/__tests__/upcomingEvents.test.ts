@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getRelativeDayLabel, getUpcomingEvents } from '../upcomingEvents';
+import { getRelativeDayLabel, getUpcomingEvents, getUpcomingWindowIsoRange } from '../upcomingEvents';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -81,6 +81,28 @@ describe('getRelativeDayLabel', () => {
 // ---------------------------------------------------------------------------
 // getUpcomingEvents
 // ---------------------------------------------------------------------------
+
+describe('getUpcomingWindowIsoRange', () => {
+  it('returns UTC-midnight start/end ISO datetimes for the configured window', () => {
+    const { startIso, endIso } = getUpcomingWindowIsoRange(TODAY, 7);
+    expect(startIso).toBe('2024-03-20T00:00:00.000Z');
+    expect(endIso).toBe('2024-03-27T00:00:00.000Z');
+  });
+
+  it('normalizes the range to UTC midnight even when today has a non-zero time', () => {
+    const todayWithTime = new Date('2024-03-20T15:45:30.123Z');
+    const { startIso, endIso } = getUpcomingWindowIsoRange(todayWithTime, 7);
+    expect(startIso).toBe('2024-03-20T00:00:00.000Z');
+    expect(endIso).toBe('2024-03-27T00:00:00.000Z');
+  });
+
+  it('uses UTC calendar-day advancement across DST boundary inputs', () => {
+    const nearDstTransition = new Date('2024-03-10T23:30:00.000-04:00');
+    const { startIso, endIso } = getUpcomingWindowIsoRange(nearDstTransition, 7);
+    expect(startIso).toBe('2024-03-11T00:00:00.000Z');
+    expect(endIso).toBe('2024-03-18T00:00:00.000Z');
+  });
+});
 
 describe('getUpcomingEvents', () => {
   it('returns at most maxCount events', () => {
