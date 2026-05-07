@@ -60,10 +60,17 @@ describe('getRelativeDayLabel', () => {
 // ---------------------------------------------------------------------------
 
 describe('getUpcomingWindowIsoRange', () => {
-  it('returns start/end ISO datetimes for the configured window', () => {
+  it('returns UTC-midnight start/end ISO datetimes for the configured window', () => {
     const { startIso, endIso } = getUpcomingWindowIsoRange(TODAY, 7);
-    expect(startIso).toBe(new Date(2024, 2, 20).toISOString());
-    expect(endIso).toBe(new Date(2024, 2, 27).toISOString());
+    expect(startIso).toBe('2024-03-20T00:00:00.000Z');
+    expect(endIso).toBe('2024-03-27T00:00:00.000Z');
+  });
+
+  it('normalizes the range to UTC midnight even when today has a non-zero time', () => {
+    const todayWithTime = new Date('2024-03-20T15:45:30.123Z');
+    const { startIso, endIso } = getUpcomingWindowIsoRange(todayWithTime, 7);
+    expect(startIso).toBe('2024-03-20T00:00:00.000Z');
+    expect(endIso).toBe('2024-03-27T00:00:00.000Z');
   });
 });
 
