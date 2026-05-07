@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
-import { getUpcomingEvents } from '../../utils/upcomingEvents';
+import { getUpcomingEvents, getUpcomingWindowIsoRange } from '../../utils/upcomingEvents';
 import type { UpcomingEventItem } from '../../utils/upcomingEvents';
 import { EVENT_COLORS, EVENT_TYPE_LABELS } from './CalendarModule';
 import type { ActiveModule } from '../../utils/dashboardModules';
@@ -25,10 +25,12 @@ export default function UpcomingWidget({ familyId, onNavigateTo }: UpcomingWidge
 
     (async () => {
       try {
+        const { startIso, endIso } = getUpcomingWindowIsoRange(new Date(), 7);
         const { data } = await client.models.CalendarEvent.list({
           filter: {
             familyId: { eq: familyId },
             isDeleted: { ne: true },
+            startDate: { ge: startIso, lt: endIso },
           },
         });
         if (!cancelled) {

@@ -17,6 +17,17 @@ export interface UpcomingEventItem {
   type: string;
 }
 
+function getUpcomingWindowBounds(today: Date, maxDays: number): { todayStart: Date; windowEnd: Date } {
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const windowEnd = new Date(todayStart.getTime() + maxDays * 24 * 60 * 60 * 1000);
+  return { todayStart, windowEnd };
+}
+
+export function getUpcomingWindowIsoRange(today: Date = new Date(), maxDays = 7): { startIso: string; endIso: string } {
+  const { todayStart, windowEnd } = getUpcomingWindowBounds(today, maxDays);
+  return { startIso: todayStart.toISOString(), endIso: windowEnd.toISOString() };
+}
+
 /**
  * Returns a human-friendly relative label for `eventDate` relative to `today`.
  *
@@ -59,8 +70,7 @@ export function getUpcomingEvents(
   maxCount = 5,
   maxDays = 7,
 ): UpcomingEventItem[] {
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const windowEnd = new Date(todayStart.getTime() + maxDays * 24 * 60 * 60 * 1000);
+  const { todayStart, windowEnd } = getUpcomingWindowBounds(today, maxDays);
 
   return events
     .filter((ev) => {

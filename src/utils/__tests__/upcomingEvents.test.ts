@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getRelativeDayLabel, getUpcomingEvents } from '../upcomingEvents';
+import { getRelativeDayLabel, getUpcomingEvents, getUpcomingWindowIsoRange } from '../upcomingEvents';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -58,6 +58,14 @@ describe('getRelativeDayLabel', () => {
 // ---------------------------------------------------------------------------
 // getUpcomingEvents
 // ---------------------------------------------------------------------------
+
+describe('getUpcomingWindowIsoRange', () => {
+  it('returns start/end ISO datetimes for the configured window', () => {
+    const { startIso, endIso } = getUpcomingWindowIsoRange(TODAY, 7);
+    expect(startIso).toBe(new Date(2024, 2, 20).toISOString());
+    expect(endIso).toBe(new Date(2024, 2, 27).toISOString());
+  });
+});
 
 describe('getUpcomingEvents', () => {
   it('returns at most maxCount events', () => {
