@@ -53,6 +53,30 @@ describe('getRelativeDayLabel', () => {
   it('returns an ISO date string for events further than a week away', () => {
     expect(getRelativeDayLabel(ld('2024-04-10'), TODAY)).toBe('2024-04-10');
   });
+
+  it('uses UTC calendar getters for date comparisons/formatting', () => {
+    const originalGetFullYear = Date.prototype.getFullYear;
+    const originalGetMonth = Date.prototype.getMonth;
+    const originalGetDate = Date.prototype.getDate;
+
+    Date.prototype.getFullYear = () => {
+      throw new Error('local getFullYear should not be used');
+    };
+    Date.prototype.getMonth = () => {
+      throw new Error('local getMonth should not be used');
+    };
+    Date.prototype.getDate = () => {
+      throw new Error('local getDate should not be used');
+    };
+
+    try {
+      expect(getRelativeDayLabel(new Date('2024-03-27T00:00:00.000Z'), TODAY)).toBe('2024-03-27');
+    } finally {
+      Date.prototype.getFullYear = originalGetFullYear;
+      Date.prototype.getMonth = originalGetMonth;
+      Date.prototype.getDate = originalGetDate;
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -157,5 +181,31 @@ describe('getUpcomingEvents', () => {
   it('includes the YYYY-MM-DD dateStr on each item', () => {
     const events = [makeEvent('1', 'A', '2024-03-20')];
     expect(getUpcomingEvents(events, TODAY)[0].dateStr).toBe('2024-03-20');
+  });
+
+  it('uses UTC calendar getters when filtering and formatting upcoming events', () => {
+    const originalGetFullYear = Date.prototype.getFullYear;
+    const originalGetMonth = Date.prototype.getMonth;
+    const originalGetDate = Date.prototype.getDate;
+
+    Date.prototype.getFullYear = () => {
+      throw new Error('local getFullYear should not be used');
+    };
+    Date.prototype.getMonth = () => {
+      throw new Error('local getMonth should not be used');
+    };
+    Date.prototype.getDate = () => {
+      throw new Error('local getDate should not be used');
+    };
+
+    try {
+      const result = getUpcomingEvents([makeEvent('1', 'UTC Midnight', '2024-03-20')], TODAY);
+      expect(result[0].dayLabel).toBe('Today');
+      expect(result[0].dateStr).toBe('2024-03-20');
+    } finally {
+      Date.prototype.getFullYear = originalGetFullYear;
+      Date.prototype.getMonth = originalGetMonth;
+      Date.prototype.getDate = originalGetDate;
+    }
   });
 });
