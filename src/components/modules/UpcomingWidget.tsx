@@ -3,7 +3,7 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import { getUpcomingEvents, getUpcomingWindowIsoRange } from '../../utils/upcomingEvents';
 import type { UpcomingEventItem } from '../../utils/upcomingEvents';
-import { EVENT_COLORS, EVENT_TYPE_LABELS } from './CalendarModule';
+import { EVENT_COLORS, EVENT_TYPE_LABELS } from '../../utils/calendarConstants';
 import type { ActiveModule } from '../../utils/dashboardModules';
 
 const client = generateClient<Schema>();
