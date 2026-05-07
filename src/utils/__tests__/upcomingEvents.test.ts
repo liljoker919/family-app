@@ -72,6 +72,13 @@ describe('getUpcomingWindowIsoRange', () => {
     expect(startIso).toBe('2024-03-20T00:00:00.000Z');
     expect(endIso).toBe('2024-03-27T00:00:00.000Z');
   });
+
+  it('uses UTC calendar-day advancement across DST boundary inputs', () => {
+    const nearDstTransition = new Date('2024-03-10T23:30:00.000-04:00');
+    const { startIso, endIso } = getUpcomingWindowIsoRange(nearDstTransition, 7);
+    expect(startIso).toBe('2024-03-11T00:00:00.000Z');
+    expect(endIso).toBe('2024-03-18T00:00:00.000Z');
+  });
 });
 
 describe('getUpcomingEvents', () => {

@@ -18,8 +18,9 @@ export interface UpcomingEventItem {
 }
 
 function getUpcomingWindowBounds(today: Date, maxDays: number): { todayStart: Date; windowEnd: Date } {
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const windowEnd = new Date(todayStart.getTime() + maxDays * 24 * 60 * 60 * 1000);
+  const todayStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const windowEnd = new Date(todayStart);
+  windowEnd.setUTCDate(windowEnd.getUTCDate() + maxDays);
   return { todayStart, windowEnd };
 }
 
