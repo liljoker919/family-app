@@ -5,10 +5,9 @@ import { getRelativeDayLabel, getUpcomingEvents } from '../upcomingEvents';
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Build a local-midnight Date from an ISO date string. */
+/** Build a UTC-midnight Date from an ISO date string. */
 function ld(iso: string): Date {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d);
+  return new Date(`${iso}T00:00:00.000Z`);
 }
 
 /** Build a CalendarEvent-like stub with required fields. */
@@ -22,7 +21,7 @@ function makeEvent(
   return { id, title, startDate: `${startDate}T00:00:00.000Z`, type, isDeleted };
 }
 
-// Reference "today": Wednesday 2024-03-20
+// Reference "today" (UTC): Wednesday 2024-03-20
 const TODAY = ld('2024-03-20');
 
 // ---------------------------------------------------------------------------
