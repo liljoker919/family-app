@@ -118,24 +118,32 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
   // Always reset to null first so a stale banner from a previous session is
   // never shown to a different user or after a trial has expired.
   useEffect(() => {
+    let isCurrentUser = true;
     setTrialDaysLeft(null);
-    if (!userId) return;
-    (async () => {
-      try {
-        const result = await client.models.Profile.list({
-          filter: { userId: { eq: userId } },
-        });
-        const profile = result.data?.[0];
-        const info = getTrialInfo(
-          profile?.trialStartDate ?? null,
-          profile?.trialStatus ?? null
-        );
-        setTrialDaysLeft(info.isActive ? info.daysLeft : null);
-      } catch {
-        // Best-effort: trial banner is non-critical
-        setTrialDaysLeft(null);
-      }
-    })();
+    if (userId) {
+      (async () => {
+        try {
+          const result = await client.models.Profile.list({
+            filter: { userId: { eq: userId } },
+          });
+          if (!isCurrentUser) return;
+          const profile = result.data?.[0];
+          const info = getTrialInfo(
+            profile?.trialStartDate ?? null,
+            profile?.trialStatus ?? null
+          );
+          setTrialDaysLeft(info.isActive ? info.daysLeft : null);
+        } catch {
+          if (!isCurrentUser) return;
+          // Best-effort: trial banner is non-critical
+          setTrialDaysLeft(null);
+        }
+      })();
+    }
+
+    return () => {
+      isCurrentUser = false;
+    };
   }, [userId]);
 
   // Still loading family membership
