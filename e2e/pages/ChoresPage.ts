@@ -9,7 +9,7 @@ export interface ChoreDetails {
 }
 
 export interface AssignmentDetails {
-  assignedTo: string;
+  assignedTo?: string;
   startDate?: string;
   endDate?: string;
   notes?: string;
@@ -52,7 +52,7 @@ export class ChoresPage {
 
   // ── Assign form modal ────────────────────────────────────────────────────
   readonly assignFormHeading: Locator;
-  readonly assignedToInput: Locator;
+  readonly assignedToSelect: Locator;
   readonly assignBtn: Locator;
   readonly cancelAssignBtn: Locator;
 
@@ -100,7 +100,7 @@ export class ChoresPage {
       .locator('form')
       .filter({ has: page.locator('button[type="submit"]').filter({ hasText: 'Assign' }) });
     this.assignFormHeading = page.getByRole('heading', { name: 'Assign Chore' });
-    this.assignedToInput = assignModal.locator('label:has-text("Assign To") + input');
+    this.assignedToSelect = assignModal.locator('label:has-text("Assign To") + select');
     this.assignBtn = assignModal.getByRole('button', { name: 'Assign', exact: true });
     this.cancelAssignBtn = assignModal.getByRole('button', { name: 'Cancel' });
 
@@ -252,13 +252,37 @@ export class ChoresPage {
    * assignment details, and submits.  Assumes the All Chores tab is active.
    * Waits for the Assign form to close before returning.
    */
-  async assignChore(choreTitle: string, details: AssignmentDetails): Promise<void> {
+  async assignChore(choreTitle: string, details: AssignmentDetails = {}): Promise<string> {
     const row = this.getChoreRow(choreTitle);
     await row.getByRole('button', { name: 'Assign' }).click();
-    await this.assignedToInput.fill(details.assignedTo);
+    await expect(this.assignedToSelect).toBeVisible();
+
+    if (details.assignedTo) {
+      const requestedOption = this.assignedToSelect
+        .locator('option')
+        .filter({ hasText: details.assignedTo })
+        .first();
+      await expect(requestedOption).toBeVisible();
+      const requestedValue = await requestedOption.getAttribute('value');
+      if (!requestedValue) {
+        throw new Error(`Unable to resolve assignee option for: ${details.assignedTo}`);
+      }
+      await this.assignedToSelect.selectOption(requestedValue);
+    } else {
+      const firstMemberOption = this.assignedToSelect.locator('option:not([value=""])').first();
+      await expect(firstMemberOption).toBeVisible();
+      const firstValue = await firstMemberOption.getAttribute('value');
+      if (!firstValue) {
+        throw new Error('No selectable family member option available in assignee picker.');
+      }
+      await this.assignedToSelect.selectOption(firstValue);
+    }
+
+    const selectedAssignee = ((await this.assignedToSelect.locator('option:checked').textContent()) || '').trim();
     await this.assignBtn.click();
     // Wait for the Assign modal to close – confirms the API call succeeded.
     await this.assignFormHeading.waitFor({ state: 'hidden' });
+    return selectedAssignee;
   }
 
   /**

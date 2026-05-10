@@ -62,10 +62,18 @@ const RECURRENCE_COLORS: Record<ChoreRecurrence, string> = {
 
 type ActiveTab = 'my-chores' | 'chores' | 'assignments' | 'completions';
 
+interface FamilyMemberOption {
+  userId: string;
+  displayName: string;
+  role?: string | null;
+}
+
 export default function ChoresModule({ user, familyId, role, canPlan }: ChoresModuleProps) {
   const [chores, setChores] = useState<any[]>([]);
   const [completions, setCompletions] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMemberOption[]>([]);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('my-chores');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [filterRecurrence, setFilterRecurrence] = useState<string>('ALL');
@@ -94,6 +102,8 @@ export default function ChoresModule({ user, familyId, role, canPlan }: ChoresMo
     endDate: '',
     notes: '',
   });
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   // Completion form state
   const [showCompleteForm, setShowCompleteForm] = useState(false);
@@ -118,6 +128,7 @@ export default function ChoresModule({ user, familyId, role, canPlan }: ChoresMo
     fetchChores();
     fetchCompletions();
     fetchAssignments();
+    fetchFamilyMembers();
   }, []);
 
   const canManage = useMemo(
@@ -160,6 +171,35 @@ export default function ChoresModule({ user, familyId, role, canPlan }: ChoresMo
       setAssignments(data);
     } catch (error) {
       console.error('Error fetching assignments:', error);
+    }
+  };
+
+  const fetchFamilyMembers = async () => {
+    setIsLoadingMembers(true);
+    try {
+      const { data } = await client.models.FamilyMember.list({
+        filter: { familyId: { eq: familyId } },
+      });
+
+      const byUserId = new Map<string, FamilyMemberOption>();
+      for (const member of data) {
+        if (!member.userId) continue;
+        byUserId.set(member.userId, {
+          userId: member.userId,
+          displayName: member.displayName?.trim() || member.userId,
+          role: member.role,
+        });
+      }
+
+      const options = Array.from(byUserId.values()).sort((a, b) =>
+        a.displayName.localeCompare(b.displayName)
+      );
+      setFamilyMembers(options);
+    } catch (error) {
+      console.error('Error fetching family members:', error);
+      setFamilyMembers([]);
+    } finally {
+      setIsLoadingMembers(false);
     }
   };
 
@@ -299,11 +339,19 @@ export default function ChoresModule({ user, familyId, role, canPlan }: ChoresMo
   const openAssignForm = (chore: any) => {
     setAssigningChore(chore);
     setAssignForm({ assignedTo: '', startDate: '', endDate: '', notes: '' });
+    setAssignError(null);
     setShowAssignForm(true);
   };
 
   const handleAssignSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAssignError(null);
+    if (!assignForm.assignedTo) {
+      setAssignError('Please select a family member.');
+      return;
+    }
+
+    setIsAssigning(true);
     try {
       await client.models.ChoreAssignment.create({
         choreId: assigningChore.id,
@@ -320,7 +368,10 @@ export default function ChoresModule({ user, familyId, role, canPlan }: ChoresMo
       setToast({ message: 'Chore assigned successfully.', type: 'success' });
     } catch (error) {
       console.error('Error creating assignment:', error);
+      setAssignError('Failed to assign chore. Please try again.');
       setToast({ message: 'Failed to assign chore. Please try again.', type: 'error' });
+    } finally {
+      setIsAssigning(false);
     }
   };
 
@@ -666,6 +717,7 @@ export default function ChoresModule({ user, familyId, role, canPlan }: ChoresMo
             <div className="space-y-3">
               {assignments.map((assignment) => {
                 const chore = choreMap[assignment.choreId];
+                const assignedMember = familyMembers.find((m) => m.userId === assignment.assignedTo);
                 return (
                   <div key={assignment.id} className="bg-white rounded-lg shadow p-4 flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
@@ -683,7 +735,7 @@ export default function ChoresModule({ user, familyId, role, canPlan }: ChoresMo
                         )}
                       </div>
                       <p className="text-sm text-gray-600">
-                        Assigned to <span className="font-medium text-gray-800">{assignment.assignedTo}</span>
+                        Assigned to <span className="font-medium text-gray-800">{assignedMember ? assignedMember.displayName : assignment.assignedTo}</span>
                         {' '}&mdash; by <span className="font-medium text-gray-700">{assignment.assignedBy}</span>
                       </p>
                       {(assignment.startDate || assignment.endDate) && (
@@ -906,16 +958,38 @@ export default function ChoresModule({ user, familyId, role, canPlan }: ChoresMo
             <h3 className="text-xl font-bold mb-1">Assign Chore</h3>
             <p className="text-sm text-gray-500 mb-4">{assigningChore.title}</p>
             <form onSubmit={handleAssignSubmit} className="space-y-4">
+              {assignError && (
+                <div className="px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                  {assignError}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Assign To *</label>
-                <input
-                  type="text"
+                <select
                   value={assignForm.assignedTo}
                   onChange={(e) => setAssignForm({ ...assignForm, assignedTo: e.target.value })}
+                  disabled={isLoadingMembers || familyMembers.length === 0 || isAssigning}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-royal-blue-500 focus:border-transparent"
-                  placeholder="e.g. Alex, Mom, Dad"
                   required
-                />
+                >
+                  <option value="">
+                    {isLoadingMembers
+                      ? 'Loading family members...'
+                      : familyMembers.length === 0
+                      ? 'No family members available'
+                      : 'Select a family member'}
+                  </option>
+                  {familyMembers.map((member) => (
+                    <option key={member.userId} value={member.userId}>
+                      {member.displayName}
+                    </option>
+                  ))}
+                </select>
+                {!isLoadingMembers && familyMembers.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-700">
+                    No family members are available. Add members in Admin before assigning chores.
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -950,14 +1024,16 @@ export default function ChoresModule({ user, familyId, role, canPlan }: ChoresMo
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 text-white py-2 rounded-lg transition"
+                  disabled={isAssigning || isLoadingMembers || familyMembers.length === 0 || !assignForm.assignedTo}
+                  className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white py-2 rounded-lg transition"
                 >
-                  Assign
+                  {isAssigning ? 'Assigning…' : 'Assign'}
                 </button>
                 <button
                   type="button"
+                  disabled={isAssigning}
                   onClick={() => { setShowAssignForm(false); setAssigningChore(null); }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg transition"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-60 disabled:cursor-not-allowed text-gray-700 py-2 rounded-lg transition"
                 >
                   Cancel
                 </button>
