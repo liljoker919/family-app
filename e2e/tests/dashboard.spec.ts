@@ -99,12 +99,47 @@ test.describe('Dashboard', () => {
     await dashboardPage.page.locator('aside').getByRole('button', { name: 'Home' }).click();
 
     const todayEmptyState = dashboardPage.page.getByText('No items for today');
-    const hasEmptyState = (await todayEmptyState.count()) > 0;
-    if (hasEmptyState) {
+    const todayAlertsHeading = dashboardPage.page.getByRole('heading', { name: 'Today Alerts' });
+    const todayAlertsOpenBtn = dashboardPage.page.getByRole('button', { name: 'Open' }).first();
+
+    const todayState = await expect
+      .poll(
+        async () => {
+          const emptyVisible = await todayEmptyState.isVisible().catch(() => false);
+          if (emptyVisible) return 'empty';
+
+          const alertsHeadingVisible = await todayAlertsHeading.isVisible().catch(() => false);
+          const alertsOpenVisible = await todayAlertsOpenBtn.isVisible().catch(() => false);
+          if (alertsHeadingVisible && alertsOpenVisible) return 'alerts';
+
+          return 'loading';
+        },
+        { timeout: 15000, message: 'Waiting for Today section to settle into a final state' }
+      )
+      .not.toBe('loading')
+      .then(() => expect
+        .poll(
+          async () => {
+            const emptyVisible = await todayEmptyState.isVisible().catch(() => false);
+            if (emptyVisible) return 'empty';
+
+            const alertsHeadingVisible = await todayAlertsHeading.isVisible().catch(() => false);
+            const alertsOpenVisible = await todayAlertsOpenBtn.isVisible().catch(() => false);
+            return alertsHeadingVisible && alertsOpenVisible ? 'alerts' : 'loading';
+          },
+          { timeout: 1000 }
+        )
+        .not.toBe('loading')
+        .then(async () => {
+          const emptyVisible = await todayEmptyState.isVisible().catch(() => false);
+          return emptyVisible ? 'empty' : 'alerts';
+        }));
+
+    if (todayState === 'empty') {
       await expect(todayEmptyState).toBeVisible();
     } else {
-      await expect(dashboardPage.page.getByRole('heading', { name: 'Today Alerts' })).toBeVisible();
-      await expect(dashboardPage.page.getByRole('button', { name: 'Open' }).first()).toBeVisible();
+      await expect(todayAlertsHeading).toBeVisible();
+      await expect(todayAlertsOpenBtn).toBeVisible();
     }
 
     await markChoreDoneBtn.click();
