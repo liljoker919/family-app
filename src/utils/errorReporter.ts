@@ -5,12 +5,9 @@ type ToastType = 'success' | 'error';
 export type ToastMessage = { id: string; message: string; type: ToastType };
 export type ToastState = ToastMessage | null;
 
-let toastSequence = 0;
-
 export function createToastMessage(message: string, type: ToastType): ToastMessage {
-  toastSequence += 1;
   return {
-    id: `${Date.now()}-${toastSequence}`,
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     message,
     type,
   };
