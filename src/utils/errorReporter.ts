@@ -1,6 +1,20 @@
 import { useState, useCallback } from 'react';
 
-export type ToastState = { message: string; type: 'success' | 'error' } | null;
+type ToastType = 'success' | 'error';
+
+export type ToastMessage = { id: string; message: string; type: ToastType };
+export type ToastState = ToastMessage | null;
+
+let toastSequence = 0;
+
+export function createToastMessage(message: string, type: ToastType): ToastMessage {
+  toastSequence += 1;
+  return {
+    id: `${Date.now()}-${toastSequence}`,
+    message,
+    type,
+  };
+}
 
 /**
  * Shared toast/error-reporting hook.
@@ -9,17 +23,17 @@ export type ToastState = { message: string; type: 'success' | 'error' } | null;
  *   const { toast, showError, showSuccess, clearToast } = useToast();
  *
  * Then render:
- *   {toast && <Toast message={toast.message} type={toast.type} onClose={clearToast} />}
+ *   {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={clearToast} />}
  */
 export function useToast() {
   const [toast, setToast] = useState<ToastState>(null);
 
   const showError = useCallback((message: string) => {
-    setToast({ message, type: 'error' });
+    setToast(createToastMessage(message, 'error'));
   }, []);
 
   const showSuccess = useCallback((message: string) => {
-    setToast({ message, type: 'success' });
+    setToast(createToastMessage(message, 'success'));
   }, []);
 
   const clearToast = useCallback(() => {

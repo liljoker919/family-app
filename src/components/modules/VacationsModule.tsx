@@ -825,6 +825,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
     <div>
       {toast && (
         <Toast
+          key={toast.id}
           message={toast.message}
           type={toast.type}
           onClose={clearToast}
