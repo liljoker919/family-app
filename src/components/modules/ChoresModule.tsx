@@ -129,7 +129,7 @@ export default function ChoresModule({ user, familyId, role, canPlan }: ChoresMo
     fetchCompletions();
     fetchAssignments();
     fetchFamilyMembers();
-  }, []);
+  }, [familyId]);
 
   const canManage = useMemo(
     () => canEditContent({ role, canPlan }),
