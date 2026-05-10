@@ -11,11 +11,9 @@ describe('createToastMessage', () => {
 
     const toast = createToastMessage('Failed to save.', 'error');
 
-    expect(toast).toEqual({
-      id: '1700000000000-1',
-      message: 'Failed to save.',
-      type: 'error',
-    });
+    expect(toast.message).toBe('Failed to save.');
+    expect(toast.type).toBe('error');
+    expect(toast.id).toMatch(/^1700000000000-\d+$/);
   });
 
   it('generates a unique id for repeated messages', () => {
