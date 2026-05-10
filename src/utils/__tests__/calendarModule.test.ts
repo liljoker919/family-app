@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { EVENT_COLORS, EVENT_TYPE_LABELS } from '../../components/modules/CalendarModule';
+import { EVENT_COLORS, EVENT_TYPE_LABELS } from '../../utils/calendarConstants';
 
 const EXPECTED_TYPES = ['vacation', 'chore', 'car', 'manual'] as const;
 

@@ -9,26 +9,11 @@ import { canEditContent, canDeleteContent } from '../../utils/rolePermissions';
 import type { ActiveModule } from '../../utils/dashboardModules';
 import ConfirmModal from '../ConfirmModal';
 import Toast from '../Toast';
+import { EVENT_COLORS, EVENT_TYPE_LABELS } from '../../utils/calendarConstants';
+
+export { EVENT_COLORS, EVENT_TYPE_LABELS };
 
 const client = generateClient<Schema>();
-
-// ---------------------------------------------------------------------------
-// Color + label maps for each event type
-// ---------------------------------------------------------------------------
-
-export const EVENT_COLORS: Record<string, string> = {
-  vacation: '#0046a7',
-  chore: '#d97706',
-  car: '#059669',
-  manual: '#7c3aed',
-};
-
-export const EVENT_TYPE_LABELS: Record<string, string> = {
-  vacation: '✈️ Vacation',
-  chore: '🧹 Chore',
-  car: '🚗 Car Reminder',
-  manual: '📌 Family Event',
-};
 
 // Module that "owns" each linked event type so we can navigate to it.
 const EVENT_SOURCE_MODULE: Record<string, ActiveModule> = {
