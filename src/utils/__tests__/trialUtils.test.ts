@@ -15,7 +15,7 @@ describe('computeTrialEndsAt', () => {
     const start = '2026-01-01T00:00:00.000Z';
     const endsAt = computeTrialEndsAt(start);
     const expected = new Date('2026-01-01T00:00:00.000Z');
-    expected.setDate(expected.getDate() + TRIAL_DURATION_DAYS);
+    expected.setUTCDate(expected.getUTCDate() + TRIAL_DURATION_DAYS);
     expect(endsAt.getTime()).toBe(expected.getTime());
   });
 
@@ -25,6 +25,23 @@ describe('computeTrialEndsAt', () => {
     // 10 days after Jan 28 = Feb 7
     expect(endsAt.getUTCMonth()).toBe(1); // February (0-indexed)
     expect(endsAt.getUTCDate()).toBe(7);
+  });
+
+  it('is stable across DST boundaries regardless of local timezone', () => {
+    const start = '2024-03-09T05:00:00.000Z';
+    const originalTz = process.env.TZ;
+    try {
+      process.env.TZ = 'UTC';
+      const utcEndsAt = computeTrialEndsAt(start).toISOString();
+
+      process.env.TZ = 'America/New_York';
+      const nyEndsAt = computeTrialEndsAt(start).toISOString();
+
+      expect(nyEndsAt).toBe(utcEndsAt);
+      expect(nyEndsAt).toBe('2024-03-19T05:00:00.000Z');
+    } finally {
+      process.env.TZ = originalTz;
+    }
   });
 });
 
@@ -62,6 +79,24 @@ describe('computeTrialDaysLeft', () => {
     const start = '2020-01-01T00:00:00.000Z';
     const farFuture = new Date('2099-01-01T00:00:00.000Z');
     expect(computeTrialDaysLeft(start, farFuture)).toBe(0);
+  });
+
+  it('returns the same value across local timezone settings near DST', () => {
+    const start = '2024-03-09T05:00:00.000Z';
+    const now = new Date('2024-03-18T05:00:00.000Z');
+    const originalTz = process.env.TZ;
+    try {
+      process.env.TZ = 'UTC';
+      const utcDaysLeft = computeTrialDaysLeft(start, now);
+
+      process.env.TZ = 'America/New_York';
+      const nyDaysLeft = computeTrialDaysLeft(start, now);
+
+      expect(nyDaysLeft).toBe(utcDaysLeft);
+      expect(nyDaysLeft).toBe(1);
+    } finally {
+      process.env.TZ = originalTz;
+    }
   });
 });
 
