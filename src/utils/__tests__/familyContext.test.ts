@@ -233,6 +233,18 @@ describe('startSoloTrial', () => {
     expect(mockProfile.update).not.toHaveBeenCalled();
   });
 
+  it('creates a new Profile when Profile.list returns null data', async () => {
+    setupCreateFamily();
+    mockProfile.list.mockResolvedValue({ data: null });
+    mockProfile.create.mockResolvedValue({ data: { id: 'profile-new' } });
+
+    const membership = await startSoloTrial('user-solo', 'alice@example.com');
+
+    expect(membership.familyId).toBe('solo-family');
+    expect(mockProfile.create).toHaveBeenCalledOnce();
+    expect(mockProfile.update).not.toHaveBeenCalled();
+  });
+
   it('still returns membership when Profile write throws (non-fatal)', async () => {
     setupCreateFamily();
     mockProfile.list.mockRejectedValue(new Error('network error'));
@@ -246,5 +258,19 @@ describe('startSoloTrial', () => {
     // The non-fatal error path should log a warning
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+
+  it('throws when family creation fails before profile setup', async () => {
+    mockFamily.create.mockResolvedValue({
+      data: null,
+      errors: [{ message: 'family create failed' }],
+    });
+
+    await expect(startSoloTrial('user-solo', 'alice@example.com')).rejects.toThrow(
+      'family create failed'
+    );
+    expect(mockProfile.list).not.toHaveBeenCalled();
+    expect(mockProfile.update).not.toHaveBeenCalled();
+    expect(mockProfile.create).not.toHaveBeenCalled();
   });
 });
