@@ -6,13 +6,13 @@ export type ToastMessage = { id: string; message: string; type: ToastType };
 export type ToastState = ToastMessage | null;
 
 export function createToastMessage(message: string, type: ToastType): ToastMessage {
-  const uniquePart =
+  const uniqueId =
     typeof globalThis.crypto !== 'undefined' && typeof globalThis.crypto.randomUUID === 'function'
       ? globalThis.crypto.randomUUID()
-      : Math.random().toString(36).slice(2);
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   return {
-    id: `${Date.now()}-${uniquePart}`,
+    id: uniqueId,
     message,
     type,
   };
