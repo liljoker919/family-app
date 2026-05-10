@@ -94,21 +94,24 @@ export function getRecentTransactions(
     .slice(0, limit);
 }
 
+function getUtcDayNumber(date: Date): number {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / (1000 * 60 * 60 * 24);
+}
+
 export function getClosestVacationCountdown(vacations: VacationDashboardItem[], today: Date = new Date()): {
   id: string;
   title: string;
   daysUntil: number;
   startDate: string;
 } | null {
-  const todayStart = new Date(today);
-  todayStart.setHours(0, 0, 0, 0);
+  const todayDayNumber = getUtcDayNumber(today);
 
   const upcoming = vacations
     .filter((vacation) => !!vacation.startDate)
     .map((vacation) => {
       const startDate = vacation.startDate as string;
       const start = new Date(`${startDate}T00:00:00`);
-      const daysUntil = Math.floor((start.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntil = getUtcDayNumber(start) - todayDayNumber;
       return {
         id: vacation.id,
         title: vacation.title || 'Upcoming Trip',
