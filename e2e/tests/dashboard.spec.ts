@@ -99,7 +99,7 @@ test.describe('Dashboard', () => {
     await dashboardPage.page.locator('aside').getByRole('button', { name: 'Home' }).click();
 
     const todayEmptyState = dashboardPage.page.getByText('No items for today');
-    const hasEmptyState = await todayEmptyState.isVisible().catch(() => false);
+    const hasEmptyState = (await todayEmptyState.count()) > 0;
     if (hasEmptyState) {
       await expect(todayEmptyState).toBeVisible();
     } else {
