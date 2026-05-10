@@ -46,19 +46,29 @@ export default function TodayView({ familyId, membership, onNavigateTo }: TodayV
           requests.push(client.models.PropertyTransaction.list({ filter: { familyId: { eq: familyId } } }));
         }
 
-        const [carResult, vacationResult, choreResult, propertyTxnResult] = await Promise.all(requests);
+        const [carResult, vacationResult, choreResult, propertyTxnResult] = await Promise.allSettled(requests);
 
         if (cancelled) return;
-        setCars(carResult?.data ?? []);
-        setVacations(vacationResult?.data ?? []);
-        setChores(choreResult?.data ?? []);
-        setTransactions(propertyTxnResult?.data ?? []);
-      } catch {
-        if (cancelled) return;
-        setCars([]);
-        setVacations([]);
-        setChores([]);
-        setTransactions([]);
+
+        if (carResult.status === 'rejected') {
+          console.error('Failed to load cars for Today view', carResult.reason);
+        }
+        if (vacationResult.status === 'rejected') {
+          console.error('Failed to load vacations for Today view', vacationResult.reason);
+        }
+        if (choreResult.status === 'rejected') {
+          console.error('Failed to load chores for Today view', choreResult.reason);
+        }
+        if (propertyTxnResult?.status === 'rejected') {
+          console.error('Failed to load property transactions for Today view', propertyTxnResult.reason);
+        }
+
+        setCars(carResult.status === 'fulfilled' ? (carResult.value?.data ?? []) : []);
+        setVacations(vacationResult.status === 'fulfilled' ? (vacationResult.value?.data ?? []) : []);
+        setChores(choreResult.status === 'fulfilled' ? (choreResult.value?.data ?? []) : []);
+        setTransactions(
+          propertyTxnResult?.status === 'fulfilled' ? (propertyTxnResult.value?.data ?? []) : []
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
