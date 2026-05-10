@@ -13,6 +13,7 @@ import {
   getTodayPrioritizedAlerts,
   getUrgentCarRegistrationAlerts,
 } from '../../utils/todayDashboard';
+import { TODAY_ALERT_SEVERITY_STYLES } from '../../utils/todayAlertStyles';
 
 const client = generateClient<Schema>();
 
@@ -87,12 +88,6 @@ export default function TodayView({ familyId, membership, onNavigateTo }: TodayV
   const closestVacation = getClosestVacationCountdown(vacations, new Date());
   const choresDueNext24h = countChoresDueInNext24Hours(chores, new Date());
 
-  const severityStyles = {
-    critical: 'border-red-200 bg-red-50 text-red-900',
-    warning: 'border-amber-200 bg-amber-50 text-amber-900',
-    info: 'border-sky-200 bg-sky-50 text-sky-900',
-  } as const;
-
   return (
     <div className="space-y-6">
       <section className="rounded-xl bg-white p-5 shadow">
@@ -137,7 +132,7 @@ export default function TodayView({ familyId, membership, onNavigateTo }: TodayV
         ) : (
           <ul className="mt-4 space-y-3">
             {todayAlerts.map((alert) => (
-              <li key={alert.id} className={`rounded-lg border p-4 ${severityStyles[alert.severity]}`}>
+              <li key={alert.id} className={`rounded-lg border p-4 ${TODAY_ALERT_SEVERITY_STYLES[alert.severity]}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide">{alert.severity}</p>
