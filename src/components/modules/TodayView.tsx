@@ -117,7 +117,12 @@ export default function TodayView({ familyId, membership, onNavigateTo }: TodayV
 
       <section className="rounded-xl bg-white p-5 shadow">
         <h2 className="text-lg font-semibold text-gray-800">Today Alerts</h2>
-        {todayAlerts.length === 0 ? (
+        {loading ? (
+          <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
+            <p className="text-base font-semibold text-gray-800">Loading today’s alerts...</p>
+            <p className="mt-1 text-sm text-gray-600">Checking your 24h / 30d / 14d windows.</p>
+          </div>
+        ) : todayAlerts.length === 0 ? (
           <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
             <p className="text-base font-semibold text-gray-800">No items for today</p>
             <p className="mt-1 text-sm text-gray-600">Everything in your 24h / 30d / 14d windows looks clear.</p>
