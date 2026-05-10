@@ -189,7 +189,7 @@ export default function TodayView({ familyId, membership, onNavigateTo }: TodayV
           ) : loading ? (
             <p className="text-sm text-gray-400">Loading…</p>
           ) : recentTransactions.length === 0 ? (
-            <p className="text-sm text-gray-400">No transactions yet this month.</p>
+            <p className="text-sm text-gray-400">No transactions yet.</p>
           ) : (
             <ul className="space-y-2">
               {recentTransactions.map((txn) => (
