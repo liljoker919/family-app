@@ -78,4 +78,71 @@ test.describe('Dashboard', () => {
     await dashboardPage.loadingIndicator.waitFor({ state: 'hidden', timeout: 15000 });
     await expect(dashboardPage.heading).toBeVisible();
   });
+
+  test('Dashboard - Today quick actions are visible and navigate to module workflows', async ({
+    dashboardPage,
+    loginAs,
+  }) => {
+    await loginAs();
+    await dashboardPage.goto();
+
+    await expect(dashboardPage.page.getByRole('heading', { name: 'Quick Actions' })).toBeVisible();
+
+    const addActivityBtn = dashboardPage.page.getByRole('button', { name: 'Add Activity' });
+    const markChoreDoneBtn = dashboardPage.page.getByRole('button', { name: 'Mark Chore Done' });
+    await expect(addActivityBtn).toBeVisible();
+    await expect(markChoreDoneBtn).toBeVisible();
+
+    await addActivityBtn.click();
+    await expect(dashboardPage.page.getByRole('heading', { name: 'Vacations' })).toBeVisible();
+
+    await dashboardPage.page.locator('aside').getByRole('button', { name: 'Home' }).click();
+
+    const todayEmptyState = dashboardPage.page.getByText('No items for today');
+    const todayAlertsHeading = dashboardPage.page.getByRole('heading', { name: 'Today Alerts' });
+    const todayAlertsOpenBtn = dashboardPage.page.getByRole('button', { name: 'Open' }).first();
+
+    const todayState = await expect
+      .poll(
+        async () => {
+          const emptyVisible = await todayEmptyState.isVisible().catch(() => false);
+          if (emptyVisible) return 'empty';
+
+          const alertsHeadingVisible = await todayAlertsHeading.isVisible().catch(() => false);
+          const alertsOpenVisible = await todayAlertsOpenBtn.isVisible().catch(() => false);
+          if (alertsHeadingVisible && alertsOpenVisible) return 'alerts';
+
+          return 'loading';
+        },
+        { timeout: 15000, message: 'Waiting for Today section to settle into a final state' }
+      )
+      .not.toBe('loading')
+      .then(() => expect
+        .poll(
+          async () => {
+            const emptyVisible = await todayEmptyState.isVisible().catch(() => false);
+            if (emptyVisible) return 'empty';
+
+            const alertsHeadingVisible = await todayAlertsHeading.isVisible().catch(() => false);
+            const alertsOpenVisible = await todayAlertsOpenBtn.isVisible().catch(() => false);
+            return alertsHeadingVisible && alertsOpenVisible ? 'alerts' : 'loading';
+          },
+          { timeout: 1000 }
+        )
+        .not.toBe('loading')
+        .then(async () => {
+          const emptyVisible = await todayEmptyState.isVisible().catch(() => false);
+          return emptyVisible ? 'empty' : 'alerts';
+        }));
+
+    if (todayState === 'empty') {
+      await expect(todayEmptyState).toBeVisible();
+    } else {
+      await expect(todayAlertsHeading).toBeVisible();
+      await expect(todayAlertsOpenBtn).toBeVisible();
+    }
+
+    await markChoreDoneBtn.click();
+    await expect(dashboardPage.page.getByRole('heading', { name: 'Chores' })).toBeVisible();
+  });
 });

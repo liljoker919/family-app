@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  countChoresDueInNext24Hours,
   countChoresDueToday,
   getClosestVacationCountdown,
   getCurrentMonthFamilyNetIncome,
   getRecentTransactions,
+  getTodayPrioritizedAlerts,
   getUrgentCarRegistrationAlerts,
 } from '../todayDashboard';
 
@@ -78,5 +80,62 @@ describe('countChoresDueToday', () => {
     ], today);
 
     expect(due).toBe(2);
+  });
+});
+
+describe('countChoresDueInNext24Hours', () => {
+  it('counts chores due today or tomorrow in the 24-hour planning window', () => {
+    const now = new Date(2026, 4, 11, 12, 0, 0); // Monday noon
+    const due = countChoresDueInNext24Hours([
+      { id: 'daily', recurrence: 'DAILY', isActive: true },
+      { id: 'weekly-today', title: 'Kitchen', recurrence: 'WEEKLY', daysOfWeek: ['MON'], isActive: true },
+      { id: 'weekly-tomorrow', title: 'Laundry', recurrence: 'WEEKLY', daysOfWeek: ['TUE'], isActive: true },
+      { id: 'weekly-later', title: 'Yard', recurrence: 'WEEKLY', daysOfWeek: ['WED'], isActive: true },
+      { id: 'inactive', recurrence: 'DAILY', isActive: false },
+    ], now);
+
+    expect(due).toBe(3);
+  });
+});
+
+describe('getTodayPrioritizedAlerts', () => {
+  it('builds a prioritized list using 24h/30d/14d windows', () => {
+    const now = new Date(2026, 4, 10, 12, 0, 0); // 2026-05-10
+    const alerts = getTodayPrioritizedAlerts(
+      [
+        { id: 'car-expired', make: 'Honda', model: 'Civic', registrationExpiry: '2026-05-01' },
+        { id: 'car-warning', make: 'Toyota', model: 'RAV4', registrationExpiry: '2026-05-25' },
+        { id: 'car-outside', make: 'Ford', model: 'Escape', registrationExpiry: '2026-06-09' }, // +30d (excluded)
+      ],
+      [
+        { id: 'vac-near', title: 'Beach Trip', startDate: '2026-05-20' },
+        { id: 'vac-outside', title: 'Far Trip', startDate: '2026-05-24' }, // +14d (excluded)
+      ],
+      [
+        { id: 'chore-now', title: 'Wash dishes', recurrence: 'DAILY', isActive: true },
+        { id: 'chore-later', title: 'Yard', recurrence: 'WEEKLY', daysOfWeek: ['WED'], isActive: true },
+      ],
+      now
+    );
+
+    expect(alerts.map((a) => a.id)).toEqual([
+      'car-car-expired',
+      'chore-chore-now',
+      'car-car-warning',
+      'vacation-vac-near',
+    ]);
+    expect(alerts.map((a) => a.severity)).toEqual(['critical', 'warning', 'warning', 'info']);
+  });
+
+  it('returns an empty list when nothing qualifies for today', () => {
+    const now = new Date(2026, 4, 10, 12, 0, 0);
+    const alerts = getTodayPrioritizedAlerts(
+      [{ id: 'car-ok', registrationExpiry: '2026-07-01' }],
+      [{ id: 'vac-later', startDate: '2026-06-20' }],
+      [{ id: 'chore-inactive', recurrence: 'DAILY', isActive: false }],
+      now
+    );
+
+    expect(alerts).toEqual([]);
   });
 });

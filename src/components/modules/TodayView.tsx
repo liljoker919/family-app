@@ -6,10 +6,11 @@ import { canAccessModule } from '../../utils/dashboardModules';
 import type { FamilyMembership } from '../../utils/familyContext';
 import UpcomingWidget from './UpcomingWidget';
 import {
-  countChoresDueToday,
+  countChoresDueInNext24Hours,
   getClosestVacationCountdown,
   getCurrentMonthFamilyNetIncome,
   getRecentTransactions,
+  getTodayPrioritizedAlerts,
   getUrgentCarRegistrationAlerts,
 } from '../../utils/todayDashboard';
 
@@ -80,41 +81,82 @@ export default function TodayView({ familyId, membership, onNavigateTo }: TodayV
   }, [familyId, canViewProperty]);
 
   const carAlerts = getUrgentCarRegistrationAlerts(cars, new Date());
-  const hasExpiredCar = carAlerts.some((alert) => alert.severity === 'expired');
+  const todayAlerts = getTodayPrioritizedAlerts(cars, vacations, chores, new Date());
   const monthlyNetIncome = getCurrentMonthFamilyNetIncome(transactions, new Date());
   const recentTransactions = getRecentTransactions(transactions, 5);
   const closestVacation = getClosestVacationCountdown(vacations, new Date());
-  const choresDueToday = countChoresDueToday(chores, new Date());
+  const choresDueNext24h = countChoresDueInNext24Hours(chores, new Date());
+
+  const severityStyles = {
+    critical: 'border-red-200 bg-red-50 text-red-900',
+    warning: 'border-amber-200 bg-amber-50 text-amber-900',
+    info: 'border-sky-200 bg-sky-50 text-sky-900',
+  } as const;
 
   return (
     <div className="space-y-6">
-      {carAlerts.length > 0 && (
-        <div
-          className="rounded-xl p-4 text-white shadow"
-          style={{ backgroundColor: hasExpiredCar ? '#FB7185' : '#F59E0B' }}
-        >
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">🚗 Expired / Expiring Tags</h2>
-              <ul className="mt-2 space-y-1 text-sm">
-                {carAlerts.map((alert) => (
-                  <li key={alert.id}>
-                    • {alert.label} — {alert.registrationExpiry}{' '}
-                    {alert.severity === 'expired' ? '(Expired)' : '(Expiring soon)'}
-                  </li>
-                ))}
-              </ul>
-            </div>
+      <section className="rounded-xl bg-white p-5 shadow">
+        <h2 className="text-lg font-semibold text-gray-800">Quick Actions</h2>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => onNavigateTo('vacations')}
+            className="rounded-lg bg-royal-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-royal-blue-700"
+          >
+            Add Activity
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigateTo('chores')}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            Mark Chore Done
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-xl bg-white p-5 shadow">
+        <h2 className="text-lg font-semibold text-gray-800">Today Alerts</h2>
+        {loading ? (
+          <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
+            <p className="text-base font-semibold text-gray-800">Loading today’s alerts...</p>
+            <p className="mt-1 text-sm text-gray-600">Checking your 24h / 30d / 14d windows.</p>
+          </div>
+        ) : todayAlerts.length === 0 ? (
+          <div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-4">
+            <p className="text-base font-semibold text-gray-800">No items for today</p>
+            <p className="mt-1 text-sm text-gray-600">Everything in your 24h / 30d / 14d windows looks clear.</p>
             <button
               type="button"
-              onClick={() => onNavigateTo('cars')}
-              className="self-start rounded-md bg-white/20 px-3 py-1.5 text-sm font-medium hover:bg-white/30"
+              onClick={() => onNavigateTo('calendar')}
+              className="mt-3 rounded-md border border-royal-blue-200 px-3 py-1.5 text-sm font-medium text-royal-blue-700 hover:bg-royal-blue-50"
             >
-              Open Cars →
+              Plan upcoming tasks
             </button>
           </div>
-        </div>
-      )}
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {todayAlerts.map((alert) => (
+              <li key={alert.id} className={`rounded-lg border p-4 ${severityStyles[alert.severity]}`}>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide">{alert.severity}</p>
+                    <p className="mt-1 font-semibold">{alert.title}</p>
+                    <p className="mt-1 text-sm">{alert.detail}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTo(alert.module)}
+                    className="rounded-md bg-white/80 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-white"
+                  >
+                    Open
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <div className="grid gap-4 md:grid-cols-3">
         <button
@@ -150,8 +192,8 @@ export default function TodayView({ familyId, membership, onNavigateTo }: TodayV
           className="rounded-xl bg-white p-5 text-left shadow transition hover:shadow-md"
         >
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: '#1D4ED8' }}>Chores</p>
-          <p className="mt-2 text-2xl font-bold text-gray-800">{choresDueToday}</p>
-          <p className="mt-1 text-sm text-gray-500">Due today</p>
+          <p className="mt-2 text-2xl font-bold text-gray-800">{choresDueNext24h}</p>
+          <p className="mt-1 text-sm text-gray-500">Due in next 24 hours</p>
         </button>
       </div>
 
