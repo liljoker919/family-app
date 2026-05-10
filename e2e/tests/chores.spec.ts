@@ -40,7 +40,6 @@ test.describe('Chores', () => {
     loginAs,
   }) => {
     const title = uniqueTitle('Walk the Dog');
-    const assignedTo = 'Child1';
 
     await loginAs();
     await choresPage.goto();
@@ -55,8 +54,8 @@ test.describe('Chores', () => {
 
     await expect(choresPage.getChoreRow(title)).toBeVisible();
 
-    // Open the assign form, select a family member, and click Assign
-    await choresPage.assignChore(title, { assignedTo });
+    // Open the assign form, choose a real family member option, and click Assign
+    const assignedTo = await choresPage.assignChore(title);
 
     // Switch to Assignments tab and verify the chore is listed as assigned
     await choresPage.switchToAssignments();
