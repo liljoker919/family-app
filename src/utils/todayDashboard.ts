@@ -169,9 +169,12 @@ function toLocalDate(dateIso: string): Date {
 }
 
 function getDayDiffFromToday(dateIso: string, now: Date): number {
-  const target = toLocalDate(dateIso);
-  const today = toLocalDayStart(now);
-  return Math.floor((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const [targetYear, targetMonth, targetDay] = dateIso.split('-').map(Number);
+  const targetDayNumber = Date.UTC(targetYear, targetMonth - 1, targetDay) / (1000 * 60 * 60 * 24);
+  const todayDayNumber =
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / (1000 * 60 * 60 * 24);
+
+  return targetDayNumber - todayDayNumber;
 }
 
 export function getTodayPrioritizedAlerts(
