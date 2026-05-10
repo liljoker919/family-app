@@ -14,7 +14,7 @@ export function createToastMessage(message: string, type: ToastType): ToastMessa
     uniqueId =
       typeof globalThis.crypto !== 'undefined' && typeof globalThis.crypto.randomUUID === 'function'
         ? globalThis.crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        : `${Date.now()}-${++toastIdCounter}`;
   } catch {
     uniqueId = `${Date.now()}-${++toastIdCounter}`;
   }
