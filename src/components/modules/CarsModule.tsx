@@ -3,6 +3,7 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import ConfirmModal from '../ConfirmModal';
 import Toast from '../Toast';
+import { isRegistrationExpired, isRegistrationExpiringSoon } from '../../utils/registrationExpiry';
 
 const client = generateClient<Schema>();
 
@@ -161,26 +162,6 @@ export default function CarsModule({ user, familyId }: CarsModuleProps) {
   const handleCancelMileageEdit = () => {
     setEditingMileageCar(null);
     setMileageInput('');
-  };
-
-  const isRegistrationExpiringSoon = (expiryDate: string | null | undefined) => {
-    if (!expiryDate) return false;
-    // Normalize to date-only comparison (midnight local time)
-    const [year, month, day] = expiryDate.split('-').map(Number);
-    const expiry = new Date(year, month - 1, day);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const diffDays = (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
-    return diffDays <= 30 && diffDays > 0;
-  };
-
-  const isRegistrationExpired = (expiryDate: string | null | undefined) => {
-    if (!expiryDate) return false;
-    const [year, month, day] = expiryDate.split('-').map(Number);
-    const expiry = new Date(year, month - 1, day);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return expiry < today;
   };
 
   return (
@@ -580,4 +561,3 @@ export default function CarsModule({ user, familyId }: CarsModuleProps) {
     </div>
   );
 }
-
