@@ -19,9 +19,8 @@ export const TRIAL_DURATION_DAYS = 10;
  */
 export function computeTrialEndsAt(trialStartDate: string): Date {
   const start = new Date(trialStartDate);
-  const endsAt = new Date(
-    start.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000
-  );
+  const endsAt = new Date(start);
+  endsAt.setUTCDate(endsAt.getUTCDate() + TRIAL_DURATION_DAYS);
   return endsAt;
 }
 
