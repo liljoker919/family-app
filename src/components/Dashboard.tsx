@@ -5,7 +5,7 @@ import { Amplify } from 'aws-amplify';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import { generateClient } from 'aws-amplify/data';
 import outputs from '../../amplify_outputs.json';
-import UpcomingWidget from './modules/UpcomingWidget';
+import TodayView from './modules/TodayView';
 import VacationsModule from './modules/VacationsModule';
 import PropertyModule from './modules/PropertyModule';
 import CarsModule from './modules/CarsModule';
@@ -442,7 +442,7 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
             </div>
           ) : (
             <>
-          {activeModule === 'home' && <UpcomingWidget familyId={familyId} onNavigateTo={setActiveModule} />}
+          {activeModule === 'home' && <TodayView familyId={familyId} membership={membership} onNavigateTo={setActiveModule} />}
           {activeModule === 'vacations' && <VacationsModule user={user} familyId={familyId} />}
           {activeModule === 'property' && <PropertyModule user={user} familyId={familyId} />}
           {activeModule === 'cars' && <CarsModule user={user} familyId={familyId} />}
