@@ -120,29 +120,26 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
   useEffect(() => {
     let isCurrentUser = true;
     setTrialDaysLeft(null);
-    if (!userId) {
-      return () => {
-        isCurrentUser = false;
-      };
+    if (userId) {
+      (async () => {
+        try {
+          const result = await client.models.Profile.list({
+            filter: { userId: { eq: userId } },
+          });
+          if (!isCurrentUser) return;
+          const profile = result.data?.[0];
+          const info = getTrialInfo(
+            profile?.trialStartDate ?? null,
+            profile?.trialStatus ?? null
+          );
+          setTrialDaysLeft(info.isActive ? info.daysLeft : null);
+        } catch {
+          if (!isCurrentUser) return;
+          // Best-effort: trial banner is non-critical
+          setTrialDaysLeft(null);
+        }
+      })();
     }
-    (async () => {
-      try {
-        const result = await client.models.Profile.list({
-          filter: { userId: { eq: userId } },
-        });
-        if (!isCurrentUser) return;
-        const profile = result.data?.[0];
-        const info = getTrialInfo(
-          profile?.trialStartDate ?? null,
-          profile?.trialStatus ?? null
-        );
-        setTrialDaysLeft(info.isActive ? info.daysLeft : null);
-      } catch {
-        if (!isCurrentUser) return;
-        // Best-effort: trial banner is non-critical
-        setTrialDaysLeft(null);
-      }
-    })();
 
     return () => {
       isCurrentUser = false;
