@@ -5,11 +5,19 @@ type ToastType = 'success' | 'error';
 export type ToastMessage = { id: string; message: string; type: ToastType };
 export type ToastState = ToastMessage | null;
 
+let toastIdCounter = 0;
+
 export function createToastMessage(message: string, type: ToastType): ToastMessage {
-  const uniqueId =
-    typeof globalThis.crypto !== 'undefined' && typeof globalThis.crypto.randomUUID === 'function'
-      ? globalThis.crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  let uniqueId: string;
+
+  try {
+    uniqueId =
+      typeof globalThis.crypto !== 'undefined' && typeof globalThis.crypto.randomUUID === 'function'
+        ? globalThis.crypto.randomUUID()
+        : `${Date.now()}-${++toastIdCounter}`;
+  } catch {
+    uniqueId = `${Date.now()}-${++toastIdCounter}`;
+  }
 
   return {
     id: uniqueId,
