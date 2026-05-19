@@ -29,7 +29,7 @@ describe('generateJoinCode', () => {
 // These functions call the Amplify client, so we mock it.
 // vi.hoisted ensures the mock variables are defined before the module factory runs.
 // ---------------------------------------------------------------------------
-const { mockFamilyMember, mockFamily, mockProfile } = vi.hoisted(() => ({
+const { mockFamilyMember, mockFamily, mockProfile, mockCreateFamilyBootstrap, mockAddSelfToFamilyGroup } = vi.hoisted(() => ({
   mockFamilyMember: {
     list: vi.fn(),
     create: vi.fn(),
@@ -44,6 +44,8 @@ const { mockFamilyMember, mockFamily, mockProfile } = vi.hoisted(() => ({
     create: vi.fn(),
     update: vi.fn(),
   },
+  mockCreateFamilyBootstrap: vi.fn(),
+  mockAddSelfToFamilyGroup: vi.fn(),
 }));
 
 vi.mock('aws-amplify/data', () => ({
@@ -52,6 +54,10 @@ vi.mock('aws-amplify/data', () => ({
       FamilyMember: mockFamilyMember,
       Family: mockFamily,
       Profile: mockProfile,
+    },
+    mutations: {
+      createFamilyBootstrap: mockCreateFamilyBootstrap,
+      addSelfToFamilyGroup: mockAddSelfToFamilyGroup,
     },
   }),
 }));
@@ -118,23 +124,21 @@ describe('tenant isolation boundary - getFamilyMembership', () => {
 
 describe('createFamily', () => {
   it('creates a Family and FamilyMember with ADMIN role', async () => {
-    mockFamily.create.mockResolvedValue({
-      data: { id: 'new-family', name: 'The Joneses', joinCode: 'XYZ789' },
+    mockCreateFamilyBootstrap.mockResolvedValue({
+      data: { familyId: 'new-family', familyName: 'The Joneses', joinCode: 'XYZ789', role: 'ADMIN' },
     });
-    mockFamilyMember.create.mockResolvedValue({
-      data: { familyId: 'new-family', userId: 'user-1', role: 'ADMIN', displayName: 'Mom' },
-    });
+    mockAddSelfToFamilyGroup.mockResolvedValue({ data: { success: true } });
 
     const membership = await createFamily('The Joneses', 'user-1', 'Mom');
     expect(membership.familyId).toBe('new-family');
     expect(membership.role).toBe('ADMIN');
     expect(membership.familyName).toBe('The Joneses');
-    expect(mockFamily.create).toHaveBeenCalledOnce();
-    expect(mockFamilyMember.create).toHaveBeenCalledOnce();
+    expect(mockCreateFamilyBootstrap).toHaveBeenCalledOnce();
+    expect(mockAddSelfToFamilyGroup).toHaveBeenCalledWith({ familyId: 'new-family' });
   });
 
-  it('throws when Family.create returns errors', async () => {
-    mockFamily.create.mockResolvedValue({
+  it('throws when createFamilyBootstrap returns errors', async () => {
+    mockCreateFamilyBootstrap.mockResolvedValue({
       data: null,
       errors: [{ message: 'Validation error' }],
     });
@@ -185,14 +189,12 @@ describe('joinFamily', () => {
 // startSoloTrial
 // ---------------------------------------------------------------------------
 describe('startSoloTrial', () => {
-  /** Shared helper: set up the Family + FamilyMember mocks for createFamily */
+  /** Shared helper: set up bootstrap mutation mocks for createFamily */
   function setupCreateFamily() {
-    mockFamily.create.mockResolvedValue({
-      data: { id: 'solo-family', name: 'My Family', joinCode: 'SOLO01' },
+    mockCreateFamilyBootstrap.mockResolvedValue({
+      data: { familyId: 'solo-family', familyName: 'My Family', joinCode: 'SOLO01', role: 'ADMIN' },
     });
-    mockFamilyMember.create.mockResolvedValue({
-      data: { familyId: 'solo-family', userId: 'user-solo', role: 'ADMIN', displayName: 'Alice' },
-    });
+    mockAddSelfToFamilyGroup.mockResolvedValue({ data: { success: true } });
   }
 
   it('updates an existing Profile with trial fields when one already exists', async () => {
@@ -261,7 +263,7 @@ describe('startSoloTrial', () => {
   });
 
   it('throws when family creation fails before profile setup', async () => {
-    mockFamily.create.mockResolvedValue({
+    mockCreateFamilyBootstrap.mockResolvedValue({
       data: null,
       errors: [{ message: 'family create failed' }],
     });

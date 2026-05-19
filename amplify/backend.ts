@@ -6,6 +6,7 @@ import { updateMemberRoleFn } from './functions/update-member-role/resource';
 import { createInviteFn } from './functions/create-invite/resource';
 import { redeemInviteFn } from './functions/redeem-invite/resource';
 import { addToFamilyGroupFn } from './functions/add-to-family-group/resource';
+import { createFamilyBootstrapFn } from './functions/create-family-bootstrap/resource';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
 const backend = defineBackend({
@@ -16,6 +17,7 @@ const backend = defineBackend({
   createInviteFn,
   redeemInviteFn,
   addToFamilyGroupFn,
+  createFamilyBootstrapFn,
 });
 
 // Grant permission to assign users to Cognito groups
@@ -139,4 +141,21 @@ backend.redeemInviteFn.resources.lambda.addToRolePolicy(
 backend.redeemInviteFn.resources.lambda.addEnvironment(
   'USER_POOL_ID',
   backend.auth.resources.userPool.userPoolId,
+);
+
+// Grant the createFamilyBootstrap Lambda read/write access to Family and
+// FamilyMember tables so it can atomically create both records.
+backend.data.resources.tables['Family'].grantReadWriteData(
+  backend.createFamilyBootstrapFn.resources.lambda,
+);
+backend.data.resources.tables['FamilyMember'].grantReadWriteData(
+  backend.createFamilyBootstrapFn.resources.lambda,
+);
+backend.createFamilyBootstrapFn.resources.lambda.addEnvironment(
+  'FAMILY_TABLE_NAME',
+  backend.data.resources.tables['Family'].tableName,
+);
+backend.createFamilyBootstrapFn.resources.lambda.addEnvironment(
+  'FAMILY_MEMBER_TABLE_NAME',
+  backend.data.resources.tables['FamilyMember'].tableName,
 );
