@@ -3,6 +3,7 @@ import { updateMemberRoleFn } from '../functions/update-member-role/resource';
 import { createInviteFn } from '../functions/create-invite/resource';
 import { redeemInviteFn } from '../functions/redeem-invite/resource';
 import { addToFamilyGroupFn } from '../functions/add-to-family-group/resource';
+import { createFamilyBootstrapFn } from '../functions/create-family-bootstrap/resource';
 
 // ---------------------------------------------------------------------------
 // Authorization Matrix (enforced at the API layer via Cognito group claims)
@@ -75,8 +76,8 @@ const schema = a.schema({
     .secondaryIndexes((index) => [
       // Enables efficient caller-identity lookup in the updateMemberRole Lambda.
       index('userId'),
-      // Enables efficient family-scoped queries (member listing, admin counts).
-      index('familyId'),
+      // Composite index supports efficient family+user lookups.
+      index('familyId').sortKeys(['userId']),
     ])
     .authorization((allow) => [
       allow.groups(['PLANNER', 'MEMBER']).to(['read', 'create']),
@@ -640,6 +641,26 @@ const schema = a.schema({
     .handler(a.handler.function(updateMemberRoleFn)),
 
   // -------------------------------------------------------------------------
+  // Family bootstrap – create a family and first ADMIN membership atomically
+  // -------------------------------------------------------------------------
+  CreateFamilyBootstrapResult: a.customType({
+    familyId: a.id().required(),
+    familyName: a.string().required(),
+    joinCode: a.string().required(),
+    role: a.string().required(),
+  }),
+
+  createFamilyBootstrap: a
+    .mutation()
+    .arguments({
+      name: a.string().required(),
+      displayName: a.string(),
+    })
+    .returns(a.ref('CreateFamilyBootstrapResult').required())
+    .authorization((allow) => [allow.groups(['ADMIN', 'PLANNER', 'MEMBER'])])
+    .handler(a.handler.function(createFamilyBootstrapFn)),
+
+  // -------------------------------------------------------------------------
   // Invite management – admin-led tokenized email invite system
   // -------------------------------------------------------------------------
 
@@ -737,8 +758,6 @@ export const data = defineData({
     defaultAuthorizationMode: 'userPool',
   },
 });
-
-
 
 
 

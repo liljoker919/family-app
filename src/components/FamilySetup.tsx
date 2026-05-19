@@ -1,41 +1,21 @@
 import { useState } from 'react';
-import { createFamily, joinFamily, startSoloTrial } from '../utils/familyContext';
+import { createFamily } from '../utils/familyContext';
 import type { FamilyMembership } from '../utils/familyContext';
 
 interface FamilySetupProps {
   userId: string;
-  email?: string;
   onComplete: (membership: FamilyMembership) => void;
   onSignOut?: () => void;
 }
 
-type SetupMode = 'choose' | 'solo' | 'create' | 'join';
+type SetupMode = 'choose' | 'create';
 
-export default function FamilySetup({ userId, email, onComplete, onSignOut }: FamilySetupProps) {
+export default function FamilySetup({ userId, onComplete, onSignOut }: FamilySetupProps) {
   const [mode, setMode] = useState<SetupMode>('choose');
   const [displayName, setDisplayName] = useState('');
   const [familyName, setFamilyName] = useState('');
-  const [joinCode, setJoinCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const handleStartSolo = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const membership = await startSoloTrial(
-        userId,
-        email ?? userId,
-        displayName.trim() || undefined
-      );
-      onComplete(membership);
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to start your trial. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,23 +32,8 @@ export default function FamilySetup({ userId, email, onComplete, onSignOut }: Fa
     }
   };
 
-  const handleJoin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!joinCode.trim()) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const membership = await joinFamily(joinCode.trim(), userId, displayName.trim() || undefined);
-      if (!membership) {
-        setError('Invalid join code. Please check the code and try again.');
-      } else {
-        onComplete(membership);
-      }
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to join family. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+  const handleHaveInvite = () => {
+    window.location.href = '/invite';
   };
 
   return (
@@ -108,52 +73,12 @@ export default function FamilySetup({ userId, email, onComplete, onSignOut }: Fa
               ✨ Create a New Family
             </button>
             <button
-              onClick={() => setMode('join')}
+              onClick={handleHaveInvite}
               className="w-full border-2 border-gray-300 text-gray-600 hover:bg-gray-50 font-semibold py-3 px-6 rounded-xl transition"
             >
-              🔗 Join an Existing Family
+              🔗 I Have an Invite Link
             </button>
           </div>
-        )}
-
-        {mode === 'solo' && (
-          <form onSubmit={handleStartSolo} className="space-y-4">
-            <div className="p-4 bg-royal-blue-50 border border-royal-blue-200 rounded-lg text-sm text-royal-blue-800">
-              🎉 <strong>10-day free trial</strong> – explore all features with no credit card
-              required. No join code needed.
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Your Display Name
-              </label>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="e.g. Mom, Dad, Alex…"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-royal-blue-400"
-              />
-            </div>
-            {error && (
-              <p className="text-red-600 text-sm">{error}</p>
-            )}
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => { setMode('choose'); setError(null); }}
-                className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition"
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 text-white py-2 rounded-lg font-semibold transition disabled:opacity-50"
-              >
-                {loading ? 'Starting…' : 'Start My Trial'}
-              </button>
-            </div>
-          </form>
         )}
 
         {mode === 'create' && (
@@ -205,58 +130,6 @@ export default function FamilySetup({ userId, email, onComplete, onSignOut }: Fa
           </form>
         )}
 
-        {mode === 'join' && (
-          <form onSubmit={handleJoin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Family Join Code <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                placeholder="e.g. ABC123"
-                maxLength={6}
-                required
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 uppercase tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-royal-blue-400"
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Ask a family member with Admin access for the 6-character join code.
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Your Display Name
-              </label>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="e.g. Mom, Dad, Alex…"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-royal-blue-400"
-              />
-            </div>
-            {error && (
-              <p className="text-red-600 text-sm">{error}</p>
-            )}
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => { setMode('choose'); setError(null); }}
-                className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition"
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={loading || !joinCode.trim()}
-                className="flex-1 bg-royal-blue-600 hover:bg-royal-blue-700 text-white py-2 rounded-lg font-semibold transition disabled:opacity-50"
-              >
-                {loading ? 'Joining…' : 'Join Family'}
-              </button>
-            </div>
-          </form>
-        )}
       </div>
     </div>
   );

@@ -105,30 +105,16 @@ export async function createFamily(
   userId: string,
   displayName?: string
 ): Promise<FamilyMembership> {
-  const joinCode = generateJoinCode();
-
-  const { data: family, errors: familyErrors } = await client.models.Family.create({
+  const trimmedDisplayName = displayName?.trim() || null;
+  const { data: result, errors } = await (client.mutations as any).createFamilyBootstrap({
     name,
-    joinCode,
-    createdBy: userId,
+    ...(trimmedDisplayName ? { displayName: trimmedDisplayName } : {}),
   });
 
-  if (familyErrors || !family) {
+  if (errors || !result) {
     throw new Error(
-      familyErrors?.map((e) => e.message).join(', ') ?? 'Failed to create family'
-    );
-  }
-
-  const { data: member, errors: memberErrors } = await client.models.FamilyMember.create({
-    familyId: family.id,
-    userId,
-    role: 'ADMIN',
-    displayName: displayName ?? null,
-  });
-
-  if (memberErrors || !member) {
-    throw new Error(
-      memberErrors?.map((e) => e.message).join(', ') ?? 'Failed to create family membership'
+      errors?.map((e: { message: string }) => e.message).join(', ') ??
+        'Failed to create family'
     );
   }
 
@@ -137,7 +123,7 @@ export async function createFamily(
   // satisfied.  This call is best-effort: a failure here does not roll back
   // the family/member records; the user can retry via addSelfToFamilyGroup.
   try {
-    await (client.mutations as any).addSelfToFamilyGroup({ familyId: family.id });
+    await (client.mutations as any).addSelfToFamilyGroup({ familyId: result.familyId });
   } catch (err) {
     // Non-fatal: the user can still use the app; group assignment can be
     // retried, or an admin can use the Cognito console to add them.
@@ -145,12 +131,12 @@ export async function createFamily(
   }
 
   return {
-    familyId: family.id,
+    familyId: result.familyId,
     role: 'ADMIN',
     canPlan: true,
-    displayName: member.displayName,
-    familyName: family.name,
-    familyJoinCode: family.joinCode ?? null,
+    displayName: trimmedDisplayName,
+    familyName: result.familyName,
+    familyJoinCode: result.joinCode ?? null,
   };
 }
 

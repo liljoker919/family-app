@@ -12,16 +12,9 @@ export const handler: PostConfirmationTriggerHandler = async (event) => {
     return event;
   }
 
-  const { userName, userPoolId, request } = event;
-  const { userAttributes } = request;
+  const { userName, userPoolId } = event;
 
-  const email = userAttributes['email'];
-  // If ADMIN_EMAILS is set (comma-separated), matching users get ADMIN — everyone else gets MEMBER
-  const adminEmails = (process.env.ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim())
-    .filter(Boolean);
-  const group = adminEmails.includes(email) ? 'ADMIN' : 'MEMBER';
+  const group = 'MEMBER';
 
   // Add user to their Cognito group so RBAC rules apply immediately
   await cognitoClient.send(

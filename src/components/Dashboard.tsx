@@ -92,7 +92,6 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
   const [userLastName, setUserLastName] = useState<string | null>(null);
 
   const userId = user?.signInDetails?.loginId ?? user?.userId ?? '';
-  const userEmail = user?.signInDetails?.loginId ?? userId;
 
   useEffect(() => {
     if (userId) {
@@ -160,7 +159,6 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
     return (
       <FamilySetup
         userId={userId}
-        email={userEmail}
         onComplete={(m) => {
           setMembership(m);
           setShowOnboarding(true);
