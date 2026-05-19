@@ -6,14 +6,14 @@ import outputs from '../../amplify_outputs.json';
 
 Amplify.configure(outputs);
 
-interface RedirectHandlerProps {
-  user: AuthenticatedUser;
-}
-
 type AuthenticatedUser = {
   username?: string;
   [key: string]: unknown;
 } | null | undefined;
+
+interface RedirectHandlerProps {
+  user: AuthenticatedUser;
+}
 
 export function redirectToDashboardIfAuthenticated(
   user: AuthenticatedUser,
