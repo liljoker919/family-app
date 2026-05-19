@@ -28,14 +28,13 @@ describe('createToastMessage', () => {
     expect(first.type).toBe(second.type);
   });
 
-  it('falls back to timestamp + random id when crypto.randomUUID is unavailable', () => {
+  it('falls back to timestamp + counter id when crypto.randomUUID is unavailable', () => {
     vi.stubGlobal('crypto', {});
     vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
-    vi.spyOn(Math, 'random').mockReturnValue(0.123456789);
 
     const toast = createToastMessage('Fallback path', 'success');
 
-    expect(toast.id).toBe('1700000000000-4fzzzxjylrx');
+    expect(toast.id).toBe('1700000000000-1');
     expect(toast.type).toBe('success');
     expect(toast.message).toBe('Fallback path');
   });
