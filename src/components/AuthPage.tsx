@@ -7,11 +7,13 @@ import outputs from '../../amplify_outputs.json';
 Amplify.configure(outputs);
 
 interface RedirectHandlerProps {
-  user: unknown;
+  user: AuthenticatedUser;
 }
 
+type AuthenticatedUser = object | null | undefined;
+
 export function redirectToDashboardIfAuthenticated(
-  user: unknown,
+  user: AuthenticatedUser,
   locationRef: Pick<Location, 'assign'> = window.location,
 ) {
   if (!user) return;
