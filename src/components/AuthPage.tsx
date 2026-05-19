@@ -1,9 +1,30 @@
+import { useEffect } from 'react';
 import { Authenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 import { Amplify } from 'aws-amplify';
 import outputs from '../../amplify_outputs.json';
 
 Amplify.configure(outputs);
+
+interface RedirectHandlerProps {
+  user: unknown;
+}
+
+export function redirectToDashboardIfAuthenticated(
+  user: unknown,
+  locationRef: Pick<Location, 'assign'> = window.location,
+) {
+  if (!user) return;
+  locationRef.assign('/dashboard');
+}
+
+function RedirectHandler({ user }: RedirectHandlerProps) {
+  useEffect(() => {
+    redirectToDashboardIfAuthenticated(user);
+  }, [user]);
+
+  return null;
+}
 
 export default function AuthPage() {
   return (
@@ -51,12 +72,7 @@ export default function AuthPage() {
             },
           }}
         >
-          {({ signOut, user }) => {
-            if (user) {
-              window.location.href = '/dashboard';
-            }
-            return null;
-          }}
+          {({ user }) => <RedirectHandler user={user} />}
         </Authenticator>
       </div>
     </div>
