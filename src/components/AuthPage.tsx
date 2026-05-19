@@ -10,14 +10,17 @@ interface RedirectHandlerProps {
   user: AuthenticatedUser;
 }
 
-type AuthenticatedUser = object | null | undefined;
+type AuthenticatedUser = {
+  username?: string;
+  [key: string]: unknown;
+} | null | undefined;
 
 export function redirectToDashboardIfAuthenticated(
   user: AuthenticatedUser,
-  locationRef: Pick<Location, 'assign'> = window.location,
+  location: Pick<Location, 'assign'> = window.location,
 ) {
   if (!user) return;
-  locationRef.assign('/dashboard');
+  location.assign('/dashboard');
 }
 
 function RedirectHandler({ user }: RedirectHandlerProps) {
