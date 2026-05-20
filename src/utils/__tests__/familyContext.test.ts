@@ -100,6 +100,38 @@ describe('getFamilyMembership', () => {
     const result = await getFamilyMembership('user-xyz');
     expect(result).toBeNull();
   });
+
+  it('tries canonical fallback identifiers and returns membership when a later identifier matches', async () => {
+    mockFamilyMember.list
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({
+        data: [{ familyId: 'family-1', userId: 'user-canonical', role: 'ADMIN', displayName: 'Dad' }],
+      });
+    mockFamily.get.mockResolvedValue({
+      data: { id: 'family-1', name: 'The Smiths' },
+    });
+
+    const result = await getFamilyMembership(['login@example.com', 'user-canonical']);
+
+    expect(result?.familyId).toBe('family-1');
+    expect(mockFamilyMember.list).toHaveBeenNthCalledWith(1, {
+      filter: { userId: { eq: 'login@example.com' } },
+    });
+    expect(mockFamilyMember.list).toHaveBeenNthCalledWith(2, {
+      filter: { userId: { eq: 'user-canonical' } },
+    });
+  });
+
+  it('deduplicates and trims identifier candidates before lookup', async () => {
+    mockFamilyMember.list.mockResolvedValue({ data: [] });
+
+    await getFamilyMembership(['  user-abc  ', 'user-abc', '', '   ']);
+
+    expect(mockFamilyMember.list).toHaveBeenCalledTimes(1);
+    expect(mockFamilyMember.list).toHaveBeenCalledWith({
+      filter: { userId: { eq: 'user-abc' } },
+    });
+  });
 });
 
 describe('tenant isolation boundary - getFamilyMembership', () => {
