@@ -24,6 +24,11 @@ interface AddToFamilyGroupResult {
   familyId: string;
 }
 
+/**
+ * Map stored FamilyMember role values to Cognito role groups.
+ * Unknown/legacy values are treated as MEMBER so callers keep baseline access
+ * instead of failing role-group synchronization entirely.
+ */
 function normalizeRoleGroup(role: unknown): 'ADMIN' | 'PLANNER' | 'MEMBER' {
   if (role === 'ADMIN' || role === 'PLANNER' || role === 'MEMBER') {
     return role;
@@ -130,7 +135,10 @@ export const handler: AppSyncResolverHandler<
       })
     );
   } catch (error) {
-    console.error('Failed to add caller to role group:', error);
+    console.error(
+      `Failed to add user ${callerUsername} to role group ${memberRoleGroup}:`,
+      error
+    );
     throw error;
   }
 
