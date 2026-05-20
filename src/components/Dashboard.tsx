@@ -115,7 +115,14 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
   // AppSync authorization stays aligned with FamilyMember.role changes.
   useEffect(() => {
     if (!membership?.familyId) return;
-    void (client.mutations as any).addSelfToFamilyGroup({ familyId: membership.familyId }).catch(() => {
+    const addSelfToFamilyGroup = (
+      client.mutations as {
+        addSelfToFamilyGroup?: (args: { familyId: string }) => Promise<unknown>;
+      }
+    ).addSelfToFamilyGroup;
+    if (!addSelfToFamilyGroup) return;
+
+    void addSelfToFamilyGroup({ familyId: membership.familyId }).catch(() => {
       // Non-fatal: missing group sync should not block dashboard rendering.
     });
   }, [membership?.familyId, membership?.role]);

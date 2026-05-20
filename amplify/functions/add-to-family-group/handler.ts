@@ -121,13 +121,18 @@ export const handler: AppSyncResolverHandler<
 
   // Keep role-based Cognito groups in sync with the caller's FamilyMember role
   // so role-scoped model mutations (ADMIN/PLANNER/MEMBER) authorize correctly.
-  await cognitoClient.send(
-    new AdminAddUserToGroupCommand({
-      UserPoolId: USER_POOL_ID,
-      Username: callerUsername,
-      GroupName: memberRoleGroup,
-    })
-  );
+  try {
+    await cognitoClient.send(
+      new AdminAddUserToGroupCommand({
+        UserPoolId: USER_POOL_ID,
+        Username: callerUsername,
+        GroupName: memberRoleGroup,
+      })
+    );
+  } catch (error) {
+    console.error('Failed to add caller to role group:', error);
+    throw error;
+  }
 
   return { success: true, familyId: familyId.trim() };
 };
