@@ -110,6 +110,24 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
     }
   }, [membershipLookupIds]);
 
+  // Best-effort auth-group sync:
+  // keep the caller in their family group and role group so model-level
+  // AppSync authorization stays aligned with FamilyMember.role changes.
+  useEffect(() => {
+    if (!membership?.familyId) return;
+    const addSelfToFamilyGroup = (
+      client.mutations as {
+        addSelfToFamilyGroup?: (args: { familyId: string }) => Promise<unknown>;
+      }
+    ).addSelfToFamilyGroup;
+    if (!addSelfToFamilyGroup) return;
+
+    void addSelfToFamilyGroup({ familyId: membership.familyId }).catch((error) => {
+      console.warn('Best-effort addSelfToFamilyGroup sync failed:', error);
+      // Non-fatal: missing group sync should not block dashboard rendering.
+    });
+  }, [membership?.familyId, membership?.role, membership?.canPlan]);
+
   // Fetch the user's last name (Cognito family_name attribute) so the wizard
   // can pre-fill the family name suggestion.  Best-effort: a failure here
   // does not block anything.
