@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Authenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 import { Amplify } from 'aws-amplify';
@@ -19,7 +19,7 @@ import FamilySetup from './FamilySetup';
 import OnboardingWizard from './OnboardingWizard';
 import type { ActiveModule } from '../utils/dashboardModules';
 import { canAccessModule } from '../utils/dashboardModules';
-import { getFamilyMembership } from '../utils/familyContext';
+import { getFamilyMembership, normalizeUserIdCandidates } from '../utils/familyContext';
 import type { FamilyMembership } from '../utils/familyContext';
 import { getTrialInfo } from '../utils/trialUtils';
 import { getDefaultFamilyName } from '../utils/onboardingUtils';
@@ -92,12 +92,23 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
   const [userLastName, setUserLastName] = useState<string | null>(null);
 
   const userId = user?.signInDetails?.loginId ?? user?.userId ?? '';
+  const membershipLookupIds = useMemo(
+    () =>
+      normalizeUserIdCandidates(
+        [user?.username, user?.signInDetails?.loginId, user?.userId].filter(
+          (value): value is string => typeof value === 'string'
+        )
+      ),
+    [user?.username, user?.signInDetails?.loginId, user?.userId]
+  );
 
   useEffect(() => {
-    if (userId) {
-      getFamilyMembership(userId).then(setMembership);
+    if (membershipLookupIds.length > 0) {
+      getFamilyMembership(membershipLookupIds).then(setMembership);
+    } else {
+      setMembership(null);
     }
-  }, [userId]);
+  }, [membershipLookupIds]);
 
   // Fetch the user's last name (Cognito family_name attribute) so the wizard
   // can pre-fill the family name suggestion.  Best-effort: a failure here

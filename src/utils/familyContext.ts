@@ -56,44 +56,63 @@ function normalizeMembershipRole(role: string | null | undefined): {
 }
 
 export async function getFamilyMembership(
-  userId: string
+  userId: string | string[]
 ): Promise<FamilyMembership | null> {
   try {
-    const { data: members } = await client.models.FamilyMember.list({
-      filter: { userId: { eq: userId } },
-    });
+    const userIds = normalizeUserIdCandidates(userId);
 
-    if (members.length === 0) {
+    if (userIds.length === 0) {
       return null;
     }
 
-    const member = members[0];
+    for (const id of userIds) {
+      const { data: members } = await client.models.FamilyMember.list({
+        filter: { userId: { eq: id } },
+      });
 
-    // Fetch the family name for display purposes
-    let familyName: string | null = null;
-    let familyJoinCode: string | null = null;
-    try {
-      const { data: family } = await client.models.Family.get({ id: member.familyId });
-      familyName = family?.name ?? null;
-      familyJoinCode = family?.joinCode ?? null;
-    } catch {
-      // Family lookup is best-effort
+      if (!members || members.length === 0) {
+        continue;
+      }
+
+      const member = members[0];
+
+      // Fetch the family name for display purposes
+      let familyName: string | null = null;
+      let familyJoinCode: string | null = null;
+      try {
+        const { data: family } = await client.models.Family.get({ id: member.familyId });
+        familyName = family?.name ?? null;
+        familyJoinCode = family?.joinCode ?? null;
+      } catch {
+        // Family lookup is best-effort
+      }
+
+      const normalizedRole = normalizeMembershipRole(member.role ?? 'MEMBER');
+
+      return {
+        familyId: member.familyId,
+        role: normalizedRole.role,
+        canPlan: normalizedRole.canPlan,
+        displayName: member.displayName,
+        familyName,
+        familyJoinCode,
+      };
     }
-
-    const normalizedRole = normalizeMembershipRole(member.role ?? 'MEMBER');
-
-    return {
-      familyId: member.familyId,
-      role: normalizedRole.role,
-      canPlan: normalizedRole.canPlan,
-      displayName: member.displayName,
-      familyName,
-      familyJoinCode,
-    };
+    return null;
   } catch (error) {
     console.error('Error fetching family membership:', error);
     return null;
   }
+}
+
+export function normalizeUserIdCandidates(userId: string | string[]): string[] {
+  return Array.from(
+    new Set(
+      (Array.isArray(userId) ? userId : [userId])
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  );
 }
 
 /**
