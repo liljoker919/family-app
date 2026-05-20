@@ -136,7 +136,7 @@ describe('getFamilyMembership', () => {
 });
 
 describe('normalizeUserIdCandidates', () => {
-  it('trims and deduplicates user identifiers while preserving order', () => {
+  it('trims and deduplicates user identifiers', () => {
     expect(normalizeUserIdCandidates(['  alpha  ', 'alpha', 'beta', ''])).toEqual([
       'alpha',
       'beta',
