@@ -49,10 +49,29 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
     try {
       const result = await readPropertyDataWithRetry(
         async () => {
-          const [{ data: props }, { data: allTxns }] = await Promise.all([
+          const [propertyResult, transactionResult] = await Promise.all([
             client.models.Property.list({ filter: { familyId: { eq: familyId } } }),
             client.models.PropertyTransaction.list({ filter: { familyId: { eq: familyId } } }),
           ]);
+
+          const listErrors = [
+            ...(propertyResult.errors ?? []),
+            ...(transactionResult.errors ?? []),
+          ];
+
+          if (listErrors.length > 0) {
+            throw new Error(
+              listErrors
+                .map((listError: any) =>
+                  typeof listError === 'string' ? listError : listError?.message ?? String(listError)
+                )
+                .join('; ')
+            );
+          }
+
+          const props = propertyResult.data ?? [];
+          const allTxns = transactionResult.data ?? [];
+
           return { properties: props, transactions: allTxns };
         },
         {
