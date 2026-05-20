@@ -147,17 +147,27 @@ describe('createFamily', () => {
   });
 
   it('retries group assignment when addSelfToFamilyGroup temporarily fails', async () => {
-    mockCreateFamilyBootstrap.mockResolvedValue({
-      data: { familyId: 'retry-family', familyName: 'Retry Family', joinCode: 'RTY123', role: 'ADMIN' },
-    });
-    mockAddSelfToFamilyGroup
-      .mockRejectedValueOnce(new Error('transient'))
-      .mockResolvedValueOnce({ data: { success: true } });
+    vi.useFakeTimers();
 
-    const membership = await createFamily('Retry Family', 'user-1');
+    try {
+      mockCreateFamilyBootstrap.mockResolvedValue({
+        data: { familyId: 'retry-family', familyName: 'Retry Family', joinCode: 'RTY123', role: 'ADMIN' },
+      });
+      mockAddSelfToFamilyGroup
+        .mockRejectedValueOnce(new Error('transient'))
+        .mockResolvedValueOnce({ data: { success: true } });
 
-    expect(membership.familyId).toBe('retry-family');
-    expect(mockAddSelfToFamilyGroup).toHaveBeenCalledTimes(2);
+      const membershipPromise = createFamily('Retry Family', 'user-1');
+
+      await vi.advanceTimersByTimeAsync(300);
+
+      const membership = await membershipPromise;
+
+      expect(membership.familyId).toBe('retry-family');
+      expect(mockAddSelfToFamilyGroup).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
