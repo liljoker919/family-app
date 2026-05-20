@@ -122,7 +122,7 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
         setToast({ message: 'Property created successfully.', type: 'success' });
       } else {
         setToast({
-          message: 'Property saved, but visibility is still syncing. Please refresh in a few seconds.',
+          message: "Property saved, but we couldn't confirm the latest data refresh. Please refresh in a few seconds.",
           type: 'success',
         });
       }
