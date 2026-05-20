@@ -59,6 +59,10 @@ async function addSelfToFamilyGroupWithRetry(
   familyId: string,
   context: 'createFamily' | 'joinFamily'
 ): Promise<void> {
+  const wait = async (ms: number) => {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  };
+
   let lastError: unknown;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -68,6 +72,7 @@ async function addSelfToFamilyGroupWithRetry(
       lastError = error;
       if (attempt < 3) {
         console.warn(`[${context}] addSelfToFamilyGroup attempt ${attempt} failed; retrying...`, error);
+        await wait(300 * attempt);
       }
     }
   }

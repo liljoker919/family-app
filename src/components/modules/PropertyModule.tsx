@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import ConfirmModal from '../ConfirmModal';
@@ -43,11 +43,7 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
   const [pendingDelete, setPendingDelete] = useState<{ message: string; onConfirm: () => Promise<void> } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  useEffect(() => {
-    fetchAllData();
-  }, [familyId]);
-
-  const fetchAllData = async (options: { verifyPropertyId?: string; maxAttempts?: number } = {}) => {
+  const fetchAllData = useCallback(async (options: { verifyPropertyId?: string; maxAttempts?: number } = {}) => {
     setLoading(true);
     setReadError(null);
     try {
@@ -74,7 +70,11 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
     } finally {
       setLoading(false);
     }
-  };
+  }, [familyId]);
+
+  useEffect(() => {
+    void fetchAllData();
+  }, [fetchAllData]);
 
   const getPropertyTransactions = (propertyId: string) =>
     allTransactions.filter((t) => t.propertyId === propertyId);
@@ -104,7 +104,7 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
       } else {
         setToast({
           message: 'Property saved, but visibility is still syncing. Please refresh in a few seconds.',
-          type: 'error',
+          type: 'success',
         });
       }
     } catch (error) {
@@ -202,7 +202,11 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
       </div>
 
       {readError && (
-        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900">
+        <div
+          role="alert"
+          aria-live="polite"
+          className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900"
+        >
           <p className="text-sm font-medium">{readError}</p>
         </div>
       )}

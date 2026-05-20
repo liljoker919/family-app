@@ -50,7 +50,8 @@ export function isLikelyFamilyClaimPropagationDelay(error: unknown): boolean {
     message.includes('unauthorized') ||
     message.includes('forbidden') ||
     message.includes('access denied') ||
-    message.includes('group')
+    message.includes('group membership') ||
+    message.includes('family access')
   );
 }
 
