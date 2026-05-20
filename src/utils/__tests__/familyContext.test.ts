@@ -187,6 +187,30 @@ describe('createFamily', () => {
 
     await expect(createFamily('Bad Family', 'user-2')).rejects.toThrow('Validation error');
   });
+
+  it('retries group assignment when addSelfToFamilyGroup temporarily fails', async () => {
+    vi.useFakeTimers();
+
+    try {
+      mockCreateFamilyBootstrap.mockResolvedValue({
+        data: { familyId: 'retry-family', familyName: 'Retry Family', joinCode: 'RTY123', role: 'ADMIN' },
+      });
+      mockAddSelfToFamilyGroup
+        .mockRejectedValueOnce(new Error('transient'))
+        .mockResolvedValueOnce({ data: { success: true } });
+
+      const membershipPromise = createFamily('Retry Family', 'user-1');
+
+      await vi.advanceTimersByTimeAsync(300);
+
+      const membership = await membershipPromise;
+
+      expect(membership.familyId).toBe('retry-family');
+      expect(mockAddSelfToFamilyGroup).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('joinFamily', () => {
@@ -224,6 +248,32 @@ describe('joinFamily', () => {
     expect(membership?.role).toBe('MEMBER');
     expect(membership?.canPlan).toBe(true);
     expect(mockFamilyMember.create).not.toHaveBeenCalled();
+  });
+
+  it('retries group assignment when addSelfToFamilyGroup temporarily fails', async () => {
+    vi.useFakeTimers();
+
+    try {
+      mockFamily.list.mockResolvedValue({
+        data: [{ id: 'family-b', name: 'Family B', joinCode: 'VALID1' }],
+      });
+      mockFamilyMember.list.mockResolvedValue({ data: [] });
+      mockFamilyMember.create.mockResolvedValue({
+        data: { familyId: 'family-b', userId: 'user-3', role: 'MEMBER', displayName: null },
+      });
+      mockAddSelfToFamilyGroup
+        .mockRejectedValueOnce(new Error('transient'))
+        .mockResolvedValueOnce({ data: { success: true } });
+
+      const membershipPromise = joinFamily('VALID1', 'user-3');
+      await vi.advanceTimersByTimeAsync(300);
+      const membership = await membershipPromise;
+
+      expect(membership?.familyId).toBe('family-b');
+      expect(mockAddSelfToFamilyGroup).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
