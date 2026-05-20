@@ -55,6 +55,26 @@ function normalizeMembershipRole(role: string | null | undefined): {
   };
 }
 
+async function addSelfToFamilyGroupWithRetry(
+  familyId: string,
+  context: 'createFamily' | 'joinFamily'
+): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await (client.mutations as any).addSelfToFamilyGroup({ familyId });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) {
+        console.warn(`[${context}] addSelfToFamilyGroup attempt ${attempt} failed; retrying...`, error);
+      }
+    }
+  }
+
+  console.warn(`[${context}] addSelfToFamilyGroup failed after retries (non-fatal):`, lastError);
+}
+
 export async function getFamilyMembership(
   userId: string
 ): Promise<FamilyMembership | null> {
@@ -122,13 +142,7 @@ export async function createFamily(
   // allow.groupDefinedIn('familyId') rule on all family-scoped models is
   // satisfied.  This call is best-effort: a failure here does not roll back
   // the family/member records; the user can retry via addSelfToFamilyGroup.
-  try {
-    await (client.mutations as any).addSelfToFamilyGroup({ familyId: result.familyId });
-  } catch (err) {
-    // Non-fatal: the user can still use the app; group assignment can be
-    // retried, or an admin can use the Cognito console to add them.
-    console.warn('[createFamily] addSelfToFamilyGroup failed (non-fatal):', err);
-  }
+  await addSelfToFamilyGroupWithRetry(result.familyId, 'createFamily');
 
   return {
     familyId: result.familyId,
@@ -193,12 +207,7 @@ export async function joinFamily(
   }
 
   // Assign the user to the family's Cognito group (tenant isolation).
-  try {
-    await (client.mutations as any).addSelfToFamilyGroup({ familyId: family.id });
-  } catch (err) {
-    // Non-fatal: best-effort group assignment.
-    console.warn('[joinFamily] addSelfToFamilyGroup failed (non-fatal):', err);
-  }
+  await addSelfToFamilyGroupWithRetry(family.id, 'joinFamily');
 
   return {
     familyId: family.id,
