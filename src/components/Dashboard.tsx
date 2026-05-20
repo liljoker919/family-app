@@ -126,7 +126,7 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
       console.warn('Best-effort addSelfToFamilyGroup sync failed:', error);
       // Non-fatal: missing group sync should not block dashboard rendering.
     });
-  }, [membership?.familyId, membership?.role]);
+  }, [membership?.familyId, membership?.role, membership?.canPlan]);
 
   // Fetch the user's last name (Cognito family_name attribute) so the wizard
   // can pre-fill the family name suggestion.  Best-effort: a failure here
