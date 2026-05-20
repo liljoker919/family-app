@@ -110,6 +110,16 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
     }
   }, [membershipLookupIds]);
 
+  // Best-effort auth-group sync:
+  // keep the caller in their family group and role group so model-level
+  // AppSync authorization stays aligned with FamilyMember.role changes.
+  useEffect(() => {
+    if (!membership?.familyId) return;
+    void (client.mutations as any).addSelfToFamilyGroup({ familyId: membership.familyId }).catch(() => {
+      // Non-fatal: missing group sync should not block dashboard rendering.
+    });
+  }, [membership?.familyId, membership?.role]);
+
   // Fetch the user's last name (Cognito family_name attribute) so the wizard
   // can pre-fill the family name suggestion.  Best-effort: a failure here
   // does not block anything.

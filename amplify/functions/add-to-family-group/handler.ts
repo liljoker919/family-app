@@ -24,6 +24,13 @@ interface AddToFamilyGroupResult {
   familyId: string;
 }
 
+function normalizeRoleGroup(role: unknown): 'ADMIN' | 'PLANNER' | 'MEMBER' {
+  if (role === 'ADMIN' || role === 'PLANNER' || role === 'MEMBER') {
+    return role;
+  }
+  return 'MEMBER';
+}
+
 /**
  * AppSync Lambda resolver for the `addSelfToFamilyGroup` mutation.
  *
@@ -76,6 +83,7 @@ export const handler: AppSyncResolverHandler<
       'Unauthorized: You are not a member of the specified family.'
     );
   }
+  const memberRoleGroup = normalizeRoleGroup(memberResult.Items[0]?.role);
 
   // ── 3. Ensure the Cognito group for this family exists ─────────────────────
   // Cognito group name equals the familyId (a UUID), which is a valid group name.
@@ -108,6 +116,16 @@ export const handler: AppSyncResolverHandler<
       UserPoolId: USER_POOL_ID,
       Username: callerUsername,
       GroupName: familyId.trim(),
+    })
+  );
+
+  // Keep role-based Cognito groups in sync with the caller's FamilyMember role
+  // so role-scoped model mutations (ADMIN/PLANNER/MEMBER) authorize correctly.
+  await cognitoClient.send(
+    new AdminAddUserToGroupCommand({
+      UserPoolId: USER_POOL_ID,
+      Username: callerUsername,
+      GroupName: memberRoleGroup,
     })
   );
 
