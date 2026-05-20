@@ -19,7 +19,7 @@ import FamilySetup from './FamilySetup';
 import OnboardingWizard from './OnboardingWizard';
 import type { ActiveModule } from '../utils/dashboardModules';
 import { canAccessModule } from '../utils/dashboardModules';
-import { getFamilyMembership } from '../utils/familyContext';
+import { getFamilyMembership, normalizeUserIdCandidates } from '../utils/familyContext';
 import type { FamilyMembership } from '../utils/familyContext';
 import { getTrialInfo } from '../utils/trialUtils';
 import { getDefaultFamilyName } from '../utils/onboardingUtils';
@@ -94,11 +94,9 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
   const userId = user?.signInDetails?.loginId ?? user?.userId ?? '';
   const membershipLookupIds = useMemo(
     () =>
-      Array.from(
-        new Set(
-          [user?.username, user?.signInDetails?.loginId, user?.userId]
-            .map((value) => (typeof value === 'string' ? value.trim() : ''))
-            .filter(Boolean)
+      normalizeUserIdCandidates(
+        [user?.username, user?.signInDetails?.loginId, user?.userId].filter(
+          (value): value is string => typeof value === 'string'
         )
       ),
     [user?.username, user?.signInDetails?.loginId, user?.userId]

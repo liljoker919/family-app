@@ -64,6 +64,7 @@ vi.mock('aws-amplify/data', () => ({
 
 import {
   getFamilyMembership,
+  normalizeUserIdCandidates,
   createFamily,
   joinFamily,
   startSoloTrial,
@@ -131,6 +132,15 @@ describe('getFamilyMembership', () => {
     expect(mockFamilyMember.list).toHaveBeenCalledWith({
       filter: { userId: { eq: 'user-abc' } },
     });
+  });
+});
+
+describe('normalizeUserIdCandidates', () => {
+  it('trims and deduplicates user identifiers while preserving order', () => {
+    expect(normalizeUserIdCandidates(['  alpha  ', 'alpha', 'beta', ''])).toEqual([
+      'alpha',
+      'beta',
+    ]);
   });
 });
 

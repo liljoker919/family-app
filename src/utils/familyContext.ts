@@ -59,13 +59,7 @@ export async function getFamilyMembership(
   userId: string | string[]
 ): Promise<FamilyMembership | null> {
   try {
-    const userIds = Array.from(
-      new Set(
-        (Array.isArray(userId) ? userId : [userId])
-          .map((value) => value.trim())
-          .filter(Boolean)
-      )
-    );
+    const userIds = normalizeUserIdCandidates(userId);
 
     if (userIds.length === 0) {
       return null;
@@ -109,6 +103,16 @@ export async function getFamilyMembership(
     console.error('Error fetching family membership:', error);
     return null;
   }
+}
+
+export function normalizeUserIdCandidates(userId: string | string[]): string[] {
+  return Array.from(
+    new Set(
+      (Array.isArray(userId) ? userId : [userId])
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  );
 }
 
 /**
