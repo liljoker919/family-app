@@ -209,20 +209,29 @@ describe('joinFamily', () => {
   });
 
   it('retries group assignment when addSelfToFamilyGroup temporarily fails', async () => {
-    mockFamily.list.mockResolvedValue({
-      data: [{ id: 'family-b', name: 'Family B', joinCode: 'VALID1' }],
-    });
-    mockFamilyMember.list.mockResolvedValue({ data: [] });
-    mockFamilyMember.create.mockResolvedValue({
-      data: { familyId: 'family-b', userId: 'user-3', role: 'MEMBER', displayName: null },
-    });
-    mockAddSelfToFamilyGroup
-      .mockRejectedValueOnce(new Error('transient'))
-      .mockResolvedValueOnce({ data: { success: true } });
+    vi.useFakeTimers();
 
-    const membership = await joinFamily('VALID1', 'user-3');
-    expect(membership?.familyId).toBe('family-b');
-    expect(mockAddSelfToFamilyGroup).toHaveBeenCalledTimes(2);
+    try {
+      mockFamily.list.mockResolvedValue({
+        data: [{ id: 'family-b', name: 'Family B', joinCode: 'VALID1' }],
+      });
+      mockFamilyMember.list.mockResolvedValue({ data: [] });
+      mockFamilyMember.create.mockResolvedValue({
+        data: { familyId: 'family-b', userId: 'user-3', role: 'MEMBER', displayName: null },
+      });
+      mockAddSelfToFamilyGroup
+        .mockRejectedValueOnce(new Error('transient'))
+        .mockResolvedValueOnce({ data: { success: true } });
+
+      const membershipPromise = joinFamily('VALID1', 'user-3');
+      await vi.advanceTimersByTimeAsync(300);
+      const membership = await membershipPromise;
+
+      expect(membership?.familyId).toBe('family-b');
+      expect(mockAddSelfToFamilyGroup).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
