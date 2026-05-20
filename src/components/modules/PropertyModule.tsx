@@ -128,7 +128,7 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
       }
     } catch (error) {
       console.error('Error creating property:', error);
-      setToast({ message: getPropertyReadErrorMessage(error), type: 'error' });
+      setToast({ message: error instanceof Error ? error.message : 'Failed to create property. Please try again.', type: 'error' });
     }
   };
 
