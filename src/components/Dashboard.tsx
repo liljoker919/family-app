@@ -122,7 +122,8 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
     ).addSelfToFamilyGroup;
     if (!addSelfToFamilyGroup) return;
 
-    void addSelfToFamilyGroup({ familyId: membership.familyId }).catch(() => {
+    void addSelfToFamilyGroup({ familyId: membership.familyId }).catch((error) => {
+      console.warn('Best-effort addSelfToFamilyGroup sync failed:', error);
       // Non-fatal: missing group sync should not block dashboard rendering.
     });
   }, [membership?.familyId, membership?.role]);
