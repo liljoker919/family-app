@@ -415,15 +415,15 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
 
     // Client-side validation for required fields
     if (!vacationForm.title.trim()) {
-      showError("Missing required fields: Title is required.");
+      showError("Title is required.");
       return;
     }
     if (!vacationForm.startDate) {
-      showError("Missing required fields: Start Date is required.");
+      showError("Start Date is required.");
       return;
     }
     if (!vacationForm.endDate) {
-      showError("Missing required fields: End Date is required.");
+      showError("End Date is required.");
       return;
     }
 

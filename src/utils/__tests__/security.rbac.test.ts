@@ -108,7 +108,7 @@ describe('security.rbac – create/edit gate (MEMBER blocked)', () => {
     expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
-  it('security.rbac.member-without-canPlan-cannot-create-chore-when-canPlan-removed', () => {
+  it('security.rbac.member-without-canPlan-cannot-create-chore-or-car', () => {
     expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
