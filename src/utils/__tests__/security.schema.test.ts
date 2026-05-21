@@ -139,6 +139,13 @@ describe('security.schema.Vacation – authorization rules', () => {
     expect(containsGroupRule(block!, ['ADMIN'], ['create'])).toBe(true);
   });
 
+  it('security.schema.Vacation.member-can-create-and-update', () => {
+    const block = extractAuthBlock('Vacation');
+    expect(block).not.toBeNull();
+    // Any family member may create and update vacations.
+    expect(containsGroupRule(block!, ['MEMBER'], ['create', 'update'])).toBe(true);
+  });
+
   it('security.schema.Vacation.only-admin-can-delete', () => {
     const block = extractAuthBlock('Vacation');
     expect(block).not.toBeNull();

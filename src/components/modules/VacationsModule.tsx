@@ -412,13 +412,39 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
 
   const handleCreateVacation = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Client-side validation for required fields
+    if (!vacationForm.title.trim()) {
+      showError("Missing required fields: Title is required.");
+      return;
+    }
+    if (!vacationForm.startDate) {
+      showError("Missing required fields: Start Date is required.");
+      return;
+    }
+    if (!vacationForm.endDate) {
+      showError("Missing required fields: End Date is required.");
+      return;
+    }
+
     try {
-      const { data: newVacation } = await client.models.Vacation.create({
-        ...vacationForm,
+      const { data: newVacation, errors } = await client.models.Vacation.create({
+        title: vacationForm.title,
+        description: vacationForm.description || undefined,
+        startDate: vacationForm.startDate,
+        endDate: vacationForm.endDate,
+        transportation: vacationForm.transportation,
+        accommodations: vacationForm.accommodations || undefined,
+        tripType: vacationForm.tripType,
         familyId,
         createdBy: user?.signInDetails?.loginId || "unknown",
       });
-      if (newVacation && pendingFlightSegments.length > 0) {
+      if (errors || !newVacation) {
+        throw new Error(
+          errors?.map((err) => err.message).join(', ') ?? 'Failed to create vacation.'
+        );
+      }
+      if (pendingFlightSegments.length > 0) {
         await Promise.all(
           pendingFlightSegments.map((seg) =>
             client.models.FlightSegment.create({
@@ -443,7 +469,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       fetchVacations();
     } catch (error) {
       console.error("Error creating vacation:", error);
-      showError("Failed to create vacation. Please try again.");
+      showError(error instanceof Error ? error.message : "Failed to create vacation. Please try again.");
     }
   };
 

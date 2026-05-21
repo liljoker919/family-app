@@ -14,7 +14,7 @@ import { createFamilyBootstrapFn } from '../functions/create-family-bootstrap/re
 // Family (family)      | Read, Create        | Read, Create        | Full CRUD
 // FamilyMember (family)| Read, Create (join) | Read, Create (join) | Full CRUD (roles)
 // Invite               | No access           | No access           | Full CRUD
-// Vacation             | Read, Update        | Create, Read, Update| Full CRUD
+// Vacation             | Read, Create, Update| Create, Read, Update| Full CRUD
 // Chore                | Read, Update        | Create, Read, Update| Full CRUD
 // ChoreAssignment      | Read                | Create, Read, Update| Full CRUD
 // ChoreCompletion      | Read, Create, Update| Create, Read, Update| Full CRUD
@@ -182,7 +182,7 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['MEMBER']).to(['update']),
+      allow.groups(['MEMBER']).to(['create', 'update']),
       allow.groups(['PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
