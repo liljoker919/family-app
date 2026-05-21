@@ -479,7 +479,9 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
             <>
           {activeModule === 'home' && <TodayView familyId={familyId} membership={membership} onNavigateTo={setActiveModule} />}
           {activeModule === 'vacations' && <VacationsModule user={user} familyId={familyId} />}
-          {activeModule === 'property' && <PropertyModule user={user} familyId={familyId} />}
+          {activeModule === 'property' && (
+            <PropertyModule user={user} familyId={familyId} canManageProperties={membership.role === 'ADMIN'} />
+          )}
           {activeModule === 'cars' && <CarsModule user={user} familyId={familyId} />}
           {activeModule === 'calendar' && <CalendarModule familyId={familyId} role={membership.role} canPlan={membership.canPlan} onNavigateTo={setActiveModule} />}
           {activeModule === 'cookbook' && <CookbookModule user={user} familyId={familyId} />}
