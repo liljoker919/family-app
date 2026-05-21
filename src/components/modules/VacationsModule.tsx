@@ -441,7 +441,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       });
       if (errors || !newVacation) {
         throw new Error(
-          errors?.map((err) => err.message).join(', ') ?? 'Failed to create vacation.'
+          (errors?.length ? errors.map((err) => err.message).join(", ") : "") || "Failed to create vacation."
         );
       }
       if (pendingFlightSegments.length > 0) {
