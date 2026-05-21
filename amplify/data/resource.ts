@@ -389,7 +389,8 @@ const schema = a.schema({
     ]),
 
   // -------------------------------------------------------------------------
-  // Property & P&L – strictly ADMIN only (MEMBER and PLANNER have no access)
+  // Property & P&L – family-scoped via familyId dynamic group authorization.
+  // Role-specific restrictions are enforced by app-level membership checks.
   // -------------------------------------------------------------------------
 
   Property: a
@@ -401,8 +402,7 @@ const schema = a.schema({
       transactions: a.hasMany('PropertyTransaction', 'propertyId'),
     })
     .authorization((allow) => [
-      allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
+      allow.groupDefinedIn('familyId').to(['read', 'create', 'update', 'delete']),
     ]),
 
   PropertyTransactionCategory: a.enum([
@@ -425,7 +425,7 @@ const schema = a.schema({
       category: a.ref('PropertyTransactionCategory').required(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
+      allow.groupDefinedIn('familyId').to(['read', 'create', 'update', 'delete']),
     ]),
 
   // -------------------------------------------------------------------------
@@ -758,7 +758,6 @@ export const data = defineData({
     defaultAuthorizationMode: 'userPool',
   },
 });
-
 
 
 

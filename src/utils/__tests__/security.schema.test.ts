@@ -304,36 +304,39 @@ describe('security.schema.Recipe – authorization rules', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Property / PropertyTransaction – ADMIN only, MEMBER and PLANNER have no access
+// Property / PropertyTransaction – family-scoped via familyId dynamic group
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('security.schema.Property – ADMIN-only authorization', () => {
-  it('security.schema.Property.family-members-can-read-via-groupDefinedIn', () => {
+describe('security.schema.Property – family-scoped authorization', () => {
+  it('security.schema.Property.family-members-can-crud-via-groupDefinedIn', () => {
     const block = extractAuthBlock('Property');
     expect(block).not.toBeNull();
-    // Read is gated by familyId group (tenant isolation); Property records are
-    // family-scoped so family-group members can read them.
-    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+    // Property records are tenant-scoped via the dynamic family group.
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read', 'create', 'update', 'delete'])).toBe(true);
   });
 
-  it('security.schema.Property.only-admin-can-write', () => {
+  it('security.schema.Property.no-static-role-group-writes', () => {
     const block = extractAuthBlock('Property');
     expect(block).not.toBeNull();
-    // MEMBER and PLANNER must NOT appear in write rules.
-    expect(block).not.toMatch(/allow\.groups\(\['ADMIN',\s*'PLANNER'/);
-    expect(block).not.toMatch(/allow\.groups\(\['ADMIN',\s*'PLANNER',\s*'MEMBER'/);
-    // ADMIN-only create/update/delete must be present.
-    expect(containsGroupRule(block!, ['ADMIN'], ['create', 'update', 'delete'])).toBe(true);
+    expect(containsGroupRule(block!, ['ADMIN'], ['create', 'update', 'delete'])).toBe(false);
+    expect(containsGroupRule(block!, ['PLANNER'], ['create', 'update', 'delete'])).toBe(false);
+    expect(containsGroupRule(block!, ['MEMBER'], ['create', 'update', 'delete'])).toBe(false);
   });
 });
 
-describe('security.schema.PropertyTransaction – ADMIN-only authorization', () => {
-  it('security.schema.PropertyTransaction.only-admin-has-any-access', () => {
+describe('security.schema.PropertyTransaction – family-scoped authorization', () => {
+  it('security.schema.PropertyTransaction.family-members-can-crud-via-groupDefinedIn', () => {
     const block = extractAuthBlock('PropertyTransaction');
     expect(block).not.toBeNull();
-    expect(block).not.toMatch(/allow\.groups\(\['ADMIN',\s*'PLANNER'/);
-    expect(block).not.toMatch(/allow\.groups\(\['ADMIN',\s*'PLANNER',\s*'MEMBER'/);
-    expect(containsGroupRule(block!, ['ADMIN'], ['read', 'create', 'update', 'delete'])).toBe(true);
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read', 'create', 'update', 'delete'])).toBe(true);
+  });
+
+  it('security.schema.PropertyTransaction.no-static-role-group-rules', () => {
+    const block = extractAuthBlock('PropertyTransaction');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN'], ['read', 'create', 'update', 'delete'])).toBe(false);
+    expect(containsGroupRule(block!, ['PLANNER'], ['read', 'create', 'update', 'delete'])).toBe(false);
+    expect(containsGroupRule(block!, ['MEMBER'], ['read', 'create', 'update', 'delete'])).toBe(false);
   });
 });
 
@@ -636,4 +639,3 @@ describe('schema.ExcursionOption – on-write aggregate fields', () => {
     expect(fields).toMatch(/downVoteCount\s*:\s*a\.integer\(\)/);
   });
 });
-
