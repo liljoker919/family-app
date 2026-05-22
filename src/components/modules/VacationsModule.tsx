@@ -413,13 +413,20 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
   const handleCreateVacation = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { data: newVacation } = await client.models.Vacation.create({
+      const { data: newVacation, errors } = await client.models.Vacation.create({
         ...vacationForm,
         familyId,
         createdBy: user?.signInDetails?.loginId || "unknown",
       });
-      if (newVacation && pendingFlightSegments.length > 0) {
-        await Promise.all(
+
+      if (errors?.length || !newVacation) {
+        throw new Error(
+          errors?.map((entry) => entry.message).join(', ') ?? 'Failed to create vacation.'
+        );
+      }
+
+      if (pendingFlightSegments.length > 0) {
+        const flightResults = await Promise.all(
           pendingFlightSegments.map((seg) =>
             client.models.FlightSegment.create({
               vacationId: newVacation.id,
@@ -434,16 +441,26 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
             })
           )
         );
+
+        const flightErrors = flightResults.flatMap((result) => result.errors ?? []);
+        if (flightErrors.length > 0) {
+          throw new Error(
+            flightErrors.map((entry) => entry.message).join(', ') || 'Failed to save flight segments.'
+          );
+        }
       }
+
       setVacationForm({ title: "", description: "", startDate: "", endDate: "", transportation: "flight", accommodations: "", tripType: "SINGLE_LOCATION" });
       setPendingFlightSegments([]);
       setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
       setFlightSegmentFormError("");
       setShowVacationForm(false);
-      fetchVacations();
+      await fetchVacations();
+      showSuccess('Vacation created successfully.');
     } catch (error) {
       console.error("Error creating vacation:", error);
-      showError("Failed to create vacation. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create vacation. Please try again.';
+      showError(errorMessage);
     }
   };
 
