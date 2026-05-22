@@ -14,7 +14,7 @@ import { createFamilyBootstrapFn } from '../functions/create-family-bootstrap/re
 // Family (family)      | Read, Create        | Read, Create        | Full CRUD
 // FamilyMember (family)| Read, Create (join) | Read, Create (join) | Full CRUD (roles)
 // Invite               | No access           | No access           | Full CRUD
-// Vacation             | Read, Update        | Create, Read, Update| Full CRUD
+// Vacation             | Read, Create, Update| Create, Read, Update| Full CRUD
 // Chore                | Read, Update        | Create, Read, Update| Full CRUD
 // ChoreAssignment      | Read                | Create, Read, Update| Full CRUD
 // ChoreCompletion      | Read, Create, Update| Create, Read, Update| Full CRUD
@@ -182,7 +182,7 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['MEMBER']).to(['update']),
+      allow.groups(['MEMBER']).to(['create', 'update']),
       allow.groups(['PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
@@ -389,7 +389,8 @@ const schema = a.schema({
     ]),
 
   // -------------------------------------------------------------------------
-  // Property & P&L – strictly ADMIN only (MEMBER and PLANNER have no access)
+  // Property & P&L – family-scoped via familyId dynamic group authorization.
+  // Role-specific restrictions are enforced by app-level membership checks.
   // -------------------------------------------------------------------------
 
   Property: a
@@ -401,8 +402,7 @@ const schema = a.schema({
       transactions: a.hasMany('PropertyTransaction', 'propertyId'),
     })
     .authorization((allow) => [
-      allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
+      allow.groupDefinedIn('familyId').to(['read', 'create', 'update', 'delete']),
     ]),
 
   PropertyTransactionCategory: a.enum([
@@ -425,7 +425,7 @@ const schema = a.schema({
       category: a.ref('PropertyTransactionCategory').required(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
+      allow.groupDefinedIn('familyId').to(['read', 'create', 'update', 'delete']),
     ]),
 
   // -------------------------------------------------------------------------
@@ -758,7 +758,6 @@ export const data = defineData({
     defaultAuthorizationMode: 'userPool',
   },
 });
-
 
 
 

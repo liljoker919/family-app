@@ -412,19 +412,38 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
 
   const handleCreateVacation = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Client-side validation for required fields
+    if (!vacationForm.title.trim()) {
+      showError("Title is required.");
+      return;
+    }
+    if (!vacationForm.startDate) {
+      showError("Start Date is required.");
+      return;
+    }
+    if (!vacationForm.endDate) {
+      showError("End Date is required.");
+      return;
+    }
+
     try {
       const { data: newVacation, errors } = await client.models.Vacation.create({
-        ...vacationForm,
+        title: vacationForm.title,
+        description: vacationForm.description || undefined,
+        startDate: vacationForm.startDate,
+        endDate: vacationForm.endDate,
+        transportation: vacationForm.transportation,
+        accommodations: vacationForm.accommodations || undefined,
+        tripType: vacationForm.tripType,
         familyId,
         createdBy: user?.signInDetails?.loginId || "unknown",
       });
-
       if (errors?.length || !newVacation) {
         throw new Error(
-          errors?.map((entry) => entry.message).join(', ') ?? 'Failed to create vacation.'
+          (errors?.map((entry) => entry.message).join(", ")) || "Failed to create vacation."
         );
       }
-
       if (pendingFlightSegments.length > 0) {
         const flightResults = await Promise.all(
           pendingFlightSegments.map((seg) =>
@@ -459,8 +478,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       showSuccess('Vacation created successfully.');
     } catch (error) {
       console.error("Error creating vacation:", error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to create vacation. Please try again.';
-      showError(errorMessage);
+      showError(error instanceof Error ? error.message : "Failed to create vacation. Please try again.");
     }
   };
 

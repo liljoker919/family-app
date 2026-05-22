@@ -9,7 +9,14 @@
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
 
-const client = generateClient<Schema>();
+let client: ReturnType<typeof generateClient<Schema>> | null = null;
+
+function getClient() {
+  if (!client) {
+    client = generateClient<Schema>();
+  }
+  return client;
+}
 
 type StoredMemberRole = 'ADMIN' | 'PLANNER' | 'MEMBER';
 
@@ -66,7 +73,7 @@ async function addSelfToFamilyGroupWithRetry(
   let lastError: unknown;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      await (client.mutations as any).addSelfToFamilyGroup({ familyId });
+      await (getClient().mutations as any).addSelfToFamilyGroup({ familyId });
       return;
     } catch (error) {
       lastError = error;
@@ -91,7 +98,7 @@ export async function getFamilyMembership(
     }
 
     for (const id of userIds) {
-      const { data: members } = await client.models.FamilyMember.list({
+      const { data: members } = await getClient().models.FamilyMember.list({
         filter: { userId: { eq: id } },
       });
 
@@ -105,7 +112,7 @@ export async function getFamilyMembership(
       let familyName: string | null = null;
       let familyJoinCode: string | null = null;
       try {
-        const { data: family } = await client.models.Family.get({ id: member.familyId });
+        const { data: family } = await getClient().models.Family.get({ id: member.familyId });
         familyName = family?.name ?? null;
         familyJoinCode = family?.joinCode ?? null;
       } catch {
@@ -150,7 +157,7 @@ export async function createFamily(
   displayName?: string
 ): Promise<FamilyMembership> {
   const trimmedDisplayName = displayName?.trim() || null;
-  const { data: result, errors } = await (client.mutations as any).createFamilyBootstrap({
+  const { data: result, errors } = await (getClient().mutations as any).createFamilyBootstrap({
     name,
     ...(trimmedDisplayName ? { displayName: trimmedDisplayName } : {}),
   });
@@ -189,7 +196,7 @@ export async function joinFamily(
 ): Promise<FamilyMembership | null> {
   const normalizedCode = joinCode.trim().toUpperCase();
 
-  const { data: families } = await client.models.Family.list({
+  const { data: families } = await getClient().models.Family.list({
     filter: { joinCode: { eq: normalizedCode } },
   });
 
@@ -200,7 +207,7 @@ export async function joinFamily(
   const family = families[0];
 
   // Check if the user is already a member
-  const { data: existing } = await client.models.FamilyMember.list({
+  const { data: existing } = await getClient().models.FamilyMember.list({
     filter: { familyId: { eq: family.id }, userId: { eq: userId } },
   });
 
@@ -217,7 +224,7 @@ export async function joinFamily(
     };
   }
 
-  const { data: member, errors: memberErrors } = await client.models.FamilyMember.create({
+  const { data: member, errors: memberErrors } = await getClient().models.FamilyMember.create({
     familyId: family.id,
     userId,
     role: 'MEMBER',
@@ -254,7 +261,7 @@ export async function joinFamily(
  * Returns a FamilyMembership on success, or throws on any validation failure.
  */
 export async function redeemInviteToken(token: string): Promise<FamilyMembership> {
-  const { data: result, errors } = await (client.mutations as any).redeemInvite({ token });
+  const { data: result, errors } = await (getClient().mutations as any).redeemInvite({ token });
 
   if (errors || !result) {
     throw new Error(
@@ -300,17 +307,17 @@ export async function startSoloTrial(
 
   const now = new Date().toISOString();
   try {
-    const { data: profiles } = await client.models.Profile.list({
+    const { data: profiles } = await getClient().models.Profile.list({
       filter: { userId: { eq: userId } },
     });
     if (profiles && profiles.length > 0) {
-      await client.models.Profile.update({
+      await getClient().models.Profile.update({
         id: profiles[0].id,
         trialStartDate: now,
         trialStatus: 'TRIAL',
       });
     } else {
-      await client.models.Profile.create({
+      await getClient().models.Profile.create({
         userId,
         email,
         trialStartDate: now,

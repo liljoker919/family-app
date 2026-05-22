@@ -99,14 +99,16 @@ describe('security.rbac – delete gate (planning-enabled MEMBER blocked)', () =
   });
 });
 
-// ── Create / edit gate: MEMBER without canPlan is read-only ───────────────────
+// ── Create / edit gate: MEMBER without canPlan is read-only for general content ──
 
 describe('security.rbac – create/edit gate (MEMBER blocked)', () => {
-  it('security.rbac.member-cannot-create-vacation', () => {
+  it('security.rbac.member-without-canPlan-cannot-create-chore', () => {
+    // canEditContent gates creation of chores, cars, recipes, etc.
+    // Vacations are an exception: any family member may create a vacation.
     expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
-  it('security.rbac.member-cannot-create-vacation-when-planning-feature-is-removed', () => {
+  it('security.rbac.member-without-canPlan-cannot-create-chore-or-car', () => {
     expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 

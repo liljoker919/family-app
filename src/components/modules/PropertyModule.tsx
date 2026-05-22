@@ -13,6 +13,7 @@ const client = generateClient<Schema>();
 interface PropertyModuleProps {
   user: any;
   familyId: string;
+  canManageProperties: boolean;
 }
 
 type CategoryKey = 'RENT_INCOME' | 'MORTGAGE' | 'TAXES' | 'MAINTENANCE' | 'INSURANCE';
@@ -25,7 +26,7 @@ const CATEGORIES: Record<CategoryKey, { label: string; type: 'income' | 'expense
   INSURANCE: { label: 'Insurance', type: 'expense', icon: '🛡️', colorClass: 'bg-purple-100 text-purple-700' },
 };
 
-export default function PropertyModule({ user, familyId }: PropertyModuleProps) {
+export default function PropertyModule({ user, familyId, canManageProperties }: PropertyModuleProps) {
   const [properties, setProperties] = useState<any[]>([]);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -98,6 +99,14 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
   const getPropertyTransactions = (propertyId: string) =>
     allTransactions.filter((t) => t.propertyId === propertyId);
 
+  const ensureCanManageProperties = () => {
+    if (!canManageProperties) {
+      setToast({ message: 'Only family admins can manage properties.', type: 'error' });
+      return false;
+    }
+    return true;
+  };
+
   const calculateTotals = (transactions: any[]) => {
     const income = transactions
       .filter((t) => t.type === 'income')
@@ -110,6 +119,7 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
 
   const handleCreateProperty = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!ensureCanManageProperties()) return;
     try {
       const { data: property, errors } = await client.models.Property.create({ ...propertyForm, familyId });
       if (errors || !property) {
@@ -128,12 +138,13 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
       }
     } catch (error) {
       console.error('Error creating property:', error);
-      setToast({ message: 'Failed to create property. Please try again.', type: 'error' });
+      setToast({ message: error instanceof Error ? error.message : 'Failed to create property. Please try again.', type: 'error' });
     }
   };
 
   const handleCreateTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!ensureCanManageProperties()) return;
     if (!selectedProperty) return;
     const categoryInfo = CATEGORIES[transactionForm.category];
     try {
@@ -162,6 +173,7 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
   };
 
   const handleDeleteProperty = async (id: string) => {
+    if (!ensureCanManageProperties()) return;
     setPendingDelete({
       message: 'Are you sure you want to delete this property?',
       onConfirm: async () => {
@@ -212,7 +224,10 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
           <button
-            onClick={() => setShowPropertyForm(true)}
+            onClick={() => {
+              if (!ensureCanManageProperties()) return;
+              setShowPropertyForm(true);
+            }}
             className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-5 py-2 rounded-lg transition flex items-center gap-2"
           >
             <span className="text-lg leading-none">+</span> Add Property
@@ -227,6 +242,12 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
           className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900"
         >
           <p className="text-sm font-medium">{readError}</p>
+        </div>
+      )}
+
+      {!canManageProperties && (
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-blue-900">
+          <p className="text-sm font-medium">Only family admins can create, update, or delete property records.</p>
         </div>
       )}
 
@@ -389,13 +410,15 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
                       <p className="text-royal-blue-200 text-sm mt-1">📍 {property.address}</p>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleDeleteProperty(property.id)}
-                    className="text-royal-blue-300 hover:text-white transition text-sm"
-                    title="Delete property"
-                  >
-                    🗑️
-                  </button>
+                  {canManageProperties && (
+                    <button
+                      onClick={() => handleDeleteProperty(property.id)}
+                      className="text-royal-blue-300 hover:text-white transition text-sm"
+                      title="Delete property"
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -428,10 +451,14 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
                 {isSelected && (
                   <button
                     onClick={() => {
+                      if (!ensureCanManageProperties()) return;
                       setSelectedProperty(property);
                       setShowTransactionForm(true);
                     }}
-                    className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-4 py-1.5 rounded-lg transition text-sm font-medium"
+                    disabled={!canManageProperties}
+                    aria-label="Log transaction"
+                    title={canManageProperties ? 'Log transaction' : 'Only family admins can log transactions'}
+                    className="bg-royal-blue-600 hover:bg-royal-blue-700 disabled:bg-gray-300 text-white px-4 py-1.5 rounded-lg transition text-sm font-medium disabled:cursor-not-allowed"
                   >
                     + Log Transaction
                   </button>
