@@ -15,6 +15,12 @@ import { createFamilyBootstrapFn } from '../functions/create-family-bootstrap/re
 // FamilyMember (family)| Read, Create (join) | Read, Create (join) | Full CRUD (roles)
 // Invite               | No access           | No access           | Full CRUD
 // Vacation             | Read, Create, Update| Create, Read, Update| Full CRUD
+// FlightSegment        | Read, Create, Update| Read, Create, Update| Full CRUD
+// Activity             | Read, Create, Update| Read, Create, Update| Full CRUD
+// TripLeg              | Read, Create, Update| Read, Create, Update| Full CRUD
+// TransportSegment     | Read, Create, Update| Read, Create, Update| Full CRUD
+// AccommodationStay    | Read, Create, Update| Read, Create, Update| Full CRUD
+// CruisePortStop       | Read, Create, Update| Read, Create, Update| Full CRUD
 // Chore                | Read, Update        | Create, Read, Update| Full CRUD
 // ChoreAssignment      | Read                | Create, Read, Update| Full CRUD
 // ChoreCompletion      | Read, Create, Update| Create, Read, Update| Full CRUD
@@ -32,9 +38,13 @@ import { createFamilyBootstrapFn } from '../functions/create-family-bootstrap/re
 //   direct family creation), a Cognito group named after the familyId is created
 //   and the user is added to it (see the add-to-family-group Lambda).
 //   WRITE operations (create, update, delete) remain role-gated so that the
-//   existing role hierarchy (ADMIN-only delete, PLANNER+ create) is preserved.
-//   Delete operations are restricted to ADMIN at the API level to prevent
-//   accidental or malicious data loss by lower-privilege roles.
+//   existing role hierarchy (ADMIN-only delete, PLANNER/MEMBER create/update)
+//   is preserved.  Delete operations are restricted to ADMIN at the API level
+//   to prevent accidental or malicious data loss by lower-privilege roles.
+//   NOTE: Vacation nested models (FlightSegment, Activity, TripLeg, etc.) grant
+//   MEMBER create/update so any family member who can create a Vacation can
+//   also populate its flight segments, activities, and itinerary legs without
+//   receiving a 403 Unauthorized error.
 // ---------------------------------------------------------------------------
 
 const schema = a.schema({
