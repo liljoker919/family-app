@@ -15,6 +15,12 @@ import { createFamilyBootstrapFn } from '../functions/create-family-bootstrap/re
 // FamilyMember (family)| Read, Create (join) | Read, Create (join) | Full CRUD (roles)
 // Invite               | No access           | No access           | Full CRUD
 // Vacation             | Read, Create, Update| Create, Read, Update| Full CRUD
+// FlightSegment        | Read, Create, Update| Read, Create, Update| Full CRUD
+// Activity             | Read, Create, Update| Read, Create, Update| Full CRUD
+// TripLeg              | Read, Create, Update| Read, Create, Update| Full CRUD
+// TransportSegment     | Read, Create, Update| Read, Create, Update| Full CRUD
+// AccommodationStay    | Read, Create, Update| Read, Create, Update| Full CRUD
+// CruisePortStop       | Read, Create, Update| Read, Create, Update| Full CRUD
 // Chore                | Read, Update        | Create, Read, Update| Full CRUD
 // ChoreAssignment      | Read                | Create, Read, Update| Full CRUD
 // ChoreCompletion      | Read, Create, Update| Create, Read, Update| Full CRUD
@@ -32,9 +38,13 @@ import { createFamilyBootstrapFn } from '../functions/create-family-bootstrap/re
 //   direct family creation), a Cognito group named after the familyId is created
 //   and the user is added to it (see the add-to-family-group Lambda).
 //   WRITE operations (create, update, delete) remain role-gated so that the
-//   existing role hierarchy (ADMIN-only delete, PLANNER+ create) is preserved.
-//   Delete operations are restricted to ADMIN at the API level to prevent
-//   accidental or malicious data loss by lower-privilege roles.
+//   existing role hierarchy (ADMIN-only delete, PLANNER/MEMBER create/update)
+//   is preserved.  Delete operations are restricted to ADMIN at the API level
+//   to prevent accidental or malicious data loss by lower-privilege roles.
+//   NOTE: Vacation nested models (FlightSegment, Activity, TripLeg, etc.) grant
+//   MEMBER create/update so any family member who can create a Vacation can
+//   also populate its flight segments, activities, and itinerary legs without
+//   receiving a 403 Unauthorized error.
 // ---------------------------------------------------------------------------
 
 const schema = a.schema({
@@ -187,7 +197,9 @@ const schema = a.schema({
       allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
-  // FlightSegment – child of Vacation; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // FlightSegment – child of Vacation; all groups create/update, only ADMIN may delete.
+  // MEMBER may create and update flight segments so that any family member who
+  // can create a Vacation can also add the flights that belong to it.
   FlightSegment: a
     .model({
       vacationId: a.id().required(),
@@ -202,12 +214,14 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // TripLeg – child of Vacation; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // TripLeg – child of Vacation; all groups create/update, only ADMIN may delete.
+  // MEMBER may create and update trip legs so that any family member who
+  // can create a Vacation can also add the itinerary legs that belong to it.
   TripLeg: a
     .model({
       vacationId: a.id().required(),
@@ -224,12 +238,14 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'tripLegId'),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // TransportSegment – child of TripLeg; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // TransportSegment – child of TripLeg; all groups create/update, only ADMIN may delete.
+  // MEMBER may create and update transport segments so that any family member
+  // who can create a Vacation can also add transportation details.
   TransportSegment: a
     .model({
       tripLegId: a.id().required(),
@@ -245,12 +261,14 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // AccommodationStay – child of TripLeg; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // AccommodationStay – child of TripLeg; all groups create/update, only ADMIN may delete.
+  // MEMBER may create and update accommodation stays so that any family member
+  // who can create a Vacation can also add accommodation details.
   AccommodationStay: a
     .model({
       tripLegId: a.id().required(),
@@ -264,12 +282,14 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // CruisePortStop – child of TripLeg; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // CruisePortStop – child of TripLeg; all groups create/update, only ADMIN may delete.
+  // MEMBER may create and update cruise port stops so that any family member
+  // who can create a Vacation can also add cruise itinerary stops.
   CruisePortStop: a
     .model({
       tripLegId: a.id().required(),
@@ -282,7 +302,7 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'cruisePortStopId'),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
@@ -340,7 +360,9 @@ const schema = a.schema({
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // Activity – child of Vacation; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // Activity – child of Vacation; all groups create/update, only ADMIN may delete.
+  // MEMBER may create and update activities so that any family member who
+  // can create a Vacation can also plan activities within it.
   Activity: a
     .model({
       vacationId: a.id().required(),
@@ -352,7 +374,7 @@ const schema = a.schema({
       feedbacks: a.hasMany('Feedback', 'activityId'),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
