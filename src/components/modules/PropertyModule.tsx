@@ -180,7 +180,7 @@ export default function PropertyModule({ user, familyId, canManageProperties }: 
         try {
           await client.models.Property.delete({ id });
           if (selectedProperty?.id === id) setSelectedProperty(null);
-          fetchAllData();
+          await fetchAllData();
           setToast({ message: 'Property deleted successfully.', type: 'success' });
         } catch (error) {
           console.error('Error deleting property:', error);
