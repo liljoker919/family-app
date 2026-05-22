@@ -197,9 +197,7 @@ const schema = a.schema({
       allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
-  // FlightSegment – child of Vacation; all groups create/update, only ADMIN may delete.
-  // MEMBER may create and update flight segments so that any family member who
-  // can create a Vacation can also add the flights that belong to it.
+  // FlightSegment – child of Vacation; all family roles can contribute; only ADMIN may delete.
   FlightSegment: a
     .model({
       vacationId: a.id().required(),
@@ -219,9 +217,7 @@ const schema = a.schema({
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // TripLeg – child of Vacation; all groups create/update, only ADMIN may delete.
-  // MEMBER may create and update trip legs so that any family member who
-  // can create a Vacation can also add the itinerary legs that belong to it.
+  // TripLeg – child of Vacation; all family roles can contribute; only ADMIN may delete.
   TripLeg: a
     .model({
       vacationId: a.id().required(),
@@ -243,9 +239,7 @@ const schema = a.schema({
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // TransportSegment – child of TripLeg; all groups create/update, only ADMIN may delete.
-  // MEMBER may create and update transport segments so that any family member
-  // who can create a Vacation can also add transportation details.
+  // TransportSegment – child of TripLeg; all family roles can contribute; only ADMIN may delete.
   TransportSegment: a
     .model({
       tripLegId: a.id().required(),
@@ -266,9 +260,7 @@ const schema = a.schema({
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // AccommodationStay – child of TripLeg; all groups create/update, only ADMIN may delete.
-  // MEMBER may create and update accommodation stays so that any family member
-  // who can create a Vacation can also add accommodation details.
+  // AccommodationStay – child of TripLeg; all family roles can contribute; only ADMIN may delete.
   AccommodationStay: a
     .model({
       tripLegId: a.id().required(),
@@ -287,9 +279,7 @@ const schema = a.schema({
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // CruisePortStop – child of TripLeg; all groups create/update, only ADMIN may delete.
-  // MEMBER may create and update cruise port stops so that any family member
-  // who can create a Vacation can also add cruise itinerary stops.
+  // CruisePortStop – child of TripLeg; all family roles can contribute; only ADMIN may delete.
   CruisePortStop: a
     .model({
       tripLegId: a.id().required(),
@@ -360,9 +350,7 @@ const schema = a.schema({
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // Activity – child of Vacation; all groups create/update, only ADMIN may delete.
-  // MEMBER may create and update activities so that any family member who
-  // can create a Vacation can also plan activities within it.
+  // Activity – child of Vacation; all family roles can contribute; only ADMIN may delete.
   Activity: a
     .model({
       vacationId: a.id().required(),
@@ -780,6 +768,5 @@ export const data = defineData({
     defaultAuthorizationMode: 'userPool',
   },
 });
-
 
 
