@@ -7,6 +7,7 @@ import type { Schema } from '../../../amplify/data/resource';
 import type { FamilyRole } from '../../utils/familyContext';
 import { canEditContent, canDeleteContent } from '../../utils/rolePermissions';
 import type { ActiveModule } from '../../utils/dashboardModules';
+import { assertAmplifyResult } from '../../utils/errorReporter';
 import ConfirmModal from '../ConfirmModal';
 import Toast from '../Toast';
 import { EVENT_COLORS, EVENT_TYPE_LABELS } from '../../utils/calendarConstants';
@@ -78,6 +79,7 @@ export default function CalendarModule({
     onConfirm: () => Promise<void>;
   } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const canEdit = canEditContent({ role, canPlan });
@@ -89,6 +91,7 @@ export default function CalendarModule({
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const { data } = await client.models.CalendarEvent.list({
         filter: {
@@ -99,6 +102,7 @@ export default function CalendarModule({
       setEvents(data ?? []);
     } catch (err) {
       console.error('Error fetching calendar events:', err);
+      setFetchError('Unable to load calendar events right now. Please refresh and try again.');
     } finally {
       setLoading(false);
     }
@@ -179,10 +183,12 @@ export default function CalendarModule({
         type: 'manual' as const,
       };
       if (editingEvent) {
-        await client.models.CalendarEvent.update({ id: editingEvent.id, ...payload });
+        const updateResult = await client.models.CalendarEvent.update({ id: editingEvent.id, ...payload });
+        assertAmplifyResult(updateResult, 'Failed to update event.');
         setToast({ message: 'Event updated!', type: 'success' });
       } else {
-        await client.models.CalendarEvent.create(payload);
+        const createResult = await client.models.CalendarEvent.create(payload);
+        assertAmplifyResult(createResult, 'Failed to add event.');
         setToast({ message: 'Event added!', type: 'success' });
       }
       setShowAddModal(false);
@@ -225,7 +231,7 @@ export default function CalendarModule({
     });
 
   const fcEvents = events.map(toFCEvent);
-  const isEmpty = !loading && events.length === 0;
+  const isEmpty = !loading && !fetchError && events.length === 0;
 
   // -------------------------------------------------------------------------
   // JSX
@@ -270,6 +276,11 @@ export default function CalendarModule({
           </div>
         ) : (
           <>
+            {fetchError && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {fetchError}
+              </div>
+            )}
             {/* Empty state notice rendered above the calendar grid */}
             {isEmpty && (
               <div className="mb-4 flex flex-col items-center text-center py-6 px-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
