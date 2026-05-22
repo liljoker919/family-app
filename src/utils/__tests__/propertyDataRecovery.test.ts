@@ -1,10 +1,24 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+
+const { mockFetchAuthSession } = vi.hoisted(() => ({
+  mockFetchAuthSession: vi.fn(),
+}));
+
+vi.mock('aws-amplify/auth', () => ({
+  fetchAuthSession: mockFetchAuthSession,
+}));
+
 import {
   PropertyDataRecoverableError,
   getPropertyReadErrorMessage,
   isLikelyFamilyClaimPropagationDelay,
+  mutatePropertyDataWithRetry,
   readPropertyDataWithRetry,
 } from '../propertyDataRecovery';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('isLikelyFamilyClaimPropagationDelay', () => {
   it('returns true for authorization-like errors', () => {
@@ -97,5 +111,58 @@ describe('getPropertyReadErrorMessage', () => {
     expect(getPropertyReadErrorMessage(new Error('boom'))).toBe(
       'Unable to load property data right now. Please try again.'
     );
+  });
+});
+
+describe('mutatePropertyDataWithRetry', () => {
+  it('retries authorization failures after syncing family access and refreshing the session', async () => {
+    const mutateData = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: null,
+        errors: [{ message: 'Unauthorized to access PropertyTransaction' }],
+      })
+      .mockResolvedValueOnce({
+        data: { id: 'txn-1' },
+        errors: null,
+      });
+    const syncFamilyAccess = vi.fn().mockResolvedValue(undefined);
+    mockFetchAuthSession.mockResolvedValue({});
+
+    const result = await mutatePropertyDataWithRetry(mutateData, {
+      failureMessage: 'Failed to save transaction.',
+      syncFamilyAccess,
+      maxAttempts: 3,
+      baseDelayMs: 0,
+    });
+
+    expect(result).toEqual({ id: 'txn-1' });
+    expect(mutateData).toHaveBeenCalledTimes(2);
+    expect(syncFamilyAccess).toHaveBeenCalledTimes(1);
+    expect(mockFetchAuthSession).toHaveBeenCalledWith({ forceRefresh: true });
+  });
+
+  it('throws a recoverable auth error when mutation authorization never recovers', async () => {
+    const mutateData = vi.fn().mockResolvedValue({
+      data: null,
+      errors: [{ message: 'Not authorized to access this resource' }],
+    });
+    const syncFamilyAccess = vi.fn().mockResolvedValue(undefined);
+    mockFetchAuthSession.mockResolvedValue({});
+
+    await expect(
+      mutatePropertyDataWithRetry(mutateData, {
+        failureMessage: 'Failed to create property.',
+        syncFamilyAccess,
+        maxAttempts: 2,
+        baseDelayMs: 0,
+      })
+    ).rejects.toMatchObject({
+      name: 'PropertyDataRecoverableError',
+      kind: 'AUTH_SYNC',
+    });
+
+    expect(syncFamilyAccess).toHaveBeenCalledTimes(1);
+    expect(mockFetchAuthSession).toHaveBeenCalledWith({ forceRefresh: true });
   });
 });
