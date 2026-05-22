@@ -4,6 +4,8 @@ type ToastType = 'success' | 'error';
 
 export type ToastMessage = { id: string; message: string; type: ToastType };
 export type ToastState = ToastMessage | null;
+type AmplifyErrorLike = { message?: string };
+type AmplifyResult<T> = { data?: T | null; errors?: AmplifyErrorLike[] | null };
 
 let toastIdCounter = 0;
 
@@ -24,6 +26,39 @@ export function createToastMessage(message: string, type: ToastType): ToastMessa
     message,
     type,
   };
+}
+
+function getAmplifyErrorMessage(errors: AmplifyErrorLike[] | null | undefined): string | null {
+  if (!Array.isArray(errors) || errors.length === 0) {
+    return null;
+  }
+
+  const firstMeaningfulMessage = errors
+    .map((entry) => (typeof entry?.message === 'string' ? entry.message.trim() : ''))
+    .find(Boolean);
+
+  if (firstMeaningfulMessage) {
+    return firstMeaningfulMessage;
+  }
+
+  try {
+    return JSON.stringify(errors);
+  } catch {
+    return null;
+  }
+}
+
+export function assertAmplifyResult<T>(response: AmplifyResult<T>, fallbackMessage: string): T {
+  const errorMessage = getAmplifyErrorMessage(response?.errors);
+  if (errorMessage) {
+    throw new Error(errorMessage);
+  }
+
+  if (response?.data == null) {
+    throw new Error(`${fallbackMessage} No data was returned by the API.`);
+  }
+
+  return response.data;
 }
 
 /**
