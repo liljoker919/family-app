@@ -462,8 +462,12 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
                 confirmationNumber: seg.confirmationNumber || undefined,
                 notes: seg.notes || undefined,
               });
-            if (errors?.length || !createdFlightSegment) {
-              throw new Error(errors?.map((entry) => entry.message).join(', ') ?? 'Failed to save flight segment.');
+            const combinedErrorMessage = formatAmplifyErrorMessage(errors);
+            if (combinedErrorMessage) {
+              throw new Error(combinedErrorMessage);
+            }
+            if (!createdFlightSegment) {
+              throw new Error('Failed to save flight segment: no data returned.');
             }
           })
         );
@@ -751,6 +755,10 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
     return "";
   };
 
+  const formatAmplifyErrorMessage = (
+    errors: Array<{ message?: string }> | null | undefined
+  ): string => errors?.map((entry) => entry.message).filter(Boolean).join(', ') ?? '';
+
   const handleAddPendingFlightSegment = () => {
     const error = validateFlightSegmentForm(flightSegmentForm);
     if (error) {
@@ -789,8 +797,12 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
         confirmationNumber: flightSegmentForm.confirmationNumber || undefined,
         notes: flightSegmentForm.notes || undefined,
       });
-      if (errors?.length || !createdFlightSegment) {
-        throw new Error(errors?.map((entry) => entry.message).join(', ') ?? 'Failed to save flight segment.');
+      const combinedErrorMessage = formatAmplifyErrorMessage(errors);
+      if (combinedErrorMessage) {
+        throw new Error(combinedErrorMessage);
+      }
+      if (!createdFlightSegment) {
+        throw new Error('Failed to save flight segment: no data returned.');
       }
       setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
       setFlightSegmentFormError("");
