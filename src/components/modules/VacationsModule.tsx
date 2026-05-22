@@ -786,24 +786,20 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       return;
     }
     try {
-      const { data: createdFlightSegment, errors } = await client.models.FlightSegment.create({
-        vacationId: selectedVacation.id,
-        airline: flightSegmentForm.airline,
-        flightNumber: flightSegmentForm.flightNumber,
-        departureAirport: flightSegmentForm.departureAirport,
-        arrivalAirport: flightSegmentForm.arrivalAirport,
-        departureDateTime: new Date(flightSegmentForm.departureDateTime).toISOString(),
-        arrivalDateTime: new Date(flightSegmentForm.arrivalDateTime).toISOString(),
-        confirmationNumber: flightSegmentForm.confirmationNumber || undefined,
-        notes: flightSegmentForm.notes || undefined,
-      });
-      const combinedErrorMessage = formatAmplifyErrorMessage(errors);
-      if (combinedErrorMessage) {
-        throw new Error(combinedErrorMessage);
-      }
-      if (!createdFlightSegment) {
-        throw new Error('Failed to save flight segment: no data returned.');
-      }
+      assertAmplifyResult(
+        await client.models.FlightSegment.create({
+          vacationId: selectedVacation.id,
+          airline: flightSegmentForm.airline,
+          flightNumber: flightSegmentForm.flightNumber,
+          departureAirport: flightSegmentForm.departureAirport,
+          arrivalAirport: flightSegmentForm.arrivalAirport,
+          departureDateTime: new Date(flightSegmentForm.departureDateTime).toISOString(),
+          arrivalDateTime: new Date(flightSegmentForm.arrivalDateTime).toISOString(),
+          confirmationNumber: flightSegmentForm.confirmationNumber || undefined,
+          notes: flightSegmentForm.notes || undefined,
+        }),
+        'Failed to save flight segment.'
+      );
       setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
       setFlightSegmentFormError("");
       setShowFlightSegmentForm(false);
