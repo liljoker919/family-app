@@ -4,6 +4,7 @@ import type { Schema } from '../../../amplify/data/resource';
 import ConfirmModal from '../ConfirmModal';
 import Toast from '../Toast';
 import { isRegistrationExpired, isRegistrationExpiringSoon } from '../../utils/registrationExpiry';
+import { assertAmplifyResult } from '../../utils/errorReporter';
 
 const client = generateClient<Schema>();
 
@@ -76,14 +77,18 @@ export default function CarsModule({ user, familyId }: CarsModuleProps) {
   const handleCreateCar = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await client.models.Car.create({
-        ...carForm,
-        familyId,
-        year: parseInt(carForm.year),
-        currentMileage: carForm.currentMileage ? parseInt(carForm.currentMileage) : undefined,
-        registrationExpiry: carForm.registrationExpiry || undefined,
-        licensePlate: carForm.licensePlate || undefined,
-      });
+      assertAmplifyResult(
+        await client.models.Car.create({
+          ...carForm,
+          familyId,
+          year: parseInt(carForm.year),
+          currentMileage: carForm.currentMileage ? parseInt(carForm.currentMileage) : undefined,
+          registrationExpiry: carForm.registrationExpiry || undefined,
+          licensePlate: carForm.licensePlate || undefined,
+        }),
+        'Failed to create car.'
+      );
+      await fetchCars();
       setCarForm({
         make: '',
         model: '',
@@ -95,24 +100,30 @@ export default function CarsModule({ user, familyId }: CarsModuleProps) {
         registrationExpiry: '',
       });
       setShowCarForm(false);
-      fetchCars();
+      setToast({ message: 'Car created successfully.', type: 'success' });
     } catch (error) {
       console.error('Error creating car:', error);
+      setToast({ message: error instanceof Error ? error.message : 'Failed to create car. Please try again.', type: 'error' });
     }
   };
 
   const handleUpdateMileage = async (carId: string) => {
     if (!mileageInput) return;
     try {
-      await client.models.Car.update({
-        id: carId,
-        currentMileage: parseInt(mileageInput),
-      });
+      assertAmplifyResult(
+        await client.models.Car.update({
+          id: carId,
+          currentMileage: parseInt(mileageInput),
+        }),
+        'Failed to update mileage.'
+      );
+      await fetchCars();
       setEditingMileageCar(null);
       setMileageInput('');
-      fetchCars();
+      setToast({ message: 'Mileage updated successfully.', type: 'success' });
     } catch (error) {
       console.error('Error updating mileage:', error);
+      setToast({ message: error instanceof Error ? error.message : 'Failed to update mileage. Please try again.', type: 'error' });
     }
   };
 
@@ -120,13 +131,17 @@ export default function CarsModule({ user, familyId }: CarsModuleProps) {
     e.preventDefault();
     if (!selectedCar) return;
     try {
-      await client.models.CarService.create({
-        ...serviceForm,
-        carId: selectedCar.id,
-        familyId: selectedCar.familyId,
-        mileageAtService: serviceForm.mileageAtService ? parseInt(serviceForm.mileageAtService) : undefined,
-        cost: serviceForm.cost ? parseFloat(serviceForm.cost) : undefined,
-      });
+      assertAmplifyResult(
+        await client.models.CarService.create({
+          ...serviceForm,
+          carId: selectedCar.id,
+          familyId: selectedCar.familyId,
+          mileageAtService: serviceForm.mileageAtService ? parseInt(serviceForm.mileageAtService) : undefined,
+          cost: serviceForm.cost ? parseFloat(serviceForm.cost) : undefined,
+        }),
+        'Failed to create service record.'
+      );
+      await fetchServices(selectedCar.id);
       setServiceForm({
         serviceType: '',
         description: '',
@@ -136,9 +151,10 @@ export default function CarsModule({ user, familyId }: CarsModuleProps) {
         provider: '',
       });
       setShowServiceForm(false);
-      fetchServices(selectedCar.id);
+      setToast({ message: 'Service record created successfully.', type: 'success' });
     } catch (error) {
       console.error('Error creating service:', error);
+      setToast({ message: error instanceof Error ? error.message : 'Failed to create service record. Please try again.', type: 'error' });
     }
   };
 
@@ -147,9 +163,12 @@ export default function CarsModule({ user, familyId }: CarsModuleProps) {
       message: 'Are you sure you want to delete this car?',
       onConfirm: async () => {
         try {
-          await client.models.Car.delete({ id });
+          assertAmplifyResult(
+            await client.models.Car.delete({ id }),
+            'Failed to delete car.'
+          );
           if (selectedCar?.id === id) setSelectedCar(null);
-          fetchCars();
+          await fetchCars();
           setToast({ message: 'Car deleted successfully.', type: 'success' });
         } catch (error) {
           console.error('Error deleting car:', error);
