@@ -5,6 +5,7 @@ import ConfirmModal from '../ConfirmModal';
 import Toast from '../Toast';
 import {
   getPropertyReadErrorMessage,
+  mutatePropertyDataWithRetry,
   readPropertyDataWithRetry,
 } from '../../utils/propertyDataRecovery';
 
@@ -117,14 +118,40 @@ export default function PropertyModule({ user, familyId, canManageProperties }: 
     return { income, expenses, net: income - expenses };
   };
 
+  const syncFamilyAccess = useCallback(async () => {
+    const addSelfToFamilyGroup = (
+      client.mutations as {
+        addSelfToFamilyGroup?: (args: { familyId: string }) => Promise<{
+          errors?: Array<{ message?: string }> | null;
+        }>;
+      }
+    ).addSelfToFamilyGroup;
+
+    if (!addSelfToFamilyGroup) {
+      return;
+    }
+
+    const result = await addSelfToFamilyGroup({ familyId });
+    const syncErrorMessage = result?.errors
+      ?.map((entry) => entry?.message?.trim() ?? '')
+      .find(Boolean);
+
+    if (syncErrorMessage) {
+      throw new Error(syncErrorMessage);
+    }
+  }, [familyId]);
+
   const handleCreateProperty = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ensureCanManageProperties()) return;
     try {
-      const { data: property, errors } = await client.models.Property.create({ ...propertyForm, familyId });
-      if (errors || !property) {
-        throw new Error(errors?.map((entry) => entry.message).join(', ') ?? 'Failed to create property.');
-      }
+      const property = await mutatePropertyDataWithRetry(
+        () => client.models.Property.create({ ...propertyForm, familyId }),
+        {
+          failureMessage: 'Failed to create property.',
+          syncFamilyAccess,
+        }
+      );
       setPropertyForm({ name: '', address: '' });
       setShowPropertyForm(false);
       const visible = await fetchAllData({ verifyPropertyId: property.id, maxAttempts: 5 });
@@ -148,15 +175,22 @@ export default function PropertyModule({ user, familyId, canManageProperties }: 
     if (!selectedProperty) return;
     const categoryInfo = CATEGORIES[transactionForm.category];
     try {
-      await client.models.PropertyTransaction.create({
-        familyId,
-        propertyId: selectedProperty.id,
-        type: categoryInfo.type,
-        amount: parseFloat(transactionForm.amount),
-        description: transactionForm.description,
-        date: transactionForm.date,
-        category: transactionForm.category,
-      });
+      await mutatePropertyDataWithRetry(
+        () =>
+          client.models.PropertyTransaction.create({
+            familyId,
+            propertyId: selectedProperty.id,
+            type: categoryInfo.type,
+            amount: parseFloat(transactionForm.amount),
+            description: transactionForm.description,
+            date: transactionForm.date,
+            category: transactionForm.category,
+          }),
+        {
+          failureMessage: 'Failed to save transaction.',
+          syncFamilyAccess,
+        }
+      );
       setTransactionForm({
         category: 'RENT_INCOME',
         amount: '',
@@ -168,7 +202,10 @@ export default function PropertyModule({ user, familyId, canManageProperties }: 
       setToast({ message: 'Transaction saved successfully.', type: 'success' });
     } catch (error) {
       console.error('Error creating transaction:', error);
-      setToast({ message: 'Failed to save transaction. Please try again.', type: 'error' });
+      setToast({
+        message: error instanceof Error ? error.message : 'Failed to save transaction. Please try again.',
+        type: 'error',
+      });
     }
   };
 

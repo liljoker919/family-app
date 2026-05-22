@@ -1,3 +1,6 @@
+import { fetchAuthSession } from 'aws-amplify/auth';
+import { assertAmplifyResult, type AmplifyResult } from './errorReporter';
+
 export interface PropertyDataSnapshot {
   properties: any[];
   transactions: any[];
@@ -7,6 +10,13 @@ interface ReadPropertyDataOptions {
   maxAttempts?: number;
   baseDelayMs?: number;
   verifyPropertyId?: string;
+}
+
+interface MutatePropertyDataOptions {
+  maxAttempts?: number;
+  baseDelayMs?: number;
+  failureMessage: string;
+  syncFamilyAccess?: () => Promise<unknown>;
 }
 
 export type PropertyDataRecoveryKind = 'AUTH_SYNC' | 'VISIBILITY_SYNC';
@@ -110,6 +120,56 @@ export async function readPropertyDataWithRetry(
   }
 
   throw new Error('Failed to load property data.');
+}
+
+export async function mutatePropertyDataWithRetry<T>(
+  mutateData: () => Promise<AmplifyResult<T>>,
+  options: MutatePropertyDataOptions
+): Promise<T> {
+  const maxAttempts = Math.max(1, options.maxAttempts ?? 3);
+  const baseDelayMs = Math.max(0, options.baseDelayMs ?? 500);
+  let finalError: PropertyDataRecoverableError | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await mutateData();
+      return assertAmplifyResult(result, options.failureMessage);
+    } catch (error) {
+      if (!isLikelyFamilyClaimPropagationDelay(error)) {
+        throw error;
+      }
+
+      if (attempt === maxAttempts) {
+        finalError = new PropertyDataRecoverableError(
+          'AUTH_SYNC',
+          'Family access synchronization is still in progress. Please wait a moment and try again.'
+        );
+        break;
+      }
+
+      if (options.syncFamilyAccess) {
+        try {
+          await options.syncFamilyAccess();
+        } catch {
+          // Best-effort: if syncing fails we still refresh the session and retry.
+        }
+      }
+
+      try {
+        await fetchAuthSession({ forceRefresh: true });
+      } catch {
+        // Best-effort session refresh. The next retry may still succeed.
+      }
+
+      await wait(baseDelayMs * attempt);
+    }
+  }
+
+  if (finalError) {
+    throw finalError;
+  }
+
+  throw new Error(options.failureMessage);
 }
 
 export function getPropertyReadErrorMessage(error: unknown): string {
