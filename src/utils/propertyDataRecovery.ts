@@ -128,6 +128,7 @@ export async function mutatePropertyDataWithRetry<T>(
 ): Promise<T> {
   const maxAttempts = Math.max(1, options.maxAttempts ?? 3);
   const baseDelayMs = Math.max(0, options.baseDelayMs ?? 500);
+  let finalError: PropertyDataRecoverableError | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -139,10 +140,11 @@ export async function mutatePropertyDataWithRetry<T>(
       }
 
       if (attempt === maxAttempts) {
-        throw new PropertyDataRecoverableError(
+        finalError = new PropertyDataRecoverableError(
           'AUTH_SYNC',
-          'We are still syncing your family access. Please wait a moment and try again.'
+          'Family access synchronization is still in progress. Please wait a moment and try again.'
         );
+        break;
       }
 
       if (options.syncFamilyAccess) {
@@ -158,6 +160,12 @@ export async function mutatePropertyDataWithRetry<T>(
       await wait(baseDelayMs * attempt);
     }
   }
+
+  if (finalError) {
+    throw finalError;
+  }
+
+  throw new Error(options.failureMessage);
 }
 
 export function getPropertyReadErrorMessage(error: unknown): string {
