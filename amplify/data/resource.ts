@@ -187,7 +187,7 @@ const schema = a.schema({
       allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
-  // FlightSegment – child of Vacation; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // FlightSegment – child of Vacation; all family roles can contribute; only ADMIN may delete.
   FlightSegment: a
     .model({
       vacationId: a.id().required(),
@@ -202,12 +202,12 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // TripLeg – child of Vacation; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // TripLeg – child of Vacation; all family roles can contribute; only ADMIN may delete.
   TripLeg: a
     .model({
       vacationId: a.id().required(),
@@ -224,12 +224,12 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'tripLegId'),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // TransportSegment – child of TripLeg; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // TransportSegment – child of TripLeg; all family roles can contribute; only ADMIN may delete.
   TransportSegment: a
     .model({
       tripLegId: a.id().required(),
@@ -245,12 +245,12 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // AccommodationStay – child of TripLeg; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // AccommodationStay – child of TripLeg; all family roles can contribute; only ADMIN may delete.
   AccommodationStay: a
     .model({
       tripLegId: a.id().required(),
@@ -264,12 +264,12 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // CruisePortStop – child of TripLeg; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // CruisePortStop – child of TripLeg; all family roles can contribute; only ADMIN may delete.
   CruisePortStop: a
     .model({
       tripLegId: a.id().required(),
@@ -282,7 +282,7 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'cruisePortStopId'),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
@@ -340,7 +340,7 @@ const schema = a.schema({
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // Activity – child of Vacation; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // Activity – child of Vacation; all family roles can contribute; only ADMIN may delete.
   Activity: a
     .model({
       vacationId: a.id().required(),
@@ -352,7 +352,7 @@ const schema = a.schema({
       feedbacks: a.hasMany('Feedback', 'activityId'),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
@@ -758,6 +758,5 @@ export const data = defineData({
     defaultAuthorizationMode: 'userPool',
   },
 });
-
 
 

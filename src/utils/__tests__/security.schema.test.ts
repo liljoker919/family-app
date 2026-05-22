@@ -153,6 +153,25 @@ describe('security.schema.Vacation – authorization rules', () => {
   });
 });
 
+describe('security.schema.Vacation nested models – MEMBER can contribute', () => {
+  const nestedVacationModels = [
+    'FlightSegment',
+    'TripLeg',
+    'TransportSegment',
+    'AccommodationStay',
+    'CruisePortStop',
+    'Activity',
+  ] as const;
+
+  for (const model of nestedVacationModels) {
+    it(`security.schema.${model}.member-can-create-and-update`, () => {
+      const block = extractAuthBlock(model);
+      expect(block, `${model} authorization block not found`).not.toBeNull();
+      expect(containsGroupRule(block!, ['MEMBER'], ['create', 'update'])).toBe(true);
+    });
+  }
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Car
 // ─────────────────────────────────────────────────────────────────────────────
