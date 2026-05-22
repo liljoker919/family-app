@@ -148,7 +148,11 @@ export async function mutatePropertyDataWithRetry<T>(
       }
 
       if (options.syncFamilyAccess) {
-        await options.syncFamilyAccess();
+        try {
+          await options.syncFamilyAccess();
+        } catch {
+          // Best-effort: if syncing fails we still refresh the session and retry.
+        }
       }
 
       try {
