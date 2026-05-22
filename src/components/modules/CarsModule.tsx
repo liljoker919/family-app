@@ -172,7 +172,7 @@ export default function CarsModule({ user, familyId }: CarsModuleProps) {
           setToast({ message: 'Car deleted successfully.', type: 'success' });
         } catch (error) {
           console.error('Error deleting car:', error);
-          setToast({ message: 'Failed to delete car. Please try again.', type: 'error' });
+          setToast({ message: error instanceof Error ? error.message : 'Failed to delete car. Please try again.', type: 'error' });
         }
       },
     });

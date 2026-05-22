@@ -132,7 +132,7 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const contributor = form.contributor.trim()
+      const contributor = form.contributor?.trim()
         || user?.signInDetails?.loginId?.trim()
         || user?.username?.trim()
         || 'Family Member';
@@ -187,7 +187,7 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
           setToast({ message: 'Recipe deleted successfully.', type: 'success' });
         } catch (error) {
           console.error('Error deleting recipe:', error);
-          setToast({ message: 'Failed to delete recipe. Please try again.', type: 'error' });
+          setToast({ message: error instanceof Error ? error.message : 'Failed to delete recipe. Please try again.', type: 'error' });
         }
       },
     });
