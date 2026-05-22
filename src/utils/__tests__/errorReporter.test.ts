@@ -76,4 +76,16 @@ describe('assertAmplifyResult', () => {
       )
     ).toThrow('Failed to redeem invite. No data was returned by the API.');
   });
+
+  it('adds sentence punctuation when fallback message has none', () => {
+    expect(() =>
+      assertAmplifyResult(
+        {
+          data: null,
+          errors: null,
+        },
+        'Failed to create property'
+      )
+    ).toThrow('Failed to create property. No data was returned by the API.');
+  });
 });
