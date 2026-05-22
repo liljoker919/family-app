@@ -796,7 +796,9 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       fetchFlightSegments(selectedVacation.id);
     } catch (error) {
       console.error("Error creating flight segment:", error);
-      showError(error instanceof Error ? error.message : "Failed to save flight segment. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to save flight segment. Please try again.";
+      setFlightSegmentFormError(errorMessage);
+      showError(errorMessage);
     }
   };
 
