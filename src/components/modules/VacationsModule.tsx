@@ -450,9 +450,8 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       );
       if (pendingFlightSegments.length > 0) {
         await Promise.all(
-          pendingFlightSegments.map(async (seg) =>
-            assertAmplifyResult(
-              await client.models.FlightSegment.create({
+          pendingFlightSegments.map(async (seg) => {
+            const { data: createdFlightSegment, errors } = await client.models.FlightSegment.create({
                 vacationId: newVacation.id,
                 airline: seg.airline,
                 flightNumber: seg.flightNumber,
@@ -462,10 +461,15 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
                 arrivalDateTime: new Date(seg.arrivalDateTime).toISOString(),
                 confirmationNumber: seg.confirmationNumber || undefined,
                 notes: seg.notes || undefined,
-              }),
-              'Failed to save flight segment.'
-            )
-          )
+              });
+            const combinedErrorMessage = formatAmplifyErrorMessage(errors);
+            if (combinedErrorMessage) {
+              throw new Error(combinedErrorMessage);
+            }
+            if (!createdFlightSegment) {
+              throw new Error('Failed to save flight segment: no data returned.');
+            }
+          })
         );
       }
 
@@ -478,7 +482,9 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       showSuccess('Vacation created successfully.');
     } catch (error) {
       console.error("Error creating vacation:", error);
-      showError(error instanceof Error ? error.message : "Failed to create vacation. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to create vacation. Please try again.";
+      setFlightSegmentFormError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -748,6 +754,10 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
     }
     return "";
   };
+
+  const formatAmplifyErrorMessage = (
+    errors: Array<{ message?: string }> | null | undefined
+  ): string => errors?.map((entry) => entry.message).filter(Boolean).join(', ') ?? '';
 
   const handleAddPendingFlightSegment = () => {
     const error = validateFlightSegmentForm(flightSegmentForm);
