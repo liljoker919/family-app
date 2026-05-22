@@ -158,8 +158,6 @@ export async function mutatePropertyDataWithRetry<T>(
       await wait(baseDelayMs * attempt);
     }
   }
-
-  throw new Error(options.failureMessage);
 }
 
 export function getPropertyReadErrorMessage(error: unknown): string {

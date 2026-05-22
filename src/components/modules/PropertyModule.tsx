@@ -202,7 +202,10 @@ export default function PropertyModule({ user, familyId, canManageProperties }: 
       setToast({ message: 'Transaction saved successfully.', type: 'success' });
     } catch (error) {
       console.error('Error creating transaction:', error);
-      setToast({ message: error instanceof Error ? error.message : 'Failed to save transaction. Please try again.', type: 'error' });
+      setToast({
+        message: error instanceof Error ? error.message : 'Failed to save transaction. Please try again.',
+        type: 'error',
+      });
     }
   };
 
