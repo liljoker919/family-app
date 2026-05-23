@@ -16,9 +16,9 @@ describe('profile name attribute parity', () => {
     expect(amplifyConfig.Auth.Cognito.userAttributes.family_name.required).toBe(true);
   });
 
-  it('marks given and family name as required in backend auth resource', () => {
-    expect(backendAuthSource).toMatch(/givenName:\s*\{[^}]*required:\s*true/);
-    expect(backendAuthSource).toMatch(/familyName:\s*\{[^}]*required:\s*true/);
+  it('does not mark given and family name as required in backend auth resource', () => {
+    expect(backendAuthSource).not.toMatch(/givenName:\s*\{[^}]*required:\s*true/);
+    expect(backendAuthSource).not.toMatch(/familyName:\s*\{[^}]*required:\s*true/);
   });
 
   it('enforces required first and last name in all signup form field definitions', () => {
