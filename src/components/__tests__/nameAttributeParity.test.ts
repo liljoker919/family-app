@@ -17,8 +17,8 @@ describe('profile name attribute parity', () => {
   });
 
   it('marks given and family name as required in backend auth resource', () => {
-    expect(backendAuthSource).toMatch(/givenName:\s*\{[\s\S]*?required:\s*true/);
-    expect(backendAuthSource).toMatch(/familyName:\s*\{[\s\S]*?required:\s*true/);
+    expect(backendAuthSource).toMatch(/givenName:\s*\{[^}]*required:\s*true/);
+    expect(backendAuthSource).toMatch(/familyName:\s*\{[^}]*required:\s*true/);
   });
 
   it('enforces required first and last name in all signup form field definitions', () => {
