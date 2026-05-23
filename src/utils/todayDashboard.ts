@@ -189,7 +189,7 @@ export function getTodayPrioritizedAlerts(
     if (!car.registrationExpiry) continue;
     const daysUntil = getDayDiffFromToday(car.registrationExpiry, now);
     const expired = isRegistrationExpired(car.registrationExpiry, now);
-    const expiringSoon = isRegistrationExpiringSoon(car.registrationExpiry, now) && daysUntil < 30;
+    const expiringSoon = isRegistrationExpiringSoon(car.registrationExpiry, now) && daysUntil <= 30;
     if (!expired && !expiringSoon) continue;
 
     const label = [car.year, car.make, car.model].filter(Boolean).join(' ') || 'Vehicle';
@@ -222,7 +222,7 @@ export function getTodayPrioritizedAlerts(
   for (const vacation of vacations) {
     if (!vacation.startDate) continue;
     const daysUntil = getDayDiffFromToday(vacation.startDate, now);
-    if (daysUntil < 0 || daysUntil >= 14) continue;
+    if (daysUntil < 0 || daysUntil > 14) continue;
     alerts.push({
       id: `vacation-${vacation.id}`,
       type: 'vacation',

@@ -14,6 +14,7 @@ import {
   getUrgentCarRegistrationAlerts,
 } from '../../utils/todayDashboard';
 import { TODAY_ALERT_SEVERITY_STYLES } from '../../utils/todayAlertStyles';
+import { isLikelyFamilyClaimPropagationDelay } from '../../utils/propertyDataRecovery';
 
 const client = generateClient<Schema>();
 
@@ -37,40 +38,68 @@ export default function TodayView({ familyId, membership, onNavigateTo }: TodayV
     setLoading(true);
 
     (async () => {
-      try {
-        const requests: Promise<any>[] = [
+      const wait = async (ms: number) => {
+        await new Promise((resolve) => setTimeout(resolve, ms));
+      };
+
+      const toErrorMessage = (errors: Array<{ message?: string } | string> = []) =>
+        errors
+          .map((error) =>
+            typeof error === 'string' ? error : error?.message ?? 'Unknown error'
+          )
+          .join('; ');
+
+      const fetchDashboardData = async () => {
+        const [carResult, vacationResult, choreResult, propertyTxnResult] = await Promise.all([
           client.models.Car.list({ filter: { familyId: { eq: familyId } } }),
           client.models.Vacation.list({ filter: { familyId: { eq: familyId } } }),
           client.models.Chore.list({ filter: { familyId: { eq: familyId } } }),
+          canViewProperty
+            ? client.models.PropertyTransaction.list({ filter: { familyId: { eq: familyId } } })
+            : Promise.resolve({ data: [], errors: undefined }),
+        ]);
+
+        const listErrors = [
+          ...(carResult.errors ?? []),
+          ...(vacationResult.errors ?? []),
+          ...(choreResult.errors ?? []),
+          ...(propertyTxnResult.errors ?? []),
         ];
 
-        if (canViewProperty) {
-          requests.push(client.models.PropertyTransaction.list({ filter: { familyId: { eq: familyId } } }));
+        if (listErrors.length > 0) {
+          throw new Error(toErrorMessage(listErrors));
         }
-
-        const [carResult, vacationResult, choreResult, propertyTxnResult] = await Promise.allSettled(requests);
 
         if (cancelled) return;
 
-        if (carResult.status === 'rejected') {
-          console.error('Failed to load cars for Today view', carResult.reason);
-        }
-        if (vacationResult.status === 'rejected') {
-          console.error('Failed to load vacations for Today view', vacationResult.reason);
-        }
-        if (choreResult.status === 'rejected') {
-          console.error('Failed to load chores for Today view', choreResult.reason);
-        }
-        if (propertyTxnResult?.status === 'rejected') {
-          console.error('Failed to load property transactions for Today view', propertyTxnResult.reason);
-        }
+        setCars(carResult.data ?? []);
+        setVacations(vacationResult.data ?? []);
+        setChores(choreResult.data ?? []);
+        setTransactions(propertyTxnResult.data ?? []);
+      };
 
-        setCars(carResult.status === 'fulfilled' ? (carResult.value?.data ?? []) : []);
-        setVacations(vacationResult.status === 'fulfilled' ? (vacationResult.value?.data ?? []) : []);
-        setChores(choreResult.status === 'fulfilled' ? (choreResult.value?.data ?? []) : []);
-        setTransactions(
-          propertyTxnResult?.status === 'fulfilled' ? (propertyTxnResult.value?.data ?? []) : []
-        );
+      try {
+        const maxAttempts = 3;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            await fetchDashboardData();
+            return;
+          } catch (error) {
+            if (attempt < maxAttempts && isLikelyFamilyClaimPropagationDelay(error)) {
+              await wait(300 * attempt);
+              continue;
+            }
+
+            console.error('Failed to load Today view dashboard data', error);
+            if (!cancelled) {
+              setCars([]);
+              setVacations([]);
+              setChores([]);
+              setTransactions([]);
+            }
+            return;
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
