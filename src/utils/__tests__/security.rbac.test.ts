@@ -99,36 +99,6 @@ describe('security.rbac – delete gate (planning-enabled MEMBER blocked)', () =
   });
 });
 
-// ── Create / edit gate: MEMBER without canPlan is read-only for general content ──
-
-describe('security.rbac – create/edit gate (MEMBER blocked)', () => {
-  it('security.rbac.member-without-canPlan-cannot-create-chore', () => {
-    // canEditContent gates creation of chores, cars, recipes, etc.
-    // Vacations are an exception: any family member may create a vacation.
-    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
-  });
-
-  it('security.rbac.member-without-canPlan-cannot-create-chore-or-car', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
-  });
-
-  it('security.rbac.member-cannot-create-chore', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
-  });
-
-  it('security.rbac.member-cannot-create-chore-assignment', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
-  });
-
-  it('security.rbac.member-cannot-create-car', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
-  });
-
-  it('security.rbac.member-cannot-create-recipe', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
-  });
-});
-
 // ── Privilege escalation: non-ADMIN users cannot change roles ────────────────
 
 describe('security.rbac – privilege escalation prevention', () => {
@@ -272,10 +242,6 @@ describe('security.rbac – create/edit gate exhaustiveness', () => {
     expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
     expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
-
-  it('security.rbac.member-fails-edit-gate', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
-  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -393,47 +359,10 @@ describe('security.rbac – ADMIN role management (positive)', () => {
   });
 });
 
-// ── Planning-enabled MEMBER: create and update permissions ────────────────────
-
-describe('security.rbac – planning-enabled MEMBER create/update permissions (positive)', () => {
-  it('security.rbac.planner-can-create-vacation', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
-  });
-
-  it('security.rbac.planner-can-update-vacation', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
-  });
-
-  it('security.rbac.planner-can-create-vacation-when-planning-feature-is-removed', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
-  });
-
-  it('security.rbac.planner-can-create-chore', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
-  });
-
-  it('security.rbac.planner-can-update-chore', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
-  });
-
-  it('security.rbac.planner-can-create-car', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
-  });
-
-  it('security.rbac.planner-can-update-car', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
-  });
-
-  it('security.rbac.planner-can-create-recipe', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: true })).toBe(true);
-  });
-});
-
 // ── MEMBER: read-only on protected models, can update chore completions ───────
 
 describe('security.rbac – MEMBER read and chore completion (positive)', () => {
-  it('security.rbac.member-read-is-permitted-canEditContent-is-false', () => {
-    expect(canEditContent({ role: 'MEMBER', canPlan: false })).toBe(false);
+  it('security.rbac.member-cannot-delete-protected-models', () => {
     expect(canDeleteContent({ role: 'MEMBER', canPlan: false })).toBe(false);
   });
 
@@ -609,4 +538,3 @@ describe('security.rbac – tenant isolation (cross-family access)', () => {
     expect(result).toBeNull();
   });
 });
-

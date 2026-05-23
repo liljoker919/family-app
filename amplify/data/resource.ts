@@ -174,7 +174,7 @@ const schema = a.schema({
 
   // Vacation – family-scoped.
   // Read is gated by familyId group membership (server-side tenant isolation);
-  // update is role-gated; PLANNER and ADMIN may create; only ADMIN may delete.
+  // MEMBER, PLANNER, and ADMIN may create and update; only ADMIN may delete.
   Vacation: a
     .model({
       familyId: a.id().required(),
@@ -768,5 +768,4 @@ export const data = defineData({
     defaultAuthorizationMode: 'userPool',
   },
 });
-
 
