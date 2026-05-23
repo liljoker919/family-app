@@ -150,8 +150,8 @@ export async function mutatePropertyDataWithRetry<T>(
       if (options.syncFamilyAccess) {
         try {
           await options.syncFamilyAccess();
-        } catch {
-          // Best-effort: if syncing fails we still refresh the session and retry.
+        } catch (syncError) {
+          console.warn('[mutatePropertyDataWithRetry] syncFamilyAccess failed; proceeding with session refresh and retry.', syncError);
         }
       }
 
