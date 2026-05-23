@@ -29,7 +29,7 @@ Amplify.configure(outputs);
 
 const client = generateClient<Schema>();
 
-const formFields = {
+export const dashboardFormFields = {
   signIn: {
     username: {
       label: 'Email',
@@ -56,11 +56,13 @@ const formFields = {
       label: 'First Name',
       placeholder: 'Enter your first name',
       order: 4,
+      isRequired: true,
     },
     family_name: {
       label: 'Last Name',
       placeholder: 'Enter your last name',
       order: 5,
+      isRequired: true,
     },
   },
 };
@@ -69,7 +71,7 @@ function DashboardContent() {
   const [activeModule, setActiveModule] = useState<ActiveModule>('home');
 
   return (
-    <Authenticator formFields={formFields}>
+    <Authenticator formFields={dashboardFormFields}>
       {({ signOut, user }) => (
         <DashboardInner user={user} signOut={signOut} activeModule={activeModule} setActiveModule={setActiveModule} />
       )}

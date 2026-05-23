@@ -9,11 +9,11 @@ export const auth = defineAuth({
   userAttributes: {
     familyName: {
       mutable: true,
-      required: false,
+      required: true,
     },
     givenName: {
       mutable: true,
-      required: false,
+      required: true,
     },
   },
   triggers: {
