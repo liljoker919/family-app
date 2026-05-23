@@ -2,6 +2,7 @@ import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { postConfirmation } from './functions/post-confirmation/resource';
+import { preSignUp } from './functions/pre-sign-up/resource';
 import { updateMemberRoleFn } from './functions/update-member-role/resource';
 import { createInviteFn } from './functions/create-invite/resource';
 import { redeemInviteFn } from './functions/redeem-invite/resource';
@@ -13,6 +14,7 @@ const backend = defineBackend({
   auth,
   data,
   postConfirmation,
+  preSignUp,
   updateMemberRoleFn,
   createInviteFn,
   redeemInviteFn,
