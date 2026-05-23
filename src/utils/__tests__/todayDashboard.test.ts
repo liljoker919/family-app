@@ -105,11 +105,11 @@ describe('getTodayPrioritizedAlerts', () => {
       [
         { id: 'car-expired', make: 'Honda', model: 'Civic', registrationExpiry: '2026-05-01' },
         { id: 'car-warning', make: 'Toyota', model: 'RAV4', registrationExpiry: '2026-05-25' },
-        { id: 'car-outside', make: 'Ford', model: 'Escape', registrationExpiry: '2026-06-09' }, // +30d (excluded)
+        { id: 'car-boundary', make: 'Ford', model: 'Escape', registrationExpiry: '2026-06-09' }, // +30d (included)
       ],
       [
         { id: 'vac-near', title: 'Beach Trip', startDate: '2026-05-20' },
-        { id: 'vac-outside', title: 'Far Trip', startDate: '2026-05-24' }, // +14d (excluded)
+        { id: 'vac-boundary', title: 'Far Trip', startDate: '2026-05-24' }, // +14d (included)
       ],
       [
         { id: 'chore-now', title: 'Wash dishes', recurrence: 'DAILY', isActive: true },
@@ -122,9 +122,11 @@ describe('getTodayPrioritizedAlerts', () => {
       'car-car-expired',
       'chore-chore-now',
       'car-car-warning',
+      'car-car-boundary',
       'vacation-vac-near',
+      'vacation-vac-boundary',
     ]);
-    expect(alerts.map((a) => a.severity)).toEqual(['critical', 'warning', 'warning', 'info']);
+    expect(alerts.map((a) => a.severity)).toEqual(['critical', 'warning', 'warning', 'warning', 'info', 'info']);
   });
 
   it('returns an empty list when nothing qualifies for today', () => {
