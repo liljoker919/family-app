@@ -131,6 +131,47 @@ interface InviteAuthFlowProps {
   email: string | null;
 }
 
+export function buildInviteFormFields(email: string | null) {
+  return {
+    signIn: {
+      username: {
+        label: 'Email',
+        placeholder: 'Enter your email',
+      },
+    },
+    signUp: {
+      email: {
+        label: 'Email',
+        placeholder: 'Enter your email',
+        order: 1,
+        ...(email ? { defaultValue: email } : {}),
+      },
+      password: {
+        label: 'Password',
+        placeholder: 'Create a password',
+        order: 2,
+      },
+      confirm_password: {
+        label: 'Confirm Password',
+        placeholder: 'Confirm your password',
+        order: 3,
+      },
+      given_name: {
+        label: 'First Name',
+        placeholder: 'Enter your first name',
+        order: 4,
+        isRequired: true,
+      },
+      family_name: {
+        label: 'Last Name',
+        placeholder: 'Enter your last name',
+        order: 5,
+        isRequired: true,
+      },
+    },
+  };
+}
+
 // Inner component that receives `user` as a prop so we can safely use
 // useEffect to trigger redemption — avoids calling async state-setters
 // directly inside the Authenticator render prop.
@@ -176,42 +217,7 @@ function InviteAuthFlow({ token, email }: InviteAuthFlowProps) {
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeeming, setRedeeming] = useState(false);
 
-  const formFields = {
-    signIn: {
-      username: {
-        label: 'Email',
-        placeholder: 'Enter your email',
-      },
-    },
-    signUp: {
-      email: {
-        label: 'Email',
-        placeholder: 'Enter your email',
-        order: 1,
-        ...(email ? { defaultValue: email } : {}),
-      },
-      password: {
-        label: 'Password',
-        placeholder: 'Create a password',
-        order: 2,
-      },
-      confirm_password: {
-        label: 'Confirm Password',
-        placeholder: 'Confirm your password',
-        order: 3,
-      },
-      given_name: {
-        label: 'First Name',
-        placeholder: 'Enter your first name',
-        order: 4,
-      },
-      family_name: {
-        label: 'Last Name',
-        placeholder: 'Enter your last name',
-        order: 5,
-      },
-    },
-  };
+  const formFields = buildInviteFormFields(email);
 
   return (
     <div>

@@ -13,10 +13,10 @@ export const amplifyConfig = {
           required: true,
         },
         family_name: {
-          required: false,
+          required: true,
         },
         given_name: {
-          required: false,
+          required: true,
         },
       },
       allowGuestAccess: false,

@@ -31,6 +31,44 @@ function RedirectHandler({ user }: RedirectHandlerProps) {
   return null;
 }
 
+export const authPageFormFields = {
+  signIn: {
+    username: {
+      label: 'Email',
+      placeholder: 'Enter your email',
+    },
+  },
+  signUp: {
+    email: {
+      label: 'Email',
+      placeholder: 'Enter your email',
+      order: 1,
+    },
+    password: {
+      label: 'Password',
+      placeholder: 'Enter your password',
+      order: 2,
+    },
+    confirm_password: {
+      label: 'Confirm Password',
+      placeholder: 'Confirm your password',
+      order: 3,
+    },
+    given_name: {
+      label: 'First Name',
+      placeholder: 'Enter your first name',
+      order: 4,
+      isRequired: true,
+    },
+    family_name: {
+      label: 'Last Name',
+      placeholder: 'Enter your last name',
+      order: 5,
+      isRequired: true,
+    },
+  },
+};
+
 export default function AuthPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-royal-blue-900 via-royal-blue-700 to-royal-blue-500 flex items-center justify-center p-4">
@@ -41,41 +79,7 @@ export default function AuthPage() {
         </div>
         <Authenticator
           className="shadow-2xl rounded-lg"
-          formFields={{
-            signIn: {
-              username: {
-                label: 'Email',
-                placeholder: 'Enter your email',
-              },
-            },
-            signUp: {
-              email: {
-                label: 'Email',
-                placeholder: 'Enter your email',
-                order: 1,
-              },
-              password: {
-                label: 'Password',
-                placeholder: 'Enter your password',
-                order: 2,
-              },
-              confirm_password: {
-                label: 'Confirm Password',
-                placeholder: 'Confirm your password',
-                order: 3,
-              },
-              given_name: {
-                label: 'First Name',
-                placeholder: 'Enter your first name',
-                order: 4,
-              },
-              family_name: {
-                label: 'Last Name',
-                placeholder: 'Enter your last name',
-                order: 5,
-              },
-            },
-          }}
+          formFields={authPageFormFields}
         >
           {({ user }) => <RedirectHandler user={user} />}
         </Authenticator>
