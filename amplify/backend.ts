@@ -16,8 +16,7 @@ const includeAuth = true;
 const backend = defineBackend({
   ...buildAuthResourceMap(includeAuth, auth),
   data,
-  postConfirmation,
-  preSignUp,
+  ...(includeAuth ? { postConfirmation, preSignUp } : {}),
   updateMemberRoleFn,
   createInviteFn,
   redeemInviteFn,
@@ -28,14 +27,16 @@ const backend = defineBackend({
 const userPoolId = getUserPoolId(backend);
 
 // Grant permission to assign users to Cognito groups
-backend.postConfirmation.resources.lambda.addToRolePolicy(
-  new PolicyStatement({
-    actions: ['cognito-idp:AdminAddUserToGroup'],
-    // Use wildcard resource to avoid circular dependency between the user pool
-    // (which owns the trigger) and the trigger lambda execution role policy.
-    resources: ['*'],
-  }),
-);
+if (includeAuth) {
+  backend.postConfirmation.resources.lambda.addToRolePolicy(
+    new PolicyStatement({
+      actions: ['cognito-idp:AdminAddUserToGroup'],
+      // Use wildcard resource to avoid circular dependency between the user pool
+      // (which owns the trigger) and the trigger lambda execution role policy.
+      resources: ['*'],
+    }),
+  );
+}
 
 // Grant the role-update Lambda read/write access to the FamilyMember table so
 // it can perform caller lookup, admin-count checks, and the role update itself.
