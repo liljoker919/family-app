@@ -16,7 +16,8 @@ const includeAuth = true;
 const backend = defineBackend({
   ...buildAuthResourceMap(includeAuth, auth),
   data,
-  ...(includeAuth ? { postConfirmation, preSignUp } : {}),
+  ...(includeAuth ? { postConfirmation } : {}),
+  ...(includeAuth ? { preSignUp } : {}),
   updateMemberRoleFn,
   createInviteFn,
   redeemInviteFn,

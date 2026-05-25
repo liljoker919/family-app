@@ -36,7 +36,13 @@ describe('backend auth default wiring', () => {
       'utf8',
     );
 
-    expect(backendSource).toMatch(/const includeAuth = true;/);
+    expect(backendSource).toMatch(/const\s+includeAuth\s*=\s*true\s*;/);
     expect(backendSource).toMatch(/buildAuthResourceMap\(\s*includeAuth\s*,\s*auth\s*\)/);
+    expect(backendSource).toMatch(
+      /\.\.\.\(\s*includeAuth\s*\?\s*\{\s*postConfirmation\s*\}\s*:\s*\{\s*\}\s*\)/,
+    );
+    expect(backendSource).toMatch(
+      /\.\.\.\(\s*includeAuth\s*\?\s*\{\s*preSignUp\s*\}\s*:\s*\{\s*\}\s*\)/,
+    );
   });
 });
