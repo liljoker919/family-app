@@ -37,6 +37,6 @@ describe('backend auth default wiring', () => {
     );
 
     expect(backendSource).toMatch(/const includeAuth = true;/);
-    expect(backendSource).toMatch(/buildAuthResourceMap\(includeAuth, auth\)/);
+    expect(backendSource).toMatch(/buildAuthResourceMap\(\s*includeAuth\s*,\s*auth\s*\)/);
   });
 });
