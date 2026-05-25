@@ -1,5 +1,7 @@
+// Force-syncing clean authentication stack baseline reconstruction
 import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
+// ... the rest of your file remains exactly as it stands
 import { data } from './data/resource';
 import { postConfirmation } from './functions/post-confirmation/resource';
 import { preSignUp } from './functions/pre-sign-up/resource';
