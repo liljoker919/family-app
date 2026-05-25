@@ -11,7 +11,7 @@ import { createFamilyBootstrapFn } from './functions/create-family-bootstrap/res
 import { buildAuthResourceMap, getUserPoolId } from './backend-auth-utils';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
-const includeAuth = true;
+const includeAuth = false;
 
 const backend = defineBackend({
   ...buildAuthResourceMap(includeAuth, auth),
