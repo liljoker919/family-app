@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createToastMessage } from '../errorReporter';
+import { assertAmplifyResult, createToastMessage } from '../errorReporter';
 
 describe('createToastMessage', () => {
   afterEach(() => {
@@ -28,15 +28,64 @@ describe('createToastMessage', () => {
     expect(first.type).toBe(second.type);
   });
 
-  it('falls back to timestamp + random id when crypto.randomUUID is unavailable', () => {
+  it('falls back to timestamp + counter id when crypto.randomUUID is unavailable', () => {
     vi.stubGlobal('crypto', {});
     vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
-    vi.spyOn(Math, 'random').mockReturnValue(0.123456789);
 
     const toast = createToastMessage('Fallback path', 'success');
 
-    expect(toast.id).toBe('1700000000000-4fzzzxjylrx');
+    expect(toast.id).toBe('1700000000000-1');
     expect(toast.type).toBe('success');
     expect(toast.message).toBe('Fallback path');
+  });
+});
+
+describe('assertAmplifyResult', () => {
+  it('returns data when Amplify response is successful', () => {
+    const result = assertAmplifyResult(
+      {
+        data: { id: 'vacation-1' },
+        errors: null,
+      },
+      'Failed to create vacation.'
+    );
+
+    expect(result).toEqual({ id: 'vacation-1' });
+  });
+
+  it('throws the first meaningful GraphQL error message', () => {
+    expect(() =>
+      assertAmplifyResult(
+        {
+          data: null,
+          errors: [{ message: '   ' }, { message: 'Validation error.' }],
+        },
+        'Failed to save.'
+      )
+    ).toThrow('Validation error.');
+  });
+
+  it('throws a fallback data-loss error when data is missing', () => {
+    expect(() =>
+      assertAmplifyResult(
+        {
+          data: null,
+          errors: null,
+        },
+        'Failed to redeem invite.'
+      )
+    ).toThrow('Failed to redeem invite. No data was returned by the API.');
+  });
+
+  it('adds sentence punctuation when fallback message has none', () => {
+    expect(() =>
+      assertAmplifyResult(
+        {
+          data: null,
+          errors: null,
+        },
+        'Failed to create property'
+      )
+    ).toThrow('Failed to create property. No data was returned by the API.');
   });
 });

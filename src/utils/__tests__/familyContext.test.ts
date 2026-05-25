@@ -29,7 +29,7 @@ describe('generateJoinCode', () => {
 // These functions call the Amplify client, so we mock it.
 // vi.hoisted ensures the mock variables are defined before the module factory runs.
 // ---------------------------------------------------------------------------
-const { mockFamilyMember, mockFamily, mockProfile } = vi.hoisted(() => ({
+const { mockFamilyMember, mockFamily, mockProfile, mockCreateFamilyBootstrap, mockAddSelfToFamilyGroup } = vi.hoisted(() => ({
   mockFamilyMember: {
     list: vi.fn(),
     create: vi.fn(),
@@ -44,6 +44,8 @@ const { mockFamilyMember, mockFamily, mockProfile } = vi.hoisted(() => ({
     create: vi.fn(),
     update: vi.fn(),
   },
+  mockCreateFamilyBootstrap: vi.fn(),
+  mockAddSelfToFamilyGroup: vi.fn(),
 }));
 
 vi.mock('aws-amplify/data', () => ({
@@ -53,11 +55,16 @@ vi.mock('aws-amplify/data', () => ({
       Family: mockFamily,
       Profile: mockProfile,
     },
+    mutations: {
+      createFamilyBootstrap: mockCreateFamilyBootstrap,
+      addSelfToFamilyGroup: mockAddSelfToFamilyGroup,
+    },
   }),
 }));
 
 import {
   getFamilyMembership,
+  normalizeUserIdCandidates,
   createFamily,
   joinFamily,
   startSoloTrial,
@@ -94,6 +101,47 @@ describe('getFamilyMembership', () => {
     const result = await getFamilyMembership('user-xyz');
     expect(result).toBeNull();
   });
+
+  it('tries canonical fallback identifiers and returns membership when a later identifier matches', async () => {
+    mockFamilyMember.list
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({
+        data: [{ familyId: 'family-1', userId: 'user-canonical', role: 'ADMIN', displayName: 'Dad' }],
+      });
+    mockFamily.get.mockResolvedValue({
+      data: { id: 'family-1', name: 'The Smiths' },
+    });
+
+    const result = await getFamilyMembership(['login@example.com', 'user-canonical']);
+
+    expect(result?.familyId).toBe('family-1');
+    expect(mockFamilyMember.list).toHaveBeenNthCalledWith(1, {
+      filter: { userId: { eq: 'login@example.com' } },
+    });
+    expect(mockFamilyMember.list).toHaveBeenNthCalledWith(2, {
+      filter: { userId: { eq: 'user-canonical' } },
+    });
+  });
+
+  it('deduplicates and trims identifier candidates before lookup', async () => {
+    mockFamilyMember.list.mockResolvedValue({ data: [] });
+
+    await getFamilyMembership(['  user-abc  ', 'user-abc', '', '   ']);
+
+    expect(mockFamilyMember.list).toHaveBeenCalledTimes(1);
+    expect(mockFamilyMember.list).toHaveBeenCalledWith({
+      filter: { userId: { eq: 'user-abc' } },
+    });
+  });
+});
+
+describe('normalizeUserIdCandidates', () => {
+  it('trims and deduplicates user identifiers', () => {
+    expect(normalizeUserIdCandidates(['  alpha  ', 'alpha', 'beta', ''])).toEqual([
+      'alpha',
+      'beta',
+    ]);
+  });
 });
 
 describe('tenant isolation boundary - getFamilyMembership', () => {
@@ -118,28 +166,50 @@ describe('tenant isolation boundary - getFamilyMembership', () => {
 
 describe('createFamily', () => {
   it('creates a Family and FamilyMember with ADMIN role', async () => {
-    mockFamily.create.mockResolvedValue({
-      data: { id: 'new-family', name: 'The Joneses', joinCode: 'XYZ789' },
+    mockCreateFamilyBootstrap.mockResolvedValue({
+      data: { familyId: 'new-family', familyName: 'The Joneses', joinCode: 'XYZ789', role: 'ADMIN' },
     });
-    mockFamilyMember.create.mockResolvedValue({
-      data: { familyId: 'new-family', userId: 'user-1', role: 'ADMIN', displayName: 'Mom' },
-    });
+    mockAddSelfToFamilyGroup.mockResolvedValue({ data: { success: true } });
 
     const membership = await createFamily('The Joneses', 'user-1', 'Mom');
     expect(membership.familyId).toBe('new-family');
     expect(membership.role).toBe('ADMIN');
     expect(membership.familyName).toBe('The Joneses');
-    expect(mockFamily.create).toHaveBeenCalledOnce();
-    expect(mockFamilyMember.create).toHaveBeenCalledOnce();
+    expect(mockCreateFamilyBootstrap).toHaveBeenCalledOnce();
+    expect(mockAddSelfToFamilyGroup).toHaveBeenCalledWith({ familyId: 'new-family' });
   });
 
-  it('throws when Family.create returns errors', async () => {
-    mockFamily.create.mockResolvedValue({
+  it('throws when createFamilyBootstrap returns errors', async () => {
+    mockCreateFamilyBootstrap.mockResolvedValue({
       data: null,
       errors: [{ message: 'Validation error' }],
     });
 
     await expect(createFamily('Bad Family', 'user-2')).rejects.toThrow('Validation error');
+  });
+
+  it('retries group assignment when addSelfToFamilyGroup temporarily fails', async () => {
+    vi.useFakeTimers();
+
+    try {
+      mockCreateFamilyBootstrap.mockResolvedValue({
+        data: { familyId: 'retry-family', familyName: 'Retry Family', joinCode: 'RTY123', role: 'ADMIN' },
+      });
+      mockAddSelfToFamilyGroup
+        .mockRejectedValueOnce(new Error('transient'))
+        .mockResolvedValueOnce({ data: { success: true } });
+
+      const membershipPromise = createFamily('Retry Family', 'user-1');
+
+      await vi.advanceTimersByTimeAsync(300);
+
+      const membership = await membershipPromise;
+
+      expect(membership.familyId).toBe('retry-family');
+      expect(mockAddSelfToFamilyGroup).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -179,20 +249,44 @@ describe('joinFamily', () => {
     expect(membership?.canPlan).toBe(true);
     expect(mockFamilyMember.create).not.toHaveBeenCalled();
   });
+
+  it('retries group assignment when addSelfToFamilyGroup temporarily fails', async () => {
+    vi.useFakeTimers();
+
+    try {
+      mockFamily.list.mockResolvedValue({
+        data: [{ id: 'family-b', name: 'Family B', joinCode: 'VALID1' }],
+      });
+      mockFamilyMember.list.mockResolvedValue({ data: [] });
+      mockFamilyMember.create.mockResolvedValue({
+        data: { familyId: 'family-b', userId: 'user-3', role: 'MEMBER', displayName: null },
+      });
+      mockAddSelfToFamilyGroup
+        .mockRejectedValueOnce(new Error('transient'))
+        .mockResolvedValueOnce({ data: { success: true } });
+
+      const membershipPromise = joinFamily('VALID1', 'user-3');
+      await vi.advanceTimersByTimeAsync(300);
+      const membership = await membershipPromise;
+
+      expect(membership?.familyId).toBe('family-b');
+      expect(mockAddSelfToFamilyGroup).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
 // startSoloTrial
 // ---------------------------------------------------------------------------
 describe('startSoloTrial', () => {
-  /** Shared helper: set up the Family + FamilyMember mocks for createFamily */
+  /** Shared helper: set up bootstrap mutation mocks for createFamily */
   function setupCreateFamily() {
-    mockFamily.create.mockResolvedValue({
-      data: { id: 'solo-family', name: 'My Family', joinCode: 'SOLO01' },
+    mockCreateFamilyBootstrap.mockResolvedValue({
+      data: { familyId: 'solo-family', familyName: 'My Family', joinCode: 'SOLO01', role: 'ADMIN' },
     });
-    mockFamilyMember.create.mockResolvedValue({
-      data: { familyId: 'solo-family', userId: 'user-solo', role: 'ADMIN', displayName: 'Alice' },
-    });
+    mockAddSelfToFamilyGroup.mockResolvedValue({ data: { success: true } });
   }
 
   it('updates an existing Profile with trial fields when one already exists', async () => {
@@ -261,7 +355,7 @@ describe('startSoloTrial', () => {
   });
 
   it('throws when family creation fails before profile setup', async () => {
-    mockFamily.create.mockResolvedValue({
+    mockCreateFamilyBootstrap.mockResolvedValue({
       data: null,
       errors: [{ message: 'family create failed' }],
     });

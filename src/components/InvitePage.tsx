@@ -52,7 +52,7 @@ export default function InvitePage() {
             <p className="text-gray-500">Loading invite…</p>
           </div>
         ) : !params.token ? (
-          <InvalidInvite />
+          <InviteTokenEntry />
         ) : (
           <InviteAuthFlow
             token={params.token}
@@ -64,21 +64,64 @@ export default function InvitePage() {
   );
 }
 
-function InvalidInvite() {
+function extractToken(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const looksLikeUrl = /^https?:\/\//i.test(trimmed) || trimmed.startsWith('www.');
+  try {
+    if (looksLikeUrl) {
+      const urlValue = trimmed.startsWith('www.') ? `https://${trimmed}` : trimmed;
+      const parsed = new URL(urlValue);
+      return parsed.searchParams.get('token');
+    }
+  } catch {
+    return null;
+  }
+  return trimmed;
+}
+
+function InviteTokenEntry() {
+  const [rawValue, setRawValue] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleContinue = (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = extractToken(rawValue);
+    if (!token) {
+      setError('Enter a valid invite link or token.');
+      return;
+    }
+
+    window.location.href = `/invite?token=${encodeURIComponent(token)}`;
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
       <div className="text-5xl mb-4">🔗</div>
-      <h2 className="text-xl font-semibold text-gray-800 mb-2">Invalid Invite Link</h2>
+      <h2 className="text-xl font-semibold text-gray-800 mb-2">Enter Invite Link</h2>
       <p className="text-gray-500 mb-6">
-        This invite link is missing required information. Please ask the family admin to resend the
-        invite.
+        Paste your invite URL (or token) to continue joining your family.
       </p>
-      <a
-        href="/"
-        className="inline-block bg-royal-blue-600 hover:bg-royal-blue-700 text-white font-semibold py-2 px-6 rounded-xl transition"
-      >
-        Go to Sign In
-      </a>
+      <form onSubmit={handleContinue} className="space-y-3 text-left">
+        <input
+          type="text"
+          value={rawValue}
+          onChange={(e) => {
+            setRawValue(e.target.value);
+            setError(null);
+          }}
+          placeholder="https://.../invite?token=..."
+          className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-royal-blue-400"
+        />
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <button
+          type="submit"
+          className="w-full bg-royal-blue-600 hover:bg-royal-blue-700 text-white font-semibold py-2 px-6 rounded-xl transition"
+        >
+          Continue
+        </button>
+      </form>
     </div>
   );
 }
@@ -86,6 +129,47 @@ function InvalidInvite() {
 interface InviteAuthFlowProps {
   token: string;
   email: string | null;
+}
+
+export function buildInviteFormFields(email: string | null) {
+  return {
+    signIn: {
+      username: {
+        label: 'Email',
+        placeholder: 'Enter your email',
+      },
+    },
+    signUp: {
+      email: {
+        label: 'Email',
+        placeholder: 'Enter your email',
+        order: 1,
+        ...(email ? { defaultValue: email } : {}),
+      },
+      password: {
+        label: 'Password',
+        placeholder: 'Create a password',
+        order: 2,
+      },
+      confirm_password: {
+        label: 'Confirm Password',
+        placeholder: 'Confirm your password',
+        order: 3,
+      },
+      given_name: {
+        label: 'First Name',
+        placeholder: 'Enter your first name',
+        order: 4,
+        isRequired: true,
+      },
+      family_name: {
+        label: 'Last Name',
+        placeholder: 'Enter your last name',
+        order: 5,
+        isRequired: true,
+      },
+    },
+  };
 }
 
 // Inner component that receives `user` as a prop so we can safely use
@@ -133,42 +217,7 @@ function InviteAuthFlow({ token, email }: InviteAuthFlowProps) {
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [redeeming, setRedeeming] = useState(false);
 
-  const formFields = {
-    signIn: {
-      username: {
-        label: 'Email',
-        placeholder: 'Enter your email',
-      },
-    },
-    signUp: {
-      email: {
-        label: 'Email',
-        placeholder: 'Enter your email',
-        order: 1,
-        ...(email ? { defaultValue: email } : {}),
-      },
-      password: {
-        label: 'Password',
-        placeholder: 'Create a password',
-        order: 2,
-      },
-      confirm_password: {
-        label: 'Confirm Password',
-        placeholder: 'Confirm your password',
-        order: 3,
-      },
-      given_name: {
-        label: 'First Name',
-        placeholder: 'Enter your first name',
-        order: 4,
-      },
-      family_name: {
-        label: 'Last Name',
-        placeholder: 'Enter your last name',
-        order: 5,
-      },
-    },
-  };
+  const formFields = buildInviteFormFields(email);
 
   return (
     <div>
@@ -208,4 +257,3 @@ function InviteAuthFlow({ token, email }: InviteAuthFlowProps) {
     </div>
   );
 }
-

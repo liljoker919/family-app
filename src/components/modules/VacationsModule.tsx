@@ -3,7 +3,7 @@ import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../../../amplify/data/resource";
 import ConfirmModal from "../ConfirmModal";
 import Toast from "../Toast";
-import { useToast } from "../../utils/errorReporter";
+import { assertAmplifyResult, useToast } from "../../utils/errorReporter";
 
 const client = generateClient<Schema>();
 
@@ -375,29 +375,35 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
     const existing = (feedbacksByTarget[targetId] ?? []).find((f) => f.userId === userId);
     try {
       if (existing) {
-        await client.models.TripFeedback.update({
-          id: existing.id,
-          rating: clampedRating,
-          comment: tripFeedbackForm.comment || undefined,
-          recommend: tripFeedbackForm.recommend ?? undefined,
-        });
+        assertAmplifyResult(
+          await client.models.TripFeedback.update({
+            id: existing.id,
+            rating: clampedRating,
+            comment: tripFeedbackForm.comment || undefined,
+            recommend: tripFeedbackForm.recommend ?? undefined,
+          }),
+          'Failed to update feedback.'
+        );
       } else {
-        await client.models.TripFeedback.create({
-          vacationId,
-          targetType,
-          targetId,
-          userId,
-          rating: clampedRating,
-          comment: tripFeedbackForm.comment || undefined,
-          recommend: tripFeedbackForm.recommend ?? undefined,
-        });
+        assertAmplifyResult(
+          await client.models.TripFeedback.create({
+            vacationId,
+            targetType,
+            targetId,
+            userId,
+            rating: clampedRating,
+            comment: tripFeedbackForm.comment || undefined,
+            recommend: tripFeedbackForm.recommend ?? undefined,
+          }),
+          'Failed to save feedback.'
+        );
       }
       setTripFeedbackForm({ rating: 5, comment: '', recommend: null });
       setSelectedFeedbackTargetId(null);
       fetchFeedbacksForTarget(targetId);
     } catch (error) {
       console.error("Error saving trip feedback:", error);
-      showError("Failed to save feedback. Please try again.");
+      showError(error instanceof Error ? error.message : "Failed to save feedback. Please try again.");
     }
   };
 
@@ -412,38 +418,73 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
 
   const handleCreateVacation = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Client-side validation for required fields
+    if (!vacationForm.title.trim()) {
+      showError("Title is required.");
+      return;
+    }
+    if (!vacationForm.startDate) {
+      showError("Start Date is required.");
+      return;
+    }
+    if (!vacationForm.endDate) {
+      showError("End Date is required.");
+      return;
+    }
+
     try {
-      const { data: newVacation } = await client.models.Vacation.create({
-        ...vacationForm,
-        familyId,
-        createdBy: user?.signInDetails?.loginId || "unknown",
-      });
-      if (newVacation && pendingFlightSegments.length > 0) {
+      const newVacation = assertAmplifyResult(
+        await client.models.Vacation.create({
+          title: vacationForm.title,
+          description: vacationForm.description || undefined,
+          startDate: vacationForm.startDate,
+          endDate: vacationForm.endDate,
+          transportation: vacationForm.transportation,
+          accommodations: vacationForm.accommodations || undefined,
+          tripType: vacationForm.tripType,
+          familyId,
+          createdBy: user?.signInDetails?.loginId || "unknown",
+        }),
+        'Failed to create vacation.'
+      );
+      if (pendingFlightSegments.length > 0) {
         await Promise.all(
-          pendingFlightSegments.map((seg) =>
-            client.models.FlightSegment.create({
-              vacationId: newVacation.id,
-              airline: seg.airline,
-              flightNumber: seg.flightNumber,
-              departureAirport: seg.departureAirport,
-              arrivalAirport: seg.arrivalAirport,
-              departureDateTime: new Date(seg.departureDateTime).toISOString(),
-              arrivalDateTime: new Date(seg.arrivalDateTime).toISOString(),
-              confirmationNumber: seg.confirmationNumber || undefined,
-              notes: seg.notes || undefined,
-            })
-          )
+          pendingFlightSegments.map(async (seg) => {
+            const { data: createdFlightSegment, errors } = await client.models.FlightSegment.create({
+                vacationId: newVacation.id,
+                airline: seg.airline,
+                flightNumber: seg.flightNumber,
+                departureAirport: seg.departureAirport,
+                arrivalAirport: seg.arrivalAirport,
+                departureDateTime: new Date(seg.departureDateTime).toISOString(),
+                arrivalDateTime: new Date(seg.arrivalDateTime).toISOString(),
+                confirmationNumber: seg.confirmationNumber || undefined,
+                notes: seg.notes || undefined,
+              });
+            const combinedErrorMessage = formatAmplifyErrorMessage(errors);
+            if (combinedErrorMessage) {
+              throw new Error(combinedErrorMessage);
+            }
+            if (!createdFlightSegment) {
+              throw new Error('Failed to save flight segment: no data returned.');
+            }
+          })
         );
       }
+
       setVacationForm({ title: "", description: "", startDate: "", endDate: "", transportation: "flight", accommodations: "", tripType: "SINGLE_LOCATION" });
       setPendingFlightSegments([]);
       setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
       setFlightSegmentFormError("");
       setShowVacationForm(false);
-      fetchVacations();
+      await fetchVacations();
+      showSuccess('Vacation created successfully.');
     } catch (error) {
       console.error("Error creating vacation:", error);
-      showError("Failed to create vacation. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to create vacation. Please try again.";
+      setFlightSegmentFormError(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -451,13 +492,16 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
     e.preventDefault();
     if (!selectedVacation) return;
     try {
-      await client.models.Activity.create({ ...activityForm, vacationId: selectedVacation.id });
+      assertAmplifyResult(
+        await client.models.Activity.create({ ...activityForm, vacationId: selectedVacation.id }),
+        'Failed to create activity.'
+      );
       setActivityForm({ name: "", description: "", date: "", location: "" });
       setShowActivityForm(false);
       fetchActivities(selectedVacation.id);
     } catch (error) {
       console.error("Error creating activity:", error);
-      showError("Failed to create activity. Please try again.");
+      showError(error instanceof Error ? error.message : "Failed to create activity. Please try again.");
     }
   };
 
@@ -465,97 +509,115 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
     e.preventDefault();
     if (!selectedActivity) return;
     try {
-      await client.models.Feedback.create({
-        ...feedbackForm,
-        activityId: selectedActivity.id,
-        userId: user?.signInDetails?.loginId || "unknown",
-        createdAt: new Date().toISOString(),
-      });
+      assertAmplifyResult(
+        await client.models.Feedback.create({
+          ...feedbackForm,
+          activityId: selectedActivity.id,
+          userId: user?.signInDetails?.loginId || "unknown",
+          createdAt: new Date().toISOString(),
+        }),
+        'Failed to submit feedback.'
+      );
       setFeedbackForm({ rating: 5, comment: "" });
       fetchFeedbacks(selectedActivity.id);
     } catch (error) {
       console.error("Error creating feedback:", error);
-      showError("Failed to submit feedback. Please try again.");
+      showError(error instanceof Error ? error.message : "Failed to submit feedback. Please try again.");
     }
   };
 
   const handleCreateLeg = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await client.models.TripLeg.create({
-        ...legForm,
-        vacationId: selectedVacation.id,
-        startDate: legForm.startDate || undefined,
-        endDate: legForm.endDate || undefined,
-      });
+      assertAmplifyResult(
+        await client.models.TripLeg.create({
+          ...legForm,
+          vacationId: selectedVacation.id,
+          startDate: legForm.startDate || undefined,
+          endDate: legForm.endDate || undefined,
+        }),
+        'Failed to create trip leg.'
+      );
       setLegForm({ sequence: legs.length + 1, name: "", description: "", legType: "TRAVEL", startDate: "", endDate: "" });
       setShowLegForm(false);
       fetchLegs(selectedVacation.id);
     } catch (error) {
       console.error("Error creating trip leg:", error);
-      showError("Failed to create trip leg. Please try again.");
+      showError(error instanceof Error ? error.message : "Failed to create trip leg. Please try again.");
     }
   };
 
   const handleCreateTransportSegment = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await client.models.TransportSegment.create({
-        ...transportForm,
-        tripLegId: selectedLeg.id,
-        departureTime: transportForm.departureTime || undefined,
-        arrivalTime: transportForm.arrivalTime || undefined,
-      });
+      assertAmplifyResult(
+        await client.models.TransportSegment.create({
+          ...transportForm,
+          tripLegId: selectedLeg.id,
+          departureTime: transportForm.departureTime || undefined,
+          arrivalTime: transportForm.arrivalTime || undefined,
+        }),
+        'Failed to create transport segment.'
+      );
       setTransportForm({ type: "FLIGHT", carrier: "", flightNumber: "", departureLocation: "", arrivalLocation: "", departureTime: "", arrivalTime: "", confirmationCode: "", notes: "" });
       setShowTransportForm(false);
       fetchTransportSegments(selectedLeg.id);
     } catch (error) {
       console.error("Error creating transport segment:", error);
-      showError("Failed to create transport segment. Please try again.");
+      showError(error instanceof Error ? error.message : "Failed to create transport segment. Please try again.");
     }
   };
 
   const handleCreateAccommodationStay = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await client.models.AccommodationStay.create({ ...accommodationForm, tripLegId: selectedLeg.id });
+      assertAmplifyResult(
+        await client.models.AccommodationStay.create({ ...accommodationForm, tripLegId: selectedLeg.id }),
+        'Failed to create accommodation stay.'
+      );
       setAccommodationForm({ type: "HOTEL", name: "", address: "", checkInDate: "", checkOutDate: "", confirmationCode: "", notes: "" });
       setShowAccommodationForm(false);
       fetchAccommodationStays(selectedLeg.id);
     } catch (error) {
       console.error("Error creating accommodation stay:", error);
-      showError("Failed to create accommodation stay. Please try again.");
+      showError(error instanceof Error ? error.message : "Failed to create accommodation stay. Please try again.");
     }
   };
 
   const handleCreatePortStop = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await client.models.CruisePortStop.create({
-        ...portStopForm,
-        tripLegId: selectedLeg.id,
-        arrivalDate: portStopForm.arrivalDate || undefined,
-        departureDate: portStopForm.departureDate || undefined,
-      });
+      assertAmplifyResult(
+        await client.models.CruisePortStop.create({
+          ...portStopForm,
+          tripLegId: selectedLeg.id,
+          arrivalDate: portStopForm.arrivalDate || undefined,
+          departureDate: portStopForm.departureDate || undefined,
+        }),
+        'Failed to create port stop.'
+      );
       setPortStopForm({ portName: "", country: "", arrivalDate: "", departureDate: "", sequence: cruisePortStops.length + 1 });
       setShowPortStopForm(false);
       fetchCruisePortStops(selectedLeg.id);
     } catch (error) {
       console.error("Error creating port stop:", error);
-      showError("Failed to create port stop. Please try again.");
+      showError(error instanceof Error ? error.message : "Failed to create port stop. Please try again.");
     }
   };
 
   const handleCreateExcursion = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await client.models.ExcursionOption.create({
-        ...excursionForm,
-        estimatedCost: excursionForm.estimatedCost ? parseFloat(excursionForm.estimatedCost) : undefined,
-        proposedBy: user?.signInDetails?.loginId || "unknown",
-        tripLegId: selectedPortStop ? undefined : selectedLeg?.id,
-        cruisePortStopId: selectedPortStop?.id,
-      });
+      assertAmplifyResult(
+        await client.models.ExcursionOption.create({
+          ...excursionForm,
+          estimatedCost: excursionForm.estimatedCost ? parseFloat(excursionForm.estimatedCost) : undefined,
+          proposedBy: user?.signInDetails?.loginId || "unknown",
+          tripLegId: selectedPortStop ? undefined : selectedLeg?.id,
+          cruisePortStopId: selectedPortStop?.id,
+        }),
+        'Failed to create excursion option.'
+      );
       setExcursionForm({ name: "", description: "", estimatedCost: "", duration: "", category: "", status: "PROPOSED" });
       setShowExcursionForm(false);
       if (selectedPortStop) {
@@ -565,7 +627,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       }
     } catch (error) {
       console.error("Error creating excursion option:", error);
-      showError("Failed to create excursion option. Please try again.");
+      showError(error instanceof Error ? error.message : "Failed to create excursion option. Please try again.");
     }
   };
 
@@ -598,21 +660,26 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
     try {
       let newVoteId = myCurrentEntry?.id;
       if (myCurrentEntry) {
-        await client.models.ExcursionVote.update({ id: myCurrentEntry.id, vote });
+        assertAmplifyResult(
+          await client.models.ExcursionVote.update({ id: myCurrentEntry.id, vote }),
+          'Failed to update vote.'
+        );
       } else {
-        const { data: created } = await client.models.ExcursionVote.create({ excursionOptionId, userId: uid, vote });
-        newVoteId = created?.id;
-        if (!newVoteId) {
-          console.error("ExcursionVote.create did not return an id; skipping local state update.");
-          return;
-        }
+        const created = assertAmplifyResult(
+          await client.models.ExcursionVote.create({ excursionOptionId, userId: uid, vote }),
+          'Failed to record vote.'
+        );
+        newVoteId = created.id;
       }
       // Persist aggregate counts on the parent option
-      await client.models.ExcursionOption.update({
-        id: excursionOptionId,
-        upVoteCount: newUpCount,
-        downVoteCount: newDownCount,
-      });
+      assertAmplifyResult(
+        await client.models.ExcursionOption.update({
+          id: excursionOptionId,
+          upVoteCount: newUpCount,
+          downVoteCount: newDownCount,
+        }),
+        'Failed to update vote counts.'
+      );
       // Update local state (no extra fetches needed)
       setMyVotesByExcursion((prev) => ({
         ...prev,
@@ -627,7 +694,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       );
     } catch (error) {
       console.error("Error recording vote:", error);
-      showError("Failed to record vote. Please try again.");
+      showError(error instanceof Error ? error.message : "Failed to record vote. Please try again.");
     }
   };
 
@@ -635,18 +702,21 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
     e.preventDefault();
     if (!selectedExcursion || !commentText.trim()) return;
     try {
-      await client.models.ExcursionComment.create({
-        excursionOptionId: selectedExcursion.id,
-        userId: user?.signInDetails?.loginId || "unknown",
-        comment: commentText.trim(),
-        createdAt: new Date().toISOString(),
-      });
+      assertAmplifyResult(
+        await client.models.ExcursionComment.create({
+          excursionOptionId: selectedExcursion.id,
+          userId: user?.signInDetails?.loginId || "unknown",
+          comment: commentText.trim(),
+          createdAt: new Date().toISOString(),
+        }),
+        'Failed to post comment.'
+      );
       setCommentText("");
       setShowCommentForm(false);
       fetchExcursionComments(selectedExcursion.id);
     } catch (error) {
       console.error("Error creating comment:", error);
-      showError("Failed to post comment. Please try again.");
+      showError(error instanceof Error ? error.message : "Failed to post comment. Please try again.");
     }
   };
 
@@ -655,7 +725,10 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       message: 'Are you sure you want to delete this vacation?',
       onConfirm: async () => {
         try {
-          await client.models.Vacation.delete({ id });
+          assertAmplifyResult(
+            await client.models.Vacation.delete({ id }),
+            'Failed to delete vacation.'
+          );
           setVacations((prev) => prev.filter((v) => v.id !== id));
           if (selectedVacation?.id === id) {
             setSelectedVacation(null);
@@ -663,7 +736,7 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
           showSuccess('Vacation deleted successfully.');
         } catch (error) {
           console.error("Error deleting vacation:", error);
-          showError('Failed to delete vacation. Please try again.');
+          showError(error instanceof Error ? error.message : 'Failed to delete vacation. Please try again.');
         }
       },
     });
@@ -681,6 +754,10 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
     }
     return "";
   };
+
+  const formatAmplifyErrorMessage = (
+    errors: Array<{ message?: string }> | null | undefined
+  ): string => errors?.map((entry) => entry.message).filter(Boolean).join(', ') ?? '';
 
   const handleAddPendingFlightSegment = () => {
     const error = validateFlightSegmentForm(flightSegmentForm);
@@ -709,40 +786,43 @@ export default function VacationsModule({ user, familyId }: VacationsModuleProps
       return;
     }
     try {
-      const { data: created, errors } = await client.models.FlightSegment.create({
-        vacationId: selectedVacation.id,
-        airline: flightSegmentForm.airline,
-        flightNumber: flightSegmentForm.flightNumber,
-        departureAirport: flightSegmentForm.departureAirport,
-        arrivalAirport: flightSegmentForm.arrivalAirport,
-        departureDateTime: new Date(flightSegmentForm.departureDateTime).toISOString(),
-        arrivalDateTime: new Date(flightSegmentForm.arrivalDateTime).toISOString(),
-        confirmationNumber: flightSegmentForm.confirmationNumber || undefined,
-        notes: flightSegmentForm.notes || undefined,
-      });
-      if (errors || !created) {
-        console.error("Error creating flight segment:", errors);
-        setFlightSegmentFormError("Failed to save flight segment. Please try again.");
-        return;
-      }
+      assertAmplifyResult(
+        await client.models.FlightSegment.create({
+          vacationId: selectedVacation.id,
+          airline: flightSegmentForm.airline,
+          flightNumber: flightSegmentForm.flightNumber,
+          departureAirport: flightSegmentForm.departureAirport,
+          arrivalAirport: flightSegmentForm.arrivalAirport,
+          departureDateTime: new Date(flightSegmentForm.departureDateTime).toISOString(),
+          arrivalDateTime: new Date(flightSegmentForm.arrivalDateTime).toISOString(),
+          confirmationNumber: flightSegmentForm.confirmationNumber || undefined,
+          notes: flightSegmentForm.notes || undefined,
+        }),
+        'Failed to save flight segment.'
+      );
       setFlightSegmentForm({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureDateTime: "", arrivalDateTime: "", confirmationNumber: "", notes: "" });
       setFlightSegmentFormError("");
       setShowFlightSegmentForm(false);
       fetchFlightSegments(selectedVacation.id);
     } catch (error) {
       console.error("Error creating flight segment:", error);
-      setFlightSegmentFormError("An unexpected error occurred. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to save flight segment. Please try again.";
+      setFlightSegmentFormError(errorMessage);
+      showError(errorMessage);
     }
   };
 
   const handleDeleteFlightSegment = async (id: string) => {
     if (!selectedVacation) return;
     try {
-      await client.models.FlightSegment.delete({ id });
+      assertAmplifyResult(
+        await client.models.FlightSegment.delete({ id }),
+        'Failed to delete flight segment.'
+      );
       fetchFlightSegments(selectedVacation.id);
     } catch (error) {
       console.error("Error deleting flight segment:", error);
-      showError("Failed to delete flight segment. Please try again.");
+      showError(error instanceof Error ? error.message : "Failed to delete flight segment. Please try again.");
     }
   };
 

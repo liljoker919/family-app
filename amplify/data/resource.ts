@@ -3,6 +3,7 @@ import { updateMemberRoleFn } from '../functions/update-member-role/resource';
 import { createInviteFn } from '../functions/create-invite/resource';
 import { redeemInviteFn } from '../functions/redeem-invite/resource';
 import { addToFamilyGroupFn } from '../functions/add-to-family-group/resource';
+import { createFamilyBootstrapFn } from '../functions/create-family-bootstrap/resource';
 
 // ---------------------------------------------------------------------------
 // Authorization Matrix (enforced at the API layer via Cognito group claims)
@@ -13,7 +14,13 @@ import { addToFamilyGroupFn } from '../functions/add-to-family-group/resource';
 // Family (family)      | Read, Create        | Read, Create        | Full CRUD
 // FamilyMember (family)| Read, Create (join) | Read, Create (join) | Full CRUD (roles)
 // Invite               | No access           | No access           | Full CRUD
-// Vacation             | Read, Update        | Create, Read, Update| Full CRUD
+// Vacation             | Read, Create, Update| Create, Read, Update| Full CRUD
+// FlightSegment        | Read, Create, Update| Read, Create, Update| Full CRUD
+// Activity             | Read, Create, Update| Read, Create, Update| Full CRUD
+// TripLeg              | Read, Create, Update| Read, Create, Update| Full CRUD
+// TransportSegment     | Read, Create, Update| Read, Create, Update| Full CRUD
+// AccommodationStay    | Read, Create, Update| Read, Create, Update| Full CRUD
+// CruisePortStop       | Read, Create, Update| Read, Create, Update| Full CRUD
 // Chore                | Read, Update        | Create, Read, Update| Full CRUD
 // ChoreAssignment      | Read                | Create, Read, Update| Full CRUD
 // ChoreCompletion      | Read, Create, Update| Create, Read, Update| Full CRUD
@@ -31,9 +38,13 @@ import { addToFamilyGroupFn } from '../functions/add-to-family-group/resource';
 //   direct family creation), a Cognito group named after the familyId is created
 //   and the user is added to it (see the add-to-family-group Lambda).
 //   WRITE operations (create, update, delete) remain role-gated so that the
-//   existing role hierarchy (ADMIN-only delete, PLANNER+ create) is preserved.
-//   Delete operations are restricted to ADMIN at the API level to prevent
-//   accidental or malicious data loss by lower-privilege roles.
+//   existing role hierarchy (ADMIN-only delete, PLANNER/MEMBER create/update)
+//   is preserved.  Delete operations are restricted to ADMIN at the API level
+//   to prevent accidental or malicious data loss by lower-privilege roles.
+//   NOTE: Vacation nested models (FlightSegment, Activity, TripLeg, etc.) grant
+//   MEMBER create/update so any family member who can create a Vacation can
+//   also populate its flight segments, activities, and itinerary legs without
+//   receiving a 403 Unauthorized error.
 // ---------------------------------------------------------------------------
 
 const schema = a.schema({
@@ -75,8 +86,8 @@ const schema = a.schema({
     .secondaryIndexes((index) => [
       // Enables efficient caller-identity lookup in the updateMemberRole Lambda.
       index('userId'),
-      // Enables efficient family-scoped queries (member listing, admin counts).
-      index('familyId'),
+      // Composite index supports efficient family+user lookups.
+      index('familyId').sortKeys(['userId']),
     ])
     .authorization((allow) => [
       allow.groups(['PLANNER', 'MEMBER']).to(['read', 'create']),
@@ -163,7 +174,7 @@ const schema = a.schema({
 
   // Vacation – family-scoped.
   // Read is gated by familyId group membership (server-side tenant isolation);
-  // update is role-gated; PLANNER and ADMIN may create; only ADMIN may delete.
+  // MEMBER, PLANNER, and ADMIN may create and update; only ADMIN may delete.
   Vacation: a
     .model({
       familyId: a.id().required(),
@@ -181,12 +192,12 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['MEMBER']).to(['update']),
+      allow.groups(['MEMBER']).to(['create', 'update']),
       allow.groups(['PLANNER']).to(['create', 'update']),
       allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
     ]),
 
-  // FlightSegment – child of Vacation; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // FlightSegment – child of Vacation; all family roles can contribute; only ADMIN may delete.
   FlightSegment: a
     .model({
       vacationId: a.id().required(),
@@ -201,12 +212,12 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // TripLeg – child of Vacation; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // TripLeg – child of Vacation; all family roles can contribute; only ADMIN may delete.
   TripLeg: a
     .model({
       vacationId: a.id().required(),
@@ -223,12 +234,12 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'tripLegId'),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // TransportSegment – child of TripLeg; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // TransportSegment – child of TripLeg; all family roles can contribute; only ADMIN may delete.
   TransportSegment: a
     .model({
       tripLegId: a.id().required(),
@@ -244,12 +255,12 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // AccommodationStay – child of TripLeg; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // AccommodationStay – child of TripLeg; all family roles can contribute; only ADMIN may delete.
   AccommodationStay: a
     .model({
       tripLegId: a.id().required(),
@@ -263,12 +274,12 @@ const schema = a.schema({
       notes: a.string(),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // CruisePortStop – child of TripLeg; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // CruisePortStop – child of TripLeg; all family roles can contribute; only ADMIN may delete.
   CruisePortStop: a
     .model({
       tripLegId: a.id().required(),
@@ -281,7 +292,7 @@ const schema = a.schema({
       excursionOptions: a.hasMany('ExcursionOption', 'cruisePortStopId'),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
@@ -339,7 +350,7 @@ const schema = a.schema({
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
 
-  // Activity – child of Vacation; PLANNER/ADMIN manage, all groups read; only ADMIN may delete.
+  // Activity – child of Vacation; all family roles can contribute; only ADMIN may delete.
   Activity: a
     .model({
       vacationId: a.id().required(),
@@ -351,7 +362,7 @@ const schema = a.schema({
       feedbacks: a.hasMany('Feedback', 'activityId'),
     })
     .authorization((allow) => [
-      allow.groups(['MEMBER']).to(['read']),
+      allow.groups(['MEMBER']).to(['read', 'create', 'update']),
       allow.groups(['PLANNER']).to(['read', 'create', 'update']),
       allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
     ]),
@@ -388,7 +399,8 @@ const schema = a.schema({
     ]),
 
   // -------------------------------------------------------------------------
-  // Property & P&L – strictly ADMIN only (MEMBER and PLANNER have no access)
+  // Property & P&L – family-scoped via familyId dynamic group authorization.
+  // Role-specific restrictions are enforced by app-level membership checks.
   // -------------------------------------------------------------------------
 
   Property: a
@@ -400,8 +412,7 @@ const schema = a.schema({
       transactions: a.hasMany('PropertyTransaction', 'propertyId'),
     })
     .authorization((allow) => [
-      allow.groupDefinedIn('familyId').to(['read']),
-      allow.groups(['ADMIN']).to(['create', 'update', 'delete']),
+      allow.groupDefinedIn('familyId').to(['read', 'create', 'update', 'delete']),
     ]),
 
   PropertyTransactionCategory: a.enum([
@@ -424,7 +435,7 @@ const schema = a.schema({
       category: a.ref('PropertyTransactionCategory').required(),
     })
     .authorization((allow) => [
-      allow.groups(['ADMIN']).to(['read', 'create', 'update', 'delete']),
+      allow.groupDefinedIn('familyId').to(['read', 'create', 'update', 'delete']),
     ]),
 
   // -------------------------------------------------------------------------
@@ -640,6 +651,26 @@ const schema = a.schema({
     .handler(a.handler.function(updateMemberRoleFn)),
 
   // -------------------------------------------------------------------------
+  // Family bootstrap – create a family and first ADMIN membership atomically
+  // -------------------------------------------------------------------------
+  CreateFamilyBootstrapResult: a.customType({
+    familyId: a.id().required(),
+    familyName: a.string().required(),
+    joinCode: a.string().required(),
+    role: a.string().required(),
+  }),
+
+  createFamilyBootstrap: a
+    .mutation()
+    .arguments({
+      name: a.string().required(),
+      displayName: a.string(),
+    })
+    .returns(a.ref('CreateFamilyBootstrapResult').required())
+    .authorization((allow) => [allow.groups(['ADMIN', 'PLANNER', 'MEMBER'])])
+    .handler(a.handler.function(createFamilyBootstrapFn)),
+
+  // -------------------------------------------------------------------------
   // Invite management – admin-led tokenized email invite system
   // -------------------------------------------------------------------------
 
@@ -737,9 +768,4 @@ export const data = defineData({
     defaultAuthorizationMode: 'userPool',
   },
 });
-
-
-
-
-
 

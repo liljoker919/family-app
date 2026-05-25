@@ -3,6 +3,7 @@ import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import ConfirmModal from '../ConfirmModal';
 import Toast from '../Toast';
+import { assertAmplifyResult } from '../../utils/errorReporter';
 
 const client = generateClient<Schema>();
 
@@ -131,6 +132,10 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const contributor = form.contributor?.trim()
+        || user?.signInDetails?.loginId?.trim()
+        || user?.username?.trim()
+        || 'Family Member';
       const payload = {
         familyId,
         title: form.title,
@@ -139,23 +144,32 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
         instructions: form.instructions || undefined,
         prepTime: form.prepTime || undefined,
         category: form.category,
-        contributor: form.contributor || undefined,
+        contributor,
         imageUrl: form.imageUrl || undefined,
       };
 
+      const successMessage = editingRecipe ? 'Recipe updated successfully.' : 'Recipe created successfully.';
       if (editingRecipe) {
-        await client.models.Recipe.update({ id: editingRecipe.id, ...payload });
+        const updatedRecipe = assertAmplifyResult(
+          await client.models.Recipe.update({ id: editingRecipe.id, ...payload }),
+          'Failed to update recipe.'
+        );
         if (selectedRecipe?.id === editingRecipe.id) {
-          setSelectedRecipe({ ...selectedRecipe, ...payload });
+          setSelectedRecipe(updatedRecipe);
         }
       } else {
-        await client.models.Recipe.create(payload);
+        assertAmplifyResult(
+          await client.models.Recipe.create(payload),
+          'Failed to create recipe.'
+        );
       }
+      await fetchRecipes();
       setShowForm(false);
       resetForm();
-      fetchRecipes();
+      setToast({ message: successMessage, type: 'success' });
     } catch (error) {
       console.error('Error saving recipe:', error);
+      setToast({ message: error instanceof Error ? error.message : 'Failed to save recipe. Please try again.', type: 'error' });
     }
   };
 
@@ -164,13 +178,16 @@ export default function CookbookModule({ user, familyId }: CookbookModuleProps) 
       message: 'Are you sure you want to delete this recipe?',
       onConfirm: async () => {
         try {
-          await client.models.Recipe.delete({ id });
+          assertAmplifyResult(
+            await client.models.Recipe.delete({ id }),
+            'Failed to delete recipe.'
+          );
           if (selectedRecipe?.id === id) setSelectedRecipe(null);
-          fetchRecipes();
+          await fetchRecipes();
           setToast({ message: 'Recipe deleted successfully.', type: 'success' });
         } catch (error) {
           console.error('Error deleting recipe:', error);
-          setToast({ message: 'Failed to delete recipe. Please try again.', type: 'error' });
+          setToast({ message: error instanceof Error ? error.message : 'Failed to delete recipe. Please try again.', type: 'error' });
         }
       },
     });

@@ -2,31 +2,42 @@ import { defineBackend } from '@aws-amplify/backend';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { postConfirmation } from './functions/post-confirmation/resource';
+import { preSignUp } from './functions/pre-sign-up/resource';
 import { updateMemberRoleFn } from './functions/update-member-role/resource';
 import { createInviteFn } from './functions/create-invite/resource';
 import { redeemInviteFn } from './functions/redeem-invite/resource';
 import { addToFamilyGroupFn } from './functions/add-to-family-group/resource';
+import { createFamilyBootstrapFn } from './functions/create-family-bootstrap/resource';
+import { buildAuthResourceMap, getUserPoolId } from './backend-auth-utils';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
+const includeAuth = false;
+
 const backend = defineBackend({
-  auth,
+  ...buildAuthResourceMap(includeAuth, auth),
   data,
-  postConfirmation,
+  ...(includeAuth ? { postConfirmation } : {}),
+  ...(includeAuth ? { preSignUp } : {}),
   updateMemberRoleFn,
   createInviteFn,
   redeemInviteFn,
   addToFamilyGroupFn,
+  createFamilyBootstrapFn,
 });
 
+const userPoolId = getUserPoolId(backend);
+
 // Grant permission to assign users to Cognito groups
-backend.postConfirmation.resources.lambda.addToRolePolicy(
-  new PolicyStatement({
-    actions: ['cognito-idp:AdminAddUserToGroup'],
-    // Use wildcard resource to avoid circular dependency between the user pool
-    // (which owns the trigger) and the trigger lambda execution role policy.
-    resources: ['*'],
-  }),
-);
+if (includeAuth) {
+  backend.postConfirmation.resources.lambda.addToRolePolicy(
+    new PolicyStatement({
+      actions: ['cognito-idp:AdminAddUserToGroup'],
+      // Use wildcard resource to avoid circular dependency between the user pool
+      // (which owns the trigger) and the trigger lambda execution role policy.
+      resources: ['*'],
+    }),
+  );
+}
 
 // Grant the role-update Lambda read/write access to the FamilyMember table so
 // it can perform caller lookup, admin-count checks, and the role update itself.
@@ -103,10 +114,12 @@ backend.addToFamilyGroupFn.resources.lambda.addEnvironment(
   'FAMILY_MEMBER_TABLE_NAME',
   backend.data.resources.tables['FamilyMember'].tableName,
 );
-backend.addToFamilyGroupFn.resources.lambda.addEnvironment(
-  'USER_POOL_ID',
-  backend.auth.resources.userPool.userPoolId,
-);
+if (userPoolId) {
+  backend.addToFamilyGroupFn.resources.lambda.addEnvironment(
+    'USER_POOL_ID',
+    userPoolId,
+  );
+}
 
 // Grant Cognito group management permissions to the addToFamilyGroup Lambda.
 // This allows it to create groups (one per family) and add users to them,
@@ -136,7 +149,26 @@ backend.redeemInviteFn.resources.lambda.addToRolePolicy(
     resources: ['*'],
   }),
 );
-backend.redeemInviteFn.resources.lambda.addEnvironment(
-  'USER_POOL_ID',
-  backend.auth.resources.userPool.userPoolId,
+if (userPoolId) {
+  backend.redeemInviteFn.resources.lambda.addEnvironment(
+    'USER_POOL_ID',
+    userPoolId,
+  );
+}
+
+// Grant the createFamilyBootstrap Lambda read/write access to Family and
+// FamilyMember tables so it can atomically create both records.
+backend.data.resources.tables['Family'].grantReadWriteData(
+  backend.createFamilyBootstrapFn.resources.lambda,
+);
+backend.data.resources.tables['FamilyMember'].grantReadWriteData(
+  backend.createFamilyBootstrapFn.resources.lambda,
+);
+backend.createFamilyBootstrapFn.resources.lambda.addEnvironment(
+  'FAMILY_TABLE_NAME',
+  backend.data.resources.tables['Family'].tableName,
+);
+backend.createFamilyBootstrapFn.resources.lambda.addEnvironment(
+  'FAMILY_MEMBER_TABLE_NAME',
+  backend.data.resources.tables['FamilyMember'].tableName,
 );

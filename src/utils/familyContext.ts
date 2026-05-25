@@ -9,7 +9,14 @@
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../amplify/data/resource';
 
-const client = generateClient<Schema>();
+let client: ReturnType<typeof generateClient<Schema>> | null = null;
+
+function getClient() {
+  if (!client) {
+    client = generateClient<Schema>();
+  }
+  return client;
+}
 
 type StoredMemberRole = 'ADMIN' | 'PLANNER' | 'MEMBER';
 
@@ -55,45 +62,89 @@ function normalizeMembershipRole(role: string | null | undefined): {
   };
 }
 
+async function addSelfToFamilyGroupWithRetry(
+  familyId: string,
+  context: 'createFamily' | 'joinFamily'
+): Promise<void> {
+  const wait = async (ms: number) => {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  };
+
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await (getClient().mutations as any).addSelfToFamilyGroup({ familyId });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) {
+        console.warn(`[${context}] addSelfToFamilyGroup attempt ${attempt} failed; retrying...`, error);
+        await wait(300 * attempt);
+      }
+    }
+  }
+
+  console.warn(`[${context}] addSelfToFamilyGroup failed after retries (non-fatal):`, lastError);
+}
+
 export async function getFamilyMembership(
-  userId: string
+  userId: string | string[]
 ): Promise<FamilyMembership | null> {
   try {
-    const { data: members } = await client.models.FamilyMember.list({
-      filter: { userId: { eq: userId } },
-    });
+    const userIds = normalizeUserIdCandidates(userId);
 
-    if (members.length === 0) {
+    if (userIds.length === 0) {
       return null;
     }
 
-    const member = members[0];
+    for (const id of userIds) {
+      const { data: members } = await getClient().models.FamilyMember.list({
+        filter: { userId: { eq: id } },
+      });
 
-    // Fetch the family name for display purposes
-    let familyName: string | null = null;
-    let familyJoinCode: string | null = null;
-    try {
-      const { data: family } = await client.models.Family.get({ id: member.familyId });
-      familyName = family?.name ?? null;
-      familyJoinCode = family?.joinCode ?? null;
-    } catch {
-      // Family lookup is best-effort
+      if (!members || members.length === 0) {
+        continue;
+      }
+
+      const member = members[0];
+
+      // Fetch the family name for display purposes
+      let familyName: string | null = null;
+      let familyJoinCode: string | null = null;
+      try {
+        const { data: family } = await getClient().models.Family.get({ id: member.familyId });
+        familyName = family?.name ?? null;
+        familyJoinCode = family?.joinCode ?? null;
+      } catch {
+        // Family lookup is best-effort
+      }
+
+      const normalizedRole = normalizeMembershipRole(member.role ?? 'MEMBER');
+
+      return {
+        familyId: member.familyId,
+        role: normalizedRole.role,
+        canPlan: normalizedRole.canPlan,
+        displayName: member.displayName,
+        familyName,
+        familyJoinCode,
+      };
     }
-
-    const normalizedRole = normalizeMembershipRole(member.role ?? 'MEMBER');
-
-    return {
-      familyId: member.familyId,
-      role: normalizedRole.role,
-      canPlan: normalizedRole.canPlan,
-      displayName: member.displayName,
-      familyName,
-      familyJoinCode,
-    };
+    return null;
   } catch (error) {
     console.error('Error fetching family membership:', error);
     return null;
   }
+}
+
+export function normalizeUserIdCandidates(userId: string | string[]): string[] {
+  return Array.from(
+    new Set(
+      (Array.isArray(userId) ? userId : [userId])
+        .map((value) => value.trim())
+        .filter(Boolean)
+    )
+  );
 }
 
 /**
@@ -105,30 +156,16 @@ export async function createFamily(
   userId: string,
   displayName?: string
 ): Promise<FamilyMembership> {
-  const joinCode = generateJoinCode();
-
-  const { data: family, errors: familyErrors } = await client.models.Family.create({
+  const trimmedDisplayName = displayName?.trim() || null;
+  const { data: result, errors } = await (getClient().mutations as any).createFamilyBootstrap({
     name,
-    joinCode,
-    createdBy: userId,
+    ...(trimmedDisplayName ? { displayName: trimmedDisplayName } : {}),
   });
 
-  if (familyErrors || !family) {
+  if (errors || !result) {
     throw new Error(
-      familyErrors?.map((e) => e.message).join(', ') ?? 'Failed to create family'
-    );
-  }
-
-  const { data: member, errors: memberErrors } = await client.models.FamilyMember.create({
-    familyId: family.id,
-    userId,
-    role: 'ADMIN',
-    displayName: displayName ?? null,
-  });
-
-  if (memberErrors || !member) {
-    throw new Error(
-      memberErrors?.map((e) => e.message).join(', ') ?? 'Failed to create family membership'
+      errors?.map((e: { message: string }) => e.message).join(', ') ??
+        'Failed to create family'
     );
   }
 
@@ -136,21 +173,15 @@ export async function createFamily(
   // allow.groupDefinedIn('familyId') rule on all family-scoped models is
   // satisfied.  This call is best-effort: a failure here does not roll back
   // the family/member records; the user can retry via addSelfToFamilyGroup.
-  try {
-    await (client.mutations as any).addSelfToFamilyGroup({ familyId: family.id });
-  } catch (err) {
-    // Non-fatal: the user can still use the app; group assignment can be
-    // retried, or an admin can use the Cognito console to add them.
-    console.warn('[createFamily] addSelfToFamilyGroup failed (non-fatal):', err);
-  }
+  await addSelfToFamilyGroupWithRetry(result.familyId, 'createFamily');
 
   return {
-    familyId: family.id,
+    familyId: result.familyId,
     role: 'ADMIN',
     canPlan: true,
-    displayName: member.displayName,
-    familyName: family.name,
-    familyJoinCode: family.joinCode ?? null,
+    displayName: trimmedDisplayName,
+    familyName: result.familyName,
+    familyJoinCode: result.joinCode ?? null,
   };
 }
 
@@ -165,7 +196,7 @@ export async function joinFamily(
 ): Promise<FamilyMembership | null> {
   const normalizedCode = joinCode.trim().toUpperCase();
 
-  const { data: families } = await client.models.Family.list({
+  const { data: families } = await getClient().models.Family.list({
     filter: { joinCode: { eq: normalizedCode } },
   });
 
@@ -176,7 +207,7 @@ export async function joinFamily(
   const family = families[0];
 
   // Check if the user is already a member
-  const { data: existing } = await client.models.FamilyMember.list({
+  const { data: existing } = await getClient().models.FamilyMember.list({
     filter: { familyId: { eq: family.id }, userId: { eq: userId } },
   });
 
@@ -193,7 +224,7 @@ export async function joinFamily(
     };
   }
 
-  const { data: member, errors: memberErrors } = await client.models.FamilyMember.create({
+  const { data: member, errors: memberErrors } = await getClient().models.FamilyMember.create({
     familyId: family.id,
     userId,
     role: 'MEMBER',
@@ -207,12 +238,7 @@ export async function joinFamily(
   }
 
   // Assign the user to the family's Cognito group (tenant isolation).
-  try {
-    await (client.mutations as any).addSelfToFamilyGroup({ familyId: family.id });
-  } catch (err) {
-    // Non-fatal: best-effort group assignment.
-    console.warn('[joinFamily] addSelfToFamilyGroup failed (non-fatal):', err);
-  }
+  await addSelfToFamilyGroupWithRetry(family.id, 'joinFamily');
 
   return {
     familyId: family.id,
@@ -235,7 +261,7 @@ export async function joinFamily(
  * Returns a FamilyMembership on success, or throws on any validation failure.
  */
 export async function redeemInviteToken(token: string): Promise<FamilyMembership> {
-  const { data: result, errors } = await (client.mutations as any).redeemInvite({ token });
+  const { data: result, errors } = await (getClient().mutations as any).redeemInvite({ token });
 
   if (errors || !result) {
     throw new Error(
@@ -281,17 +307,17 @@ export async function startSoloTrial(
 
   const now = new Date().toISOString();
   try {
-    const { data: profiles } = await client.models.Profile.list({
+    const { data: profiles } = await getClient().models.Profile.list({
       filter: { userId: { eq: userId } },
     });
     if (profiles && profiles.length > 0) {
-      await client.models.Profile.update({
+      await getClient().models.Profile.update({
         id: profiles[0].id,
         trialStartDate: now,
         trialStatus: 'TRIAL',
       });
     } else {
-      await client.models.Profile.create({
+      await getClient().models.Profile.create({
         userId,
         email,
         trialStartDate: now,

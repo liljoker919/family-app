@@ -1,14 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '../../../amplify/data/resource';
 import ConfirmModal from '../ConfirmModal';
 import Toast from '../Toast';
+import {
+  getPropertyReadErrorMessage,
+  mutatePropertyDataWithRetry,
+  readPropertyDataWithRetry,
+} from '../../utils/propertyDataRecovery';
 
 const client = generateClient<Schema>();
 
 interface PropertyModuleProps {
   user: any;
   familyId: string;
+  canManageProperties: boolean;
 }
 
 type CategoryKey = 'RENT_INCOME' | 'MORTGAGE' | 'TAXES' | 'MAINTENANCE' | 'INSURANCE';
@@ -21,9 +27,11 @@ const CATEGORIES: Record<CategoryKey, { label: string; type: 'income' | 'expense
   INSURANCE: { label: 'Insurance', type: 'expense', icon: '🛡️', colorClass: 'bg-purple-100 text-purple-700' },
 };
 
-export default function PropertyModule({ user, familyId }: PropertyModuleProps) {
+export default function PropertyModule({ user, familyId, canManageProperties }: PropertyModuleProps) {
   const [properties, setProperties] = useState<any[]>([]);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [readError, setReadError] = useState<string | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
@@ -37,25 +45,68 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
   const [pendingDelete, setPendingDelete] = useState<{ message: string; onConfirm: () => Promise<void> } | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  useEffect(() => {
-    fetchAllData();
-  }, []);
-
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async (options: { verifyPropertyId?: string; maxAttempts?: number } = {}) => {
+    setLoading(true);
+    setReadError(null);
     try {
-      const [{ data: props }, { data: allTxns }] = await Promise.all([
-        client.models.Property.list({ filter: { familyId: { eq: familyId } } }),
-        client.models.PropertyTransaction.list({ filter: { familyId: { eq: familyId } } }),
-      ]);
-      setProperties(props);
-      setAllTransactions(allTxns);
+      const result = await readPropertyDataWithRetry(
+        async () => {
+          const [propertyResult, transactionResult] = await Promise.all([
+            client.models.Property.list({ filter: { familyId: { eq: familyId } } }),
+            client.models.PropertyTransaction.list({ filter: { familyId: { eq: familyId } } }),
+          ]);
+
+          const listErrors = [
+            ...(propertyResult.errors ?? []),
+            ...(transactionResult.errors ?? []),
+          ];
+
+          if (listErrors.length > 0) {
+            throw new Error(
+              listErrors
+                .map((listError: any) =>
+                  typeof listError === 'string' ? listError : listError?.message ?? String(listError)
+                )
+                .join('; ')
+            );
+          }
+
+          const props = propertyResult.data ?? [];
+          const allTxns = transactionResult.data ?? [];
+
+          return { properties: props, transactions: allTxns };
+        },
+        {
+          verifyPropertyId: options.verifyPropertyId,
+          maxAttempts: options.maxAttempts ?? 4,
+        }
+      );
+      setProperties(result.properties);
+      setAllTransactions(result.transactions);
+      return true;
     } catch (error) {
       console.error('Error fetching data:', error);
+      setReadError(getPropertyReadErrorMessage(error));
+      return false;
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [familyId]);
+
+  useEffect(() => {
+    void fetchAllData();
+  }, [fetchAllData]);
 
   const getPropertyTransactions = (propertyId: string) =>
     allTransactions.filter((t) => t.propertyId === propertyId);
+
+  const ensureCanManageProperties = () => {
+    if (!canManageProperties) {
+      setToast({ message: 'Only family admins can manage properties.', type: 'error' });
+      return false;
+    }
+    return true;
+  };
 
   const calculateTotals = (transactions: any[]) => {
     const income = transactions
@@ -67,32 +118,79 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
     return { income, expenses, net: income - expenses };
   };
 
+  const syncFamilyAccess = useCallback(async () => {
+    const addSelfToFamilyGroup = (
+      client.mutations as {
+        addSelfToFamilyGroup?: (args: { familyId: string }) => Promise<{
+          errors?: Array<{ message?: string }> | null;
+        }>;
+      }
+    ).addSelfToFamilyGroup;
+
+    if (!addSelfToFamilyGroup) {
+      return;
+    }
+
+    const result = await addSelfToFamilyGroup({ familyId });
+    const syncErrorMessage = result?.errors
+      ?.map((entry) => entry?.message?.trim() ?? '')
+      .find(Boolean);
+
+    if (syncErrorMessage) {
+      throw new Error(syncErrorMessage);
+    }
+  }, [familyId]);
+
   const handleCreateProperty = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!ensureCanManageProperties()) return;
     try {
-      await client.models.Property.create({ ...propertyForm, familyId });
+      const property = await mutatePropertyDataWithRetry(
+        () => client.models.Property.create({ ...propertyForm, familyId }),
+        {
+          failureMessage: 'Failed to create property.',
+          syncFamilyAccess,
+        }
+      );
       setPropertyForm({ name: '', address: '' });
       setShowPropertyForm(false);
-      fetchAllData();
+      const visible = await fetchAllData({ verifyPropertyId: property.id, maxAttempts: 5 });
+      if (visible) {
+        setToast({ message: 'Property created successfully.', type: 'success' });
+      } else {
+        setToast({
+          message: "Property saved, but we couldn't confirm the latest data refresh. Please refresh in a few seconds.",
+          type: 'success',
+        });
+      }
     } catch (error) {
       console.error('Error creating property:', error);
+      setToast({ message: error instanceof Error ? error.message : 'Failed to create property. Please try again.', type: 'error' });
     }
   };
 
   const handleCreateTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!ensureCanManageProperties()) return;
     if (!selectedProperty) return;
     const categoryInfo = CATEGORIES[transactionForm.category];
     try {
-      await client.models.PropertyTransaction.create({
-        familyId,
-        propertyId: selectedProperty.id,
-        type: categoryInfo.type,
-        amount: parseFloat(transactionForm.amount),
-        description: transactionForm.description,
-        date: transactionForm.date,
-        category: transactionForm.category,
-      });
+      await mutatePropertyDataWithRetry(
+        () =>
+          client.models.PropertyTransaction.create({
+            familyId,
+            propertyId: selectedProperty.id,
+            type: categoryInfo.type,
+            amount: parseFloat(transactionForm.amount),
+            description: transactionForm.description,
+            date: transactionForm.date,
+            category: transactionForm.category,
+          }),
+        {
+          failureMessage: 'Failed to save transaction.',
+          syncFamilyAccess,
+        }
+      );
       setTransactionForm({
         category: 'RENT_INCOME',
         amount: '',
@@ -100,20 +198,26 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
         date: new Date().toISOString().split('T')[0],
       });
       setShowTransactionForm(false);
-      fetchAllData();
+      await fetchAllData();
+      setToast({ message: 'Transaction saved successfully.', type: 'success' });
     } catch (error) {
       console.error('Error creating transaction:', error);
+      setToast({
+        message: error instanceof Error ? error.message : 'Failed to save transaction. Please try again.',
+        type: 'error',
+      });
     }
   };
 
   const handleDeleteProperty = async (id: string) => {
+    if (!ensureCanManageProperties()) return;
     setPendingDelete({
       message: 'Are you sure you want to delete this property?',
       onConfirm: async () => {
         try {
           await client.models.Property.delete({ id });
           if (selectedProperty?.id === id) setSelectedProperty(null);
-          fetchAllData();
+          await fetchAllData();
           setToast({ message: 'Property deleted successfully.', type: 'success' });
         } catch (error) {
           console.error('Error deleting property:', error);
@@ -148,13 +252,41 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
           <h2 className="text-3xl font-bold text-gray-800">Property P&amp;L Tracker</h2>
           <p className="text-gray-500 mt-1">Track rental income and expenses for each property</p>
         </div>
-        <button
-          onClick={() => setShowPropertyForm(true)}
-          className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-5 py-2 rounded-lg transition flex items-center gap-2"
-        >
-          <span className="text-lg leading-none">+</span> Add Property
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fetchAllData()}
+            disabled={loading}
+            className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg transition text-sm font-medium disabled:opacity-50"
+          >
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <button
+            onClick={() => {
+              if (!ensureCanManageProperties()) return;
+              setShowPropertyForm(true);
+            }}
+            className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-5 py-2 rounded-lg transition flex items-center gap-2"
+          >
+            <span className="text-lg leading-none">+</span> Add Property
+          </button>
+        </div>
       </div>
+
+      {readError && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900"
+        >
+          <p className="text-sm font-medium">{readError}</p>
+        </div>
+      )}
+
+      {!canManageProperties && (
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-blue-900">
+          <p className="text-sm font-medium">Only family admins can create, update, or delete property records.</p>
+        </div>
+      )}
 
       {showPropertyForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
@@ -315,13 +447,15 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
                       <p className="text-royal-blue-200 text-sm mt-1">📍 {property.address}</p>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleDeleteProperty(property.id)}
-                    className="text-royal-blue-300 hover:text-white transition text-sm"
-                    title="Delete property"
-                  >
-                    🗑️
-                  </button>
+                  {canManageProperties && (
+                    <button
+                      onClick={() => handleDeleteProperty(property.id)}
+                      className="text-royal-blue-300 hover:text-white transition text-sm"
+                      title="Delete property"
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -354,10 +488,14 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
                 {isSelected && (
                   <button
                     onClick={() => {
+                      if (!ensureCanManageProperties()) return;
                       setSelectedProperty(property);
                       setShowTransactionForm(true);
                     }}
-                    className="bg-royal-blue-600 hover:bg-royal-blue-700 text-white px-4 py-1.5 rounded-lg transition text-sm font-medium"
+                    disabled={!canManageProperties}
+                    aria-label="Log transaction"
+                    title={canManageProperties ? 'Log transaction' : 'Only family admins can log transactions'}
+                    className="bg-royal-blue-600 hover:bg-royal-blue-700 disabled:bg-gray-300 text-white px-4 py-1.5 rounded-lg transition text-sm font-medium disabled:cursor-not-allowed"
                   >
                     + Log Transaction
                   </button>
@@ -417,8 +555,14 @@ export default function PropertyModule({ user, familyId }: PropertyModuleProps) 
         {properties.length === 0 && (
           <div className="text-center py-16 text-gray-400">
             <p className="text-5xl mb-4">🏠</p>
-            <p className="text-lg font-medium text-gray-500">No properties yet</p>
-            <p className="mt-1">Add your first property to start tracking P&amp;L.</p>
+            <p className="text-lg font-medium text-gray-500">
+              {loading ? 'Loading properties…' : 'No properties yet'}
+            </p>
+            <p className="mt-1">
+              {loading
+                ? 'Please wait while we sync your family data.'
+                : 'Add your first property to start tracking P&amp;L.'}
+            </p>
           </div>
         )}
       </div>

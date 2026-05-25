@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Authenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 import { Amplify } from 'aws-amplify';
@@ -19,7 +19,7 @@ import FamilySetup from './FamilySetup';
 import OnboardingWizard from './OnboardingWizard';
 import type { ActiveModule } from '../utils/dashboardModules';
 import { canAccessModule } from '../utils/dashboardModules';
-import { getFamilyMembership } from '../utils/familyContext';
+import { getFamilyMembership, normalizeUserIdCandidates } from '../utils/familyContext';
 import type { FamilyMembership } from '../utils/familyContext';
 import { getTrialInfo } from '../utils/trialUtils';
 import { getDefaultFamilyName } from '../utils/onboardingUtils';
@@ -29,7 +29,7 @@ Amplify.configure(outputs);
 
 const client = generateClient<Schema>();
 
-const formFields = {
+export const dashboardFormFields = {
   signIn: {
     username: {
       label: 'Email',
@@ -56,11 +56,13 @@ const formFields = {
       label: 'First Name',
       placeholder: 'Enter your first name',
       order: 4,
+      isRequired: true,
     },
     family_name: {
       label: 'Last Name',
       placeholder: 'Enter your last name',
       order: 5,
+      isRequired: true,
     },
   },
 };
@@ -69,7 +71,7 @@ function DashboardContent() {
   const [activeModule, setActiveModule] = useState<ActiveModule>('home');
 
   return (
-    <Authenticator formFields={formFields}>
+    <Authenticator formFields={dashboardFormFields}>
       {({ signOut, user }) => (
         <DashboardInner user={user} signOut={signOut} activeModule={activeModule} setActiveModule={setActiveModule} />
       )}
@@ -92,13 +94,41 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
   const [userLastName, setUserLastName] = useState<string | null>(null);
 
   const userId = user?.signInDetails?.loginId ?? user?.userId ?? '';
-  const userEmail = user?.signInDetails?.loginId ?? userId;
+  const membershipLookupIds = useMemo(
+    () =>
+      normalizeUserIdCandidates(
+        [user?.username, user?.signInDetails?.loginId, user?.userId].filter(
+          (value): value is string => typeof value === 'string'
+        )
+      ),
+    [user?.username, user?.signInDetails?.loginId, user?.userId]
+  );
 
   useEffect(() => {
-    if (userId) {
-      getFamilyMembership(userId).then(setMembership);
+    if (membershipLookupIds.length > 0) {
+      getFamilyMembership(membershipLookupIds).then(setMembership);
+    } else {
+      setMembership(null);
     }
-  }, [userId]);
+  }, [membershipLookupIds]);
+
+  // Best-effort auth-group sync:
+  // keep the caller in their family group and role group so model-level
+  // AppSync authorization stays aligned with FamilyMember.role changes.
+  useEffect(() => {
+    if (!membership?.familyId) return;
+    const addSelfToFamilyGroup = (
+      client.mutations as {
+        addSelfToFamilyGroup?: (args: { familyId: string }) => Promise<unknown>;
+      }
+    ).addSelfToFamilyGroup;
+    if (!addSelfToFamilyGroup) return;
+
+    void addSelfToFamilyGroup({ familyId: membership.familyId }).catch((error) => {
+      console.warn('Best-effort addSelfToFamilyGroup sync failed:', error);
+      // Non-fatal: missing group sync should not block dashboard rendering.
+    });
+  }, [membership?.familyId, membership?.role, membership?.canPlan]);
 
   // Fetch the user's last name (Cognito family_name attribute) so the wizard
   // can pre-fill the family name suggestion.  Best-effort: a failure here
@@ -160,7 +190,6 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
     return (
       <FamilySetup
         userId={userId}
-        email={userEmail}
         onComplete={(m) => {
           setMembership(m);
           setShowOnboarding(true);
@@ -452,7 +481,9 @@ function DashboardInner({ user, signOut, activeModule, setActiveModule }: Dashbo
             <>
           {activeModule === 'home' && <TodayView familyId={familyId} membership={membership} onNavigateTo={setActiveModule} />}
           {activeModule === 'vacations' && <VacationsModule user={user} familyId={familyId} />}
-          {activeModule === 'property' && <PropertyModule user={user} familyId={familyId} />}
+          {activeModule === 'property' && (
+            <PropertyModule user={user} familyId={familyId} canManageProperties={membership.role === 'ADMIN'} />
+          )}
           {activeModule === 'cars' && <CarsModule user={user} familyId={familyId} />}
           {activeModule === 'calendar' && <CalendarModule familyId={familyId} role={membership.role} canPlan={membership.canPlan} onNavigateTo={setActiveModule} />}
           {activeModule === 'cookbook' && <CookbookModule user={user} familyId={familyId} />}

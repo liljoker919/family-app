@@ -139,8 +139,187 @@ describe('security.schema.Vacation – authorization rules', () => {
     expect(containsGroupRule(block!, ['ADMIN'], ['create'])).toBe(true);
   });
 
+  it('security.schema.Vacation.member-can-create-and-update', () => {
+    const block = extractAuthBlock('Vacation');
+    expect(block).not.toBeNull();
+    // Any family member may create and update vacations.
+    expect(containsGroupRule(block!, ['MEMBER'], ['create', 'update'])).toBe(true);
+  });
+
   it('security.schema.Vacation.only-admin-can-delete', () => {
     const block = extractAuthBlock('Vacation');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN'], ['delete'])).toBe(true);
+  });
+});
+
+describe('security.schema.Vacation nested models – MEMBER can contribute', () => {
+  const nestedVacationModels = [
+    'FlightSegment',
+    'TripLeg',
+    'TransportSegment',
+    'AccommodationStay',
+    'CruisePortStop',
+    'Activity',
+  ] as const;
+
+  for (const model of nestedVacationModels) {
+    it(`security.schema.${model}.member-can-create-and-update`, () => {
+      const block = extractAuthBlock(model);
+      expect(block, `${model} authorization block not found`).not.toBeNull();
+      expect(containsGroupRule(block!, ['MEMBER'], ['create', 'update'])).toBe(true);
+    });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FlightSegment – nested child of Vacation
+// MEMBER must be able to create/update so that a family member creating a
+// vacation can add flight segments without receiving a 403 Unauthorized error.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('security.schema.FlightSegment – authorization rules', () => {
+  it('security.schema.FlightSegment.member-can-create-and-update', () => {
+    const block = extractAuthBlock('FlightSegment');
+    expect(block, 'FlightSegment authorization block not found').not.toBeNull();
+    // MEMBER must be able to create and update flight segments; this was the
+    // root cause of the 403 Unauthorized bug on vacation creation.
+    expect(containsGroupRule(block!, ['MEMBER'], ['read', 'create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.FlightSegment.planner-can-create-and-update', () => {
+    const block = extractAuthBlock('FlightSegment');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['PLANNER'], ['read', 'create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.FlightSegment.only-admin-can-delete', () => {
+    const block = extractAuthBlock('FlightSegment');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN'], ['delete'])).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Activity – nested child of Vacation
+// MEMBER must be able to create/update activities so that any family member
+// who can create a Vacation can also plan activities within it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('security.schema.Activity – authorization rules', () => {
+  it('security.schema.Activity.member-can-create-and-update', () => {
+    const block = extractAuthBlock('Activity');
+    expect(block, 'Activity authorization block not found').not.toBeNull();
+    // MEMBER must be able to create and update activities within a vacation.
+    expect(containsGroupRule(block!, ['MEMBER'], ['read', 'create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.Activity.planner-can-create-and-update', () => {
+    const block = extractAuthBlock('Activity');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['PLANNER'], ['read', 'create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.Activity.only-admin-can-delete', () => {
+    const block = extractAuthBlock('Activity');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN'], ['delete'])).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TripLeg – nested child of Vacation
+// MEMBER must be able to create/update trip legs so that any family member
+// who can create a Vacation can also build the itinerary.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('security.schema.TripLeg – authorization rules', () => {
+  it('security.schema.TripLeg.member-can-create-and-update', () => {
+    const block = extractAuthBlock('TripLeg');
+    expect(block, 'TripLeg authorization block not found').not.toBeNull();
+    expect(containsGroupRule(block!, ['MEMBER'], ['read', 'create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.TripLeg.planner-can-create-and-update', () => {
+    const block = extractAuthBlock('TripLeg');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['PLANNER'], ['read', 'create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.TripLeg.only-admin-can-delete', () => {
+    const block = extractAuthBlock('TripLeg');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN'], ['delete'])).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TransportSegment – nested child of TripLeg
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('security.schema.TransportSegment – authorization rules', () => {
+  it('security.schema.TransportSegment.member-can-create-and-update', () => {
+    const block = extractAuthBlock('TransportSegment');
+    expect(block, 'TransportSegment authorization block not found').not.toBeNull();
+    expect(containsGroupRule(block!, ['MEMBER'], ['read', 'create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.TransportSegment.planner-can-create-and-update', () => {
+    const block = extractAuthBlock('TransportSegment');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['PLANNER'], ['read', 'create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.TransportSegment.only-admin-can-delete', () => {
+    const block = extractAuthBlock('TransportSegment');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN'], ['delete'])).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AccommodationStay – nested child of TripLeg
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('security.schema.AccommodationStay – authorization rules', () => {
+  it('security.schema.AccommodationStay.member-can-create-and-update', () => {
+    const block = extractAuthBlock('AccommodationStay');
+    expect(block, 'AccommodationStay authorization block not found').not.toBeNull();
+    expect(containsGroupRule(block!, ['MEMBER'], ['read', 'create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.AccommodationStay.planner-can-create-and-update', () => {
+    const block = extractAuthBlock('AccommodationStay');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['PLANNER'], ['read', 'create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.AccommodationStay.only-admin-can-delete', () => {
+    const block = extractAuthBlock('AccommodationStay');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN'], ['delete'])).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CruisePortStop – nested child of TripLeg
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('security.schema.CruisePortStop – authorization rules', () => {
+  it('security.schema.CruisePortStop.member-can-create-and-update', () => {
+    const block = extractAuthBlock('CruisePortStop');
+    expect(block, 'CruisePortStop authorization block not found').not.toBeNull();
+    expect(containsGroupRule(block!, ['MEMBER'], ['read', 'create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.CruisePortStop.planner-can-create-and-update', () => {
+    const block = extractAuthBlock('CruisePortStop');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['PLANNER'], ['read', 'create', 'update'])).toBe(true);
+  });
+
+  it('security.schema.CruisePortStop.only-admin-can-delete', () => {
+    const block = extractAuthBlock('CruisePortStop');
     expect(block).not.toBeNull();
     expect(containsGroupRule(block!, ['ADMIN'], ['delete'])).toBe(true);
   });
@@ -304,36 +483,39 @@ describe('security.schema.Recipe – authorization rules', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Property / PropertyTransaction – ADMIN only, MEMBER and PLANNER have no access
+// Property / PropertyTransaction – family-scoped via familyId dynamic group
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('security.schema.Property – ADMIN-only authorization', () => {
-  it('security.schema.Property.family-members-can-read-via-groupDefinedIn', () => {
+describe('security.schema.Property – family-scoped authorization', () => {
+  it('security.schema.Property.family-members-can-crud-via-groupDefinedIn', () => {
     const block = extractAuthBlock('Property');
     expect(block).not.toBeNull();
-    // Read is gated by familyId group (tenant isolation); Property records are
-    // family-scoped so family-group members can read them.
-    expect(containsGroupDefinedInRule(block!, 'familyId', ['read'])).toBe(true);
+    // Property records are tenant-scoped via the dynamic family group.
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read', 'create', 'update', 'delete'])).toBe(true);
   });
 
-  it('security.schema.Property.only-admin-can-write', () => {
+  it('security.schema.Property.no-static-role-group-writes', () => {
     const block = extractAuthBlock('Property');
     expect(block).not.toBeNull();
-    // MEMBER and PLANNER must NOT appear in write rules.
-    expect(block).not.toMatch(/allow\.groups\(\['ADMIN',\s*'PLANNER'/);
-    expect(block).not.toMatch(/allow\.groups\(\['ADMIN',\s*'PLANNER',\s*'MEMBER'/);
-    // ADMIN-only create/update/delete must be present.
-    expect(containsGroupRule(block!, ['ADMIN'], ['create', 'update', 'delete'])).toBe(true);
+    expect(containsGroupRule(block!, ['ADMIN'], ['create', 'update', 'delete'])).toBe(false);
+    expect(containsGroupRule(block!, ['PLANNER'], ['create', 'update', 'delete'])).toBe(false);
+    expect(containsGroupRule(block!, ['MEMBER'], ['create', 'update', 'delete'])).toBe(false);
   });
 });
 
-describe('security.schema.PropertyTransaction – ADMIN-only authorization', () => {
-  it('security.schema.PropertyTransaction.only-admin-has-any-access', () => {
+describe('security.schema.PropertyTransaction – family-scoped authorization', () => {
+  it('security.schema.PropertyTransaction.family-members-can-crud-via-groupDefinedIn', () => {
     const block = extractAuthBlock('PropertyTransaction');
     expect(block).not.toBeNull();
-    expect(block).not.toMatch(/allow\.groups\(\['ADMIN',\s*'PLANNER'/);
-    expect(block).not.toMatch(/allow\.groups\(\['ADMIN',\s*'PLANNER',\s*'MEMBER'/);
-    expect(containsGroupRule(block!, ['ADMIN'], ['read', 'create', 'update', 'delete'])).toBe(true);
+    expect(containsGroupDefinedInRule(block!, 'familyId', ['read', 'create', 'update', 'delete'])).toBe(true);
+  });
+
+  it('security.schema.PropertyTransaction.no-static-role-group-rules', () => {
+    const block = extractAuthBlock('PropertyTransaction');
+    expect(block).not.toBeNull();
+    expect(containsGroupRule(block!, ['ADMIN'], ['read', 'create', 'update', 'delete'])).toBe(false);
+    expect(containsGroupRule(block!, ['PLANNER'], ['read', 'create', 'update', 'delete'])).toBe(false);
+    expect(containsGroupRule(block!, ['MEMBER'], ['read', 'create', 'update', 'delete'])).toBe(false);
   });
 });
 
@@ -636,4 +818,3 @@ describe('schema.ExcursionOption – on-write aggregate fields', () => {
     expect(fields).toMatch(/downVoteCount\s*:\s*a\.integer\(\)/);
   });
 });
-
