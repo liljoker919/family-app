@@ -222,7 +222,7 @@ describe('deriveKnownChildren', () => {
   it('deduplicates users that appear in both', () => {
     const children = deriveKnownChildren(
       [makeCompletion('z1', 'c1', 'alice@example.com', '2024-01-01T00:00:00.000Z')],
-      [{ assignedTo: 'alice@example.com', choreId: 'c1' }]
+      [{ assignedTo: 'alice@example.com' }]
     );
     expect(children.filter((c) => c === 'alice@example.com')).toHaveLength(1);
   });

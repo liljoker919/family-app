@@ -39,6 +39,11 @@ describe('create-family-bootstrap handler', () => {
       vi.fn()
     );
 
+    expect(result).toBeDefined();
+    if (!result) {
+      throw new Error('Expected create-family-bootstrap handler to return a result');
+    }
+
     expect(result.role).toBe('ADMIN');
     expect(result.familyName).toBe('The Smiths');
     expect(result.joinCode).toMatch(/^[A-HJ-NP-Z2-9]{6}$/);

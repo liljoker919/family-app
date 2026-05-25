@@ -61,7 +61,7 @@ export default function FamilySetup({ userId, onComplete, onSignOut }: FamilySet
         {mode === 'choose' && (
           <div className="space-y-4">
             <button
-              onClick={() => setMode('solo')}
+              onClick={() => setMode('create')}
               className="w-full bg-royal-blue-600 hover:bg-royal-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition"
             >
               🚀 Start Solo – 10-day free trial

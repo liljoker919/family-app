@@ -8,17 +8,19 @@ describe('createToastMessage', () => {
   });
 
   it('returns a toast payload with id, message, and type', () => {
-    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('uuid-a');
+    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('11111111-1111-1111-1111-111111111111');
 
     const toast = createToastMessage('Failed to save.', 'error');
 
     expect(toast.message).toBe('Failed to save.');
     expect(toast.type).toBe('error');
-    expect(toast.id).toBe('uuid-a');
+    expect(toast.id).toBe('11111111-1111-1111-1111-111111111111');
   });
 
   it('generates a unique id for repeated messages', () => {
-    vi.spyOn(globalThis.crypto, 'randomUUID').mockReturnValueOnce('uuid-1').mockReturnValueOnce('uuid-2');
+    vi.spyOn(globalThis.crypto, 'randomUUID')
+      .mockReturnValueOnce('22222222-2222-2222-2222-222222222222')
+      .mockReturnValueOnce('33333333-3333-3333-3333-333333333333');
 
     const first = createToastMessage('Failed to save.', 'error');
     const second = createToastMessage('Failed to save.', 'error');

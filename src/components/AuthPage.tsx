@@ -6,10 +6,7 @@ import outputs from '../../amplify_outputs.json';
 
 Amplify.configure(outputs);
 
-type AuthenticatedUser = {
-  username?: string;
-  [key: string]: unknown;
-} | null | undefined;
+type AuthenticatedUser = unknown;
 
 interface RedirectHandlerProps {
   user: AuthenticatedUser;
