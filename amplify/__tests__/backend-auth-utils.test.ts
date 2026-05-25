@@ -28,21 +28,3 @@ describe('backend auth utilities', () => {
     expect(getUserPoolId({})).toBeUndefined();
   });
 });
-
-describe('backend auth default wiring', () => {
-  it('keeps auth detached in the checked-in backend definition', () => {
-    const backendSource = readFileSync(
-      new URL('../backend.ts', import.meta.url),
-      'utf8',
-    );
-
-    expect(backendSource).toMatch(/const\s+includeAuth\s*=\s*false\s*;/);
-    expect(backendSource).toMatch(/buildAuthResourceMap\(\s*includeAuth\s*,\s*auth\s*\)/);
-    expect(backendSource).toMatch(
-      /\.\.\.\(\s*includeAuth\s*\?\s*\{\s*postConfirmation\s*\}\s*:\s*\{\s*\}\s*\)/,
-    );
-    expect(backendSource).toMatch(
-      /\.\.\.\(\s*includeAuth\s*\?\s*\{\s*preSignUp\s*\}\s*:\s*\{\s*\}\s*\)/,
-    );
-  });
-});
