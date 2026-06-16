@@ -8,7 +8,7 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 ALLOWED_HOSTS = [
     h.strip()
-    for h in os.environ.get("ALLOWED_HOSTS", "").split(",")
+    for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
     if h.strip()
 ]
 
@@ -34,9 +34,9 @@ STORAGES = {
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "false").lower() == "true"
+SESSION_COOKIE_SECURE = os.environ.get("SECURE_SSL_REDIRECT", "false").lower() == "true"
+CSRF_COOKIE_SECURE = os.environ.get("SECURE_SSL_REDIRECT", "false").lower() == "true"
 X_FRAME_OPTIONS = "DENY"
 
 LOGGING = {
