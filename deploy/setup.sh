@@ -46,11 +46,13 @@ fi
 
 echo "── Running Django migrations ─────────────────────────────────────────────"
 cd "$APP_DIR"
-sudo -u ec2-user DJANGO_SETTINGS_MODULE=family_project.settings.prod \
+# Load secrets from env file into the current shell so manage.py can read them
+set -a; source "$ENV_FILE"; set +a
+sudo -E -u ec2-user DJANGO_SETTINGS_MODULE=family_project.settings.prod \
     "$APP_DIR/venv/bin/python" manage.py migrate --noinput
 
 echo "── Collecting static files ───────────────────────────────────────────────"
-sudo -u ec2-user DJANGO_SETTINGS_MODULE=family_project.settings.prod \
+sudo -E -u ec2-user DJANGO_SETTINGS_MODULE=family_project.settings.prod \
     "$APP_DIR/venv/bin/python" manage.py collectstatic --noinput
 
 echo "── Installing systemd service ────────────────────────────────────────────"
