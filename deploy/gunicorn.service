@@ -1,0 +1,21 @@
+[Unit]
+Description=family-app gunicorn daemon
+After=network.target
+
+[Service]
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/srv/family-app
+Environment="DJANGO_SETTINGS_MODULE=family_project.settings.prod"
+EnvironmentFile=/etc/family-app/env
+ExecStart=/srv/family-app/venv/bin/gunicorn \
+    --workers 2 \
+    --bind 127.0.0.1:8000 \
+    --access-logfile /var/log/family-app/gunicorn-access.log \
+    --error-logfile /var/log/family-app/gunicorn-error.log \
+    family_project.wsgi:application
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

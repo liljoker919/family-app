@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Calendar — Family App{% endblock %}
+{% block page_title %}Calendar{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'calendar_events:event_create' %}"
+   class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </svg>
+  Add Event
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Legend -->
+<div class="mb-4 flex items-center gap-6 text-xs text-gray-600">
+  <div class="flex items-center gap-2">
+    <span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span>
+    Family Event
+  </div>
+  <div class="flex items-center gap-2">
+    <span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
+    Vehicle Maintenance
+  </div>
+  <div class="flex items-center gap-2">
+    <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+    Google Calendar
+  </div>
+  <div class="flex items-center gap-2">
+    <span class="h-2.5 w-2.5 rounded-full bg-violet-500"></span>
+    Outlook Calendar
+  </div>
+  <p class="ml-auto text-gray-400">Click a date to add an event &nbsp;·&nbsp; Click an event to view details</p>
+</div>
+
+<!-- Calendar mount point — data attributes carry Django-reversed URLs into JS -->
+<div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+  <div id="calendar"
+       class="p-4"
+       data-url-events="{% url 'calendar_events:events_json' %}"
+       data-url-event-create="{% url 'calendar_events:event_create' %}"
+       data-url-event-update="{% url 'calendar_events:event_update' 0 %}"
+       data-url-event-delete="{% url 'calendar_events:event_delete' 0 %}"
+       data-url-vehicle-detail="{% url 'vehicles:vehicle_detail' 0 %}">
+  </div>
+</div>
+
+<!-- ── Event detail modal ─────────────────────────────────────────────────── -->
+<div id="event-modal"
+     class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="modal-title">
+
+  <div class="w-full max-w-md rounded-xl bg-white shadow-2xl">
+    <div class="p-6">
+
+      <!-- Header -->
+      <div class="flex items-start gap-3">
+        <span id="modal-badge"
+              class="mt-0.5 shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium">
+        </span>
+        <h3 id="modal-title"
+            class="flex-1 text-base font-semibold text-gray-900 leading-snug">
+        </h3>
+        <button id="modal-close"
+                class="shrink-0 rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                aria-label="Close">
+          <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Detail rows -->
+      <dl id="modal-body" class="mt-4 space-y-2 text-sm"></dl>
+
+      <!-- Action buttons -->
+      <div id="modal-actions" class="mt-5 flex gap-3 border-t border-gray-100 pt-4"></div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ── URL helpers ──────────────────────────────────────────────────────────
+     We read Django-reversed URLs from data attributes so we never hard-code
+     paths in JavaScript. The placeholder '0' is swapped for the real PK.    */
+  const calEl           = document.getElementById('calendar');
+  const urlEvents       = calEl.dataset.urlEvents;
+  const urlEventCreate  = calEl.dataset.urlEventCreate;
+  const urlEventUpdate  = calEl.dataset.urlEventUpdate;   // "…/0/edit/"
+  const urlEventDelete  = calEl.dataset.urlEventDelete;   // "…/0/delete/"
+  const urlVehicle      = calEl.dataset.urlVehicleDetail; // "…/0/"
+
+  const eventEditUrl    = (pk) => urlEventUpdate.replace('/0/', `/${pk}/`);
+  const eventDeleteUrl  = (pk) => urlEventDelete.replace('/0/', `/${pk}/`);
+  const vehicleDetailUrl = (pk) => urlVehicle.replace('/0/', `/${pk}/`);
+
+  /* ── Modal ────────────────────────────────────────────────────────────── */
+  const modal        = document.getElementById('event-modal');
+  const modalBadge   = document.getElementById('modal-badge');
+  const modalTitle   = document.getElementById('modal-title');
+  const modalBody    = document.getElementById('modal-body');
+  const modalActions = document.getElementById('modal-actions');
+
+  const openModal  = () => modal.classList.remove('hidden');
+  const closeModal = () => modal.classList.add('hidden');
+
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+  /** Safely escape a string for HTML output */
+  function esc(s) {
+    const el = document.createElement('div');
+    el.textContent = s ?? '';
+    return el.innerHTML;
+  }
+
+  /** Render one label/value row inside the modal body */
+  function row(label, value) {
+    return `<div class="flex gap-3">
+      <dt class="w-28 shrink-0 text-gray-500">${esc(label)}</dt>
+      <dd class="text-gray-900">${value}</dd>
+    </div>`;
+  }
+
+  /** Format a FullCalendar event's date range as a human-readable string */
+  function fmtDate(event) {
+    const locale = 'en-US';
+    if (event.allDay) {
+      return new Date(event.startStr).toLocaleDateString(locale, {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
+      });
+    }
+    const start = new Date(event.startStr).toLocaleString(locale, {
+      weekday: 'long', month: 'long', day: 'numeric',
+      year: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+    if (event.end) {
+      const end = new Date(event.endStr).toLocaleTimeString(locale, {
+        hour: 'numeric', minute: '2-digit',
+      });
+      return `${start} – ${end}`;
+    }
+    return start;
+  }
+
+  function showEventModal(fcEvent) {
+    const p = fcEvent.extendedProps;
+    modalTitle.textContent = fcEvent.title;
+    modalBody.innerHTML = row('Date', fmtDate(fcEvent));
+
+    if (p.type === 'manual') {
+      /* ── Family event ── */
+      modalBadge.className =
+        'mt-0.5 shrink-0 inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700';
+      modalBadge.textContent = 'Family Event';
+
+      if (p.notes) {
+        modalBody.innerHTML += row('Notes', esc(p.notes));
+      }
+
+      modalActions.innerHTML = `
+        <a href="${eventEditUrl(p.pk)}"
+           class="flex-1 text-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+          Edit
+        </a>
+        <a href="${eventDeleteUrl(p.pk)}"
+           class="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+          Delete
+        </a>`;
+
+    } else if (p.type === 'car') {
+      /* ── Vehicle maintenance ── */
+      modalBadge.className =
+        'mt-0.5 shrink-0 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700';
+      modalBadge.textContent = 'Vehicle Maintenance';
+
+      modalBody.innerHTML += row('Vehicle',  esc(p.vehicle));
+      modalBody.innerHTML += row('Service',  esc(p.serviceType));
+      if (p.provider) modalBody.innerHTML += row('Provider', esc(p.provider));
+      modalBody.innerHTML += row('Mileage',  Number(p.mileage).toLocaleString() + ' mi');
+      if (p.cost)    modalBody.innerHTML += row('Cost', '$' + parseFloat(p.cost).toFixed(2));
+
+      modalActions.innerHTML = `
+        <a href="${vehicleDetailUrl(p.vehiclePk)}"
+           class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          View Vehicle Record →
+        </a>`;
+
+    } else if (p.type === 'google') {
+      /* ── Google Calendar event ── */
+      modalBadge.className =
+        'mt-0.5 shrink-0 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700';
+      modalBadge.textContent = 'Google Calendar';
+
+      if (p.description) modalBody.innerHTML += row('Description', esc(p.description));
+      if (p.location)    modalBody.innerHTML += row('Location',    esc(p.location));
+
+      modalActions.innerHTML = p.htmlLink
+        ? `<a href="${p.htmlLink}" target="_blank" rel="noopener noreferrer"
+              class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+             Open in Google Calendar →
+           </a>`
+        : '';
+
+    } else if (p.type === 'outlook') {
+      /* ── Outlook Calendar event ── */
+      modalBadge.className =
+        'mt-0.5 shrink-0 inline-flex items-center rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-medium text-violet-700';
+      modalBadge.textContent = 'Outlook Calendar';
+
+      if (p.description) modalBody.innerHTML += row('Description', esc(p.description));
+      if (p.location)    modalBody.innerHTML += row('Location',    esc(p.location));
+
+      modalActions.innerHTML = '';
+    }
+
+    openModal();
+  }
+
+  /* ── FullCalendar ─────────────────────────────────────────────────────── */
+  const calendar = new FullCalendar.Calendar(calEl, {
+    initialView: 'dayGridMonth',
+    height: 'auto',
+    firstDay: 0,
+    nowIndicator: true,
+    dayMaxEvents: 4,
+
+    headerToolbar: {
+      left:   'prev,next today',
+      center: 'title',
+      right:  'dayGridMonth,timeGridWeek,listMonth',
+    },
+    buttonText: {
+      today: 'Today',
+      month: 'Month',
+      week:  'Week',
+      list:  'List',
+    },
+    eventTimeFormat: {
+      hour:     'numeric',
+      minute:   '2-digit',
+      meridiem: 'short',
+    },
+
+    events: urlEvents,
+
+    /** Open detail modal on click */
+    eventClick: function (info) {
+      info.jsEvent.preventDefault();
+      showEventModal(info.event);
+    },
+
+    /** Navigate to Add Event form with the clicked date pre-filled */
+    dateClick: function (info) {
+      window.location.href = urlEventCreate + '?date=' + info.dateStr;
+    },
+
+    /** Native tooltip with full title for truncated events */
+    eventDidMount: function (info) {
+      info.el.title = info.event.title;
+    },
+  });
+
+  calendar.render();
+}());
+</script>
+{% endblock %}

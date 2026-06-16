@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Vehicles — Family App{% endblock %}
+{% block page_title %}Vehicles{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'vehicles:vehicle_create' %}"
+   class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </svg>
+  Add Vehicle
+</a>
+{% endblock %}
+
+{% block content %}
+{% if vehicles %}
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+  {% for vehicle in vehicles %}
+  {% with status=vehicle.registration_status %}
+  <div class="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+
+    <!-- Registration status stripe -->
+    <div class="h-1.5 {% if status == 'expired' %}bg-red-500{% elif status == 'expiring_soon' %}bg-amber-400{% else %}bg-green-500{% endif %}"></div>
+
+    <div class="flex flex-col flex-1 p-6">
+
+      <!-- Header -->
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="text-base font-semibold text-gray-900 leading-tight">
+            {{ vehicle.year }} {{ vehicle.make }} {{ vehicle.model }}
+          </h3>
+          <p class="mt-0.5 text-sm text-gray-500">{{ vehicle.color }}</p>
+        </div>
+        <span class="shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+          {% if status == 'expired' %}bg-red-100 text-red-700
+          {% elif status == 'expiring_soon' %}bg-amber-100 text-amber-700
+          {% else %}bg-green-100 text-green-700{% endif %}">
+          {% if status == 'expired' %}Expired{% elif status == 'expiring_soon' %}Expiring Soon{% else %}Current{% endif %}
+        </span>
+      </div>
+
+      <!-- Stats -->
+      <dl class="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+        <div>
+          <dt class="text-gray-500">License Plate</dt>
+          <dd class="mt-0.5 font-medium text-gray-900">{{ vehicle.license_plate }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Mileage</dt>
+          <dd class="mt-0.5 font-medium text-gray-900">{{ vehicle.current_mileage|intcomma }} mi</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">VIN</dt>
+          <dd class="mt-0.5 font-mono text-xs text-gray-900">···{{ vehicle.vin|slice:"-6:" }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Reg. Expires</dt>
+          <dd class="mt-0.5 font-medium
+            {% if status == 'expired' %}text-red-600
+            {% elif status == 'expiring_soon' %}text-amber-600
+            {% else %}text-gray-900{% endif %}">
+            {{ vehicle.registration_expiry }}
+          </dd>
+        </div>
+      </dl>
+
+      <!-- Actions -->
+      <div class="mt-6 flex items-center gap-3 pt-4 border-t border-gray-100">
+        <a href="{% url 'vehicles:vehicle_detail' vehicle.pk %}"
+           class="flex-1 text-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+          View Details
+        </a>
+        <a href="{% url 'vehicles:vehicle_update' vehicle.pk %}"
+           class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          Edit
+        </a>
+        <a href="{% url 'vehicles:vehicle_delete' vehicle.pk %}"
+           class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+          Delete
+        </a>
+      </div>
+
+    </div>
+  </div>
+  {% endwith %}
+  {% endfor %}
+</div>
+
+{% else %}
+<!-- Empty state -->
+<div class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-white py-20 text-center">
+  <svg class="h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+  </svg>
+  <h3 class="mt-4 text-sm font-semibold text-gray-900">No vehicles yet</h3>
+  <p class="mt-1 text-sm text-gray-500">Get started by adding your first vehicle.</p>
+  <a href="{% url 'vehicles:vehicle_create' %}"
+     class="mt-6 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    </svg>
+    Add Vehicle
+  </a>
+</div>
+{% endif %}
+{% endblock %}

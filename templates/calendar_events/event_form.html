@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if form.instance.pk %}Edit Event — Family App{% else %}Add Event — Family App{% endif %}
+{% endblock %}
+{% block page_title %}
+  {% if form.instance.pk %}Edit Event{% else %}Add Event{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="max-w-lg">
+
+  <a href="{% url 'calendar_events:calendar' %}"
+     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
+    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+    Back to Calendar
+  </a>
+
+  <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div class="px-6 py-4 border-b border-gray-100">
+      <h2 class="text-base font-semibold text-gray-900">
+        {% if form.instance.pk %}Edit Event{% else %}Add Event{% endif %}
+      </h2>
+    </div>
+
+    <form method="post" class="p-6 space-y-5">
+      {% csrf_token %}
+
+      <!-- Title -->
+      <div>
+        <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-700">
+          Title <span class="text-red-500">*</span>
+        </label>
+        {{ form.title }}
+        {% if form.title.errors %}<p class="mt-1 text-xs text-red-600">{{ form.title.errors.0 }}</p>{% endif %}
+      </div>
+
+      <!-- All-day toggle -->
+      <div class="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+        {{ form.all_day }}
+        <label for="{{ form.all_day.id_for_label }}"
+               class="text-sm font-medium text-gray-700 cursor-pointer select-none">
+          All-day event
+        </label>
+      </div>
+
+      <!-- All-day notice (visible when all_day is checked) -->
+      <div id="all-day-note"
+           class="hidden rounded-lg border border-blue-100 bg-blue-50 px-4 py-2 text-xs text-blue-700">
+        The calendar will display this as a full-day event. Start time is stored but not shown.
+      </div>
+
+      <!-- Start datetime -->
+      <div>
+        <label for="{{ form.start.id_for_label }}" class="block text-sm font-medium text-gray-700">
+          Start <span class="text-red-500">*</span>
+        </label>
+        {{ form.start }}
+        {% if form.start.errors %}<p class="mt-1 text-xs text-red-600">{{ form.start.errors.0 }}</p>{% endif %}
+      </div>
+
+      <!-- End datetime (hidden for all-day events) -->
+      <div id="end-field-container">
+        <label for="{{ form.end.id_for_label }}" class="block text-sm font-medium text-gray-700">
+          End
+        </label>
+        {{ form.end }}
+        {% if form.end.errors %}<p class="mt-1 text-xs text-red-600">{{ form.end.errors.0 }}</p>{% endif %}
+      </div>
+
+      <!-- Timezone (hidden for all-day events) -->
+      <div id="timezone-container">
+        <label for="{{ form.timezone.id_for_label }}" class="block text-sm font-medium text-gray-700">
+          Timezone
+        </label>
+        {{ form.timezone }}
+        {% if form.timezone.errors %}<p class="mt-1 text-xs text-red-600">{{ form.timezone.errors.0 }}</p>{% endif %}
+      </div>
+
+      <!-- Notes -->
+      <div>
+        <label for="{{ form.notes.id_for_label }}" class="block text-sm font-medium text-gray-700">
+          Notes
+        </label>
+        {{ form.notes }}
+        {% if form.notes.errors %}<p class="mt-1 text-xs text-red-600">{{ form.notes.errors.0 }}</p>{% endif %}
+      </div>
+
+      {% if form.non_field_errors %}
+      <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Actions -->
+      <div class="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
+        <a href="{% url 'calendar_events:calendar' %}"
+           class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          Cancel
+        </a>
+        <button type="submit"
+                class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+          {% if form.instance.pk %}Save Changes{% else %}Add Event{% endif %}
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+
+  const allDayCb          = document.getElementById('id_all_day');
+  const allDayNote        = document.getElementById('all-day-note');
+  const endContainer      = document.getElementById('end-field-container');
+  const timezoneContainer = document.getElementById('timezone-container');
+
+  function applyAllDay() {
+    const on = allDayCb.checked;
+    allDayNote.classList.toggle('hidden', !on);
+    endContainer.classList.toggle('hidden', on);
+    timezoneContainer.classList.toggle('hidden', on);
+  }
+
+  allDayCb.addEventListener('change', applyAllDay);
+  applyAllDay(); // apply on page load for edit forms
+}());
+</script>
+{% endblock %}
