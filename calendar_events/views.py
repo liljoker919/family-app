@@ -1,3 +1,8 @@
+import logging
+from datetime import date as dt_date, datetime, timezone as dt_timezone
+
+import requests
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
@@ -9,6 +14,121 @@ from django.views.generic import CreateView, DeleteView, TemplateView, UpdateVie
 from .forms import CalendarEventForm
 from .models import CalendarEvent
 
+logger = logging.getLogger(__name__)
+
+
+# ── External calendar source helpers ─────────────────────────────────────────
+
+def _fetch_google_events(start_dt, end_dt):
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+
+    creds_path = getattr(settings, "GOOGLE_CALENDAR_CREDENTIALS", None)
+    calendar_id = getattr(settings, "GOOGLE_CALENDAR_ID", "primary")
+    if not creds_path:
+        return []
+
+    credentials = service_account.Credentials.from_service_account_file(
+        creds_path,
+        scopes=["https://www.googleapis.com/auth/calendar.readonly"],
+    )
+    service = build("calendar", "v3", credentials=credentials, cache_discovery=False)
+
+    params = {"calendarId": calendar_id, "singleEvents": True, "orderBy": "startTime"}
+    if start_dt:
+        params["timeMin"] = start_dt.isoformat()
+    if end_dt:
+        params["timeMax"] = end_dt.isoformat()
+
+    items = service.events().list(**params).execute().get("items", [])
+    events = []
+    for item in items:
+        start_raw = item["start"].get("dateTime") or item["start"].get("date")
+        end_raw = item["end"].get("dateTime") or item["end"].get("date") if "end" in item else None
+        all_day = "dateTime" not in item["start"]
+
+        payload = {
+            "id": f"google-{item['id']}",
+            "title": item.get("summary") or "(No title)",
+            "start": start_raw,
+            "allDay": all_day,
+            "color": "#10B981",
+            "extendedProps": {
+                "type": "google",
+                "description": item.get("description", ""),
+                "location": item.get("location", ""),
+                "htmlLink": item.get("htmlLink", ""),
+            },
+        }
+        if end_raw:
+            payload["end"] = end_raw
+        events.append(payload)
+
+    return events
+
+
+def _fetch_outlook_events(start_dt, end_dt):
+    from icalendar import Calendar as ICalendar
+
+    ical_url = getattr(settings, "OUTLOOK_ICAL_URL", None)
+    if not ical_url:
+        return []
+
+    resp = requests.get(ical_url, timeout=10)
+    resp.raise_for_status()
+
+    cal = ICalendar.from_ical(resp.content)
+    events = []
+
+    for component in cal.walk():
+        if component.name != "VEVENT":
+            continue
+
+        dtstart = component.get("DTSTART")
+        dtend = component.get("DTEND")
+        if dtstart is None:
+            continue
+
+        start_val = dtstart.dt
+        end_val = dtend.dt if dtend else None
+        all_day = isinstance(start_val, dt_date) and not isinstance(start_val, datetime)
+
+        # Filter against the requested window using UTC-normalized comparison
+        if start_dt or end_dt:
+            if all_day:
+                cmp_dt = datetime.combine(start_val, datetime.min.time()).replace(tzinfo=dt_timezone.utc)
+            elif isinstance(start_val, datetime):
+                cmp_dt = start_val if start_val.tzinfo else start_val.replace(tzinfo=dt_timezone.utc)
+            else:
+                continue
+            if start_dt and cmp_dt < start_dt:
+                continue
+            if end_dt and cmp_dt >= end_dt:
+                continue
+
+        start_str = start_val.isoformat()
+        end_str = end_val.isoformat() if end_val is not None else None
+
+        payload = {
+            "id": f"outlook-{component.get('UID', '')}",
+            "title": str(component.get("SUMMARY", "(No title)")),
+            "start": start_str,
+            "allDay": all_day,
+            "color": "#8B5CF6",
+            "extendedProps": {
+                "type": "outlook",
+                "description": str(component.get("DESCRIPTION") or ""),
+                "location": str(component.get("LOCATION") or ""),
+            },
+        }
+        if end_str:
+            payload["end"] = end_str
+        events.append(payload)
+
+    return events
+
+
+# ── Views ─────────────────────────────────────────────────────────────────────
 
 class CalendarView(LoginRequiredMixin, TemplateView):
     template_name = "calendar_events/calendar.html"
@@ -88,7 +208,19 @@ def calendar_json_view(request):
                 },
             })
     except Exception:
-        pass
+        logger.exception("Vehicle service calendar fetch failed")
+
+    # ── Google Calendar (live proxy) ─────────────────────────────────────────
+    try:
+        events.extend(_fetch_google_events(start_dt, end_dt))
+    except Exception:
+        logger.exception("Google Calendar fetch failed")
+
+    # ── Outlook iCal (live proxy) ────────────────────────────────────────────
+    try:
+        events.extend(_fetch_outlook_events(start_dt, end_dt))
+    except Exception:
+        logger.exception("Outlook iCal fetch failed")
 
     return JsonResponse(events, safe=False)
 

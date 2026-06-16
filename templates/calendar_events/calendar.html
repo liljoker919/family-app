@@ -25,6 +25,14 @@
     <span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
     Vehicle Maintenance
   </div>
+  <div class="flex items-center gap-2">
+    <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
+    Google Calendar
+  </div>
+  <div class="flex items-center gap-2">
+    <span class="h-2.5 w-2.5 rounded-full bg-violet-500"></span>
+    Outlook Calendar
+  </div>
   <p class="ml-auto text-gray-400">Click a date to add an event &nbsp;·&nbsp; Click an event to view details</p>
 </div>
 
@@ -174,7 +182,7 @@
           Delete
         </a>`;
 
-    } else {
+    } else if (p.type === 'car') {
       /* ── Vehicle maintenance ── */
       modalBadge.className =
         'mt-0.5 shrink-0 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700';
@@ -191,6 +199,33 @@
            class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
           View Vehicle Record →
         </a>`;
+
+    } else if (p.type === 'google') {
+      /* ── Google Calendar event ── */
+      modalBadge.className =
+        'mt-0.5 shrink-0 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700';
+      modalBadge.textContent = 'Google Calendar';
+
+      if (p.description) modalBody.innerHTML += row('Description', esc(p.description));
+      if (p.location)    modalBody.innerHTML += row('Location',    esc(p.location));
+
+      modalActions.innerHTML = p.htmlLink
+        ? `<a href="${p.htmlLink}" target="_blank" rel="noopener noreferrer"
+              class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+             Open in Google Calendar →
+           </a>`
+        : '';
+
+    } else if (p.type === 'outlook') {
+      /* ── Outlook Calendar event ── */
+      modalBadge.className =
+        'mt-0.5 shrink-0 inline-flex items-center rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-medium text-violet-700';
+      modalBadge.textContent = 'Outlook Calendar';
+
+      if (p.description) modalBody.innerHTML += row('Description', esc(p.description));
+      if (p.location)    modalBody.innerHTML += row('Location',    esc(p.location));
+
+      modalActions.innerHTML = '';
     }
 
     openModal();
