@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ vehicle }} — Family App{% endblock %}
+{% block page_title %}{{ vehicle }}{% endblock %}
+
+{% block header_actions %}
+<div class="flex items-center gap-3">
+  <a href="{% url 'vehicles:vehicle_update' vehicle.pk %}"
+     class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+    Edit Vehicle
+  </a>
+  <a href="{% url 'vehicles:vehicle_delete' vehicle.pk %}"
+     class="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+    Delete
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+{% with status=vehicle.registration_status %}
+<div class="space-y-8">
+
+  <!-- Back link -->
+  <a href="{% url 'vehicles:vehicle_list' %}"
+     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+    Back to Vehicles
+  </a>
+
+  <!-- Vehicle info card -->
+  <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+    <div class="h-1.5 {% if status == 'expired' %}bg-red-500{% elif status == 'expiring_soon' %}bg-amber-400{% else %}bg-green-500{% endif %}"></div>
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-base font-semibold text-gray-900">Vehicle Information</h2>
+        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium
+          {% if status == 'expired' %}bg-red-100 text-red-700
+          {% elif status == 'expiring_soon' %}bg-amber-100 text-amber-700
+          {% else %}bg-green-100 text-green-700{% endif %}">
+          Registration:
+          {% if status == 'expired' %}Expired{% elif status == 'expiring_soon' %}Expiring Soon{% else %}Current{% endif %}
+        </span>
+      </div>
+      <dl class="grid grid-cols-2 gap-x-8 gap-y-5 text-sm sm:grid-cols-3 lg:grid-cols-4">
+        <div>
+          <dt class="text-gray-500">Year</dt>
+          <dd class="mt-1 font-medium text-gray-900">{{ vehicle.year }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Make</dt>
+          <dd class="mt-1 font-medium text-gray-900">{{ vehicle.make }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Model</dt>
+          <dd class="mt-1 font-medium text-gray-900">{{ vehicle.model }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Color</dt>
+          <dd class="mt-1 font-medium text-gray-900">{{ vehicle.color }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">VIN</dt>
+          <dd class="mt-1 font-mono text-gray-900">{{ vehicle.vin }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">License Plate</dt>
+          <dd class="mt-1 font-medium text-gray-900">{{ vehicle.license_plate }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Current Mileage</dt>
+          <dd class="mt-1 font-medium text-gray-900">{{ vehicle.current_mileage|intcomma }} mi</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Registration Expires</dt>
+          <dd class="mt-1 font-medium
+            {% if status == 'expired' %}text-red-600
+            {% elif status == 'expiring_soon' %}text-amber-600
+            {% else %}text-gray-900{% endif %}">
+            {{ vehicle.registration_expiry }}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+
+  <!-- Service history -->
+  <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <h2 class="text-base font-semibold text-gray-900">Service History</h2>
+      <a href="{% url 'vehicles:service_create' vehicle.pk %}"
+         class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Add Service Record
+      </a>
+    </div>
+
+    {% if services %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-100">
+        <thead>
+          <tr class="bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <th class="px-6 py-3 text-left">Date</th>
+            <th class="px-6 py-3 text-left">Type</th>
+            <th class="px-6 py-3 text-left">Provider</th>
+            <th class="px-6 py-3 text-right">Mileage</th>
+            <th class="px-6 py-3 text-right">Miles Since Last</th>
+            <th class="px-6 py-3 text-right">Cost</th>
+            <th class="px-6 py-3 text-left">Notes</th>
+            <th class="px-6 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for svc in services %}
+          <tr class="hover:bg-gray-50 transition-colors">
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{{ svc.date }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{{ svc.get_service_type_display }}</td>
+            <td class="px-6 py-4 text-sm text-gray-600">{{ svc.provider|default:"—" }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-right text-gray-900">{{ svc.mileage_at_service|intcomma }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-right">
+              {% if svc.mileage_delta is not None %}
+                <span class="text-gray-700">+{{ svc.mileage_delta|intcomma }}</span>
+              {% else %}
+                <span class="text-gray-400">—</span>
+              {% endif %}
+            </td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-right text-gray-900">
+              {% if svc.cost %}${{ svc.cost }}{% else %}—{% endif %}
+            </td>
+            <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{{ svc.description|default:"—" }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-right text-sm">
+              <a href="{% url 'vehicles:service_update' svc.pk %}"
+                 class="font-medium text-blue-600 hover:text-blue-800">Edit</a>
+              <span class="mx-2 text-gray-300">|</span>
+              <a href="{% url 'vehicles:service_delete' svc.pk %}"
+                 class="font-medium text-red-500 hover:text-red-700">Delete</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="flex flex-col items-center justify-center py-14 text-center">
+      <svg class="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
+      </svg>
+      <p class="mt-3 text-sm text-gray-500">No service records yet.</p>
+      <a href="{% url 'vehicles:service_create' vehicle.pk %}"
+         class="mt-4 text-sm font-medium text-blue-600 hover:text-blue-800">
+        Add the first service record →
+      </a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endwith %}
+{% endblock %}

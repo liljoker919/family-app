@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if form.instance.pk %}Edit Service Record — Family App{% else %}Add Service Record — Family App{% endif %}
+{% endblock %}
+{% block page_title %}
+  {% if form.instance.pk %}Edit Service Record{% else %}Add Service Record{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+
+  <a href="{% url 'vehicles:vehicle_detail' vehicle.pk %}"
+     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
+    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+    Back to {{ vehicle }}
+  </a>
+
+  <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div class="px-6 py-4 border-b border-gray-100">
+      <h2 class="text-base font-semibold text-gray-900">
+        {% if form.instance.pk %}Edit Service Record{% else %}Add Service Record{% endif %}
+      </h2>
+      <p class="mt-1 text-sm text-gray-500">{{ vehicle }}</p>
+    </div>
+
+    <form method="post" class="p-6 space-y-5">
+      {% csrf_token %}
+
+      <!-- Service Type / Date -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label for="{{ form.service_type.id_for_label }}" class="block text-sm font-medium text-gray-700">
+            Service Type <span class="text-red-500">*</span>
+          </label>
+          {{ form.service_type }}
+          {% if form.service_type.errors %}<p class="mt-1 text-xs text-red-600">{{ form.service_type.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.date.id_for_label }}" class="block text-sm font-medium text-gray-700">
+            Date <span class="text-red-500">*</span>
+          </label>
+          {{ form.date }}
+          {% if form.date.errors %}<p class="mt-1 text-xs text-red-600">{{ form.date.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+
+      <!-- Mileage / Cost -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label for="{{ form.mileage_at_service.id_for_label }}" class="block text-sm font-medium text-gray-700">
+            Mileage at Service <span class="text-red-500">*</span>
+          </label>
+          {{ form.mileage_at_service }}
+          {% if form.mileage_at_service.errors %}<p class="mt-1 text-xs text-red-600">{{ form.mileage_at_service.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.cost.id_for_label }}" class="block text-sm font-medium text-gray-700">
+            Cost ($)
+          </label>
+          {{ form.cost }}
+          {% if form.cost.errors %}<p class="mt-1 text-xs text-red-600">{{ form.cost.errors.0 }}</p>{% endif %}
+        </div>
+      </div>
+
+      <!-- Provider -->
+      <div>
+        <label for="{{ form.provider.id_for_label }}" class="block text-sm font-medium text-gray-700">
+          Service Provider
+        </label>
+        {{ form.provider }}
+        {% if form.provider.errors %}<p class="mt-1 text-xs text-red-600">{{ form.provider.errors.0 }}</p>{% endif %}
+      </div>
+
+      <!-- Notes -->
+      <div>
+        <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+          Notes
+        </label>
+        {{ form.description }}
+        {% if form.description.errors %}<p class="mt-1 text-xs text-red-600">{{ form.description.errors.0 }}</p>{% endif %}
+      </div>
+
+      {% if form.non_field_errors %}
+      <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Actions -->
+      <div class="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+        <a href="{% url 'vehicles:vehicle_detail' vehicle.pk %}"
+           class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          Cancel
+        </a>
+        <button type="submit"
+                class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+          {% if form.instance.pk %}Save Changes{% else %}Add Service Record{% endif %}
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}
