@@ -9,7 +9,7 @@ ENV_FILE=/etc/family-app/env
 REPO_URL=https://github.com/liljoker919/family-app.git
 
 echo "── Installing system packages ───────────────────────────────────────────"
-dnf install -y python3 python3-pip python3-devel nginx git
+dnf install -y python3.11 python3.11-pip nginx git
 
 echo "── Creating directories ─────────────────────────────────────────────────"
 mkdir -p "$LOG_DIR" /etc/family-app
@@ -25,7 +25,7 @@ fi
 mkdir -p "$APP_DIR/db"
 
 echo "── Setting up Python virtual environment ────────────────────────────────"
-python3 -m venv "$APP_DIR/venv"
+python3.11 -m venv "$APP_DIR/venv"
 "$APP_DIR/venv/bin/pip" install --upgrade pip
 "$APP_DIR/venv/bin/pip" install -r "$APP_DIR/requirements.txt"
 
