@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Properties — Family App{% endblock %}
+{% block page_title %}Properties{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'property:property_create' %}"
+   class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </svg>
+  Add Property
+</a>
+{% endblock %}
+
+{% block content %}
+{% if properties %}
+<div class="space-y-5">
+  {% for prop in properties %}
+  <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+
+    <div class="flex flex-col sm:flex-row sm:items-stretch">
+
+      <!-- Left accent bar -->
+      <div class="w-full h-1.5 sm:w-1.5 sm:h-auto bg-emerald-500 shrink-0"></div>
+
+      <!-- Main content -->
+      <div class="flex flex-1 flex-col sm:flex-row sm:items-center gap-6 p-6">
+
+        <!-- Property info -->
+        <div class="flex-1 min-w-0">
+          <div class="flex items-start gap-3">
+            <div>
+              <h3 class="text-base font-semibold text-gray-900">{{ prop.name }}</h3>
+              <p class="mt-0.5 text-sm text-gray-500">{{ prop.address }}</p>
+            </div>
+            <span class="shrink-0 inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+              {{ prop.get_property_type_display }}
+            </span>
+          </div>
+        </div>
+
+        <!-- YTD financials -->
+        <div class="flex items-center gap-8 shrink-0">
+          <div class="text-center">
+            <p class="text-xs font-medium uppercase tracking-wide text-gray-400">{{ current_year }} Income</p>
+            <p class="mt-1 text-lg font-semibold text-emerald-600">${{ prop.ytd_totals.income|floatformat:2|intcomma }}</p>
+          </div>
+          <div class="text-center">
+            <p class="text-xs font-medium uppercase tracking-wide text-gray-400">{{ current_year }} Expenses</p>
+            <p class="mt-1 text-lg font-semibold text-red-500">${{ prop.ytd_totals.expenses|floatformat:2|intcomma }}</p>
+          </div>
+          <div class="text-center">
+            <p class="text-xs font-medium uppercase tracking-wide text-gray-400">{{ current_year }} Net</p>
+            <p class="mt-1 text-lg font-bold {% if prop.ytd_totals.net >= 0 %}text-emerald-600{% else %}text-red-600{% endif %}">
+              {% if prop.ytd_totals.net >= 0 %}+{% endif %}${{ prop.ytd_totals.net|floatformat:2|intcomma }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center gap-3 shrink-0">
+          <a href="{% url 'property:property_detail' prop.pk %}"
+             class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+            View Ledger
+          </a>
+          <a href="{% url 'property:property_update' prop.pk %}"
+             class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            Edit
+          </a>
+          <a href="{% url 'property:property_delete' prop.pk %}"
+             class="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+            Delete
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-white py-20 text-center">
+  <svg class="h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+  </svg>
+  <h3 class="mt-4 text-sm font-semibold text-gray-900">No properties yet</h3>
+  <p class="mt-1 text-sm text-gray-500">Add your first rental property to start tracking transactions.</p>
+  <a href="{% url 'property:property_create' %}"
+     class="mt-6 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    </svg>
+    Add Property
+  </a>
+</div>
+{% endif %}
+{% endblock %}
