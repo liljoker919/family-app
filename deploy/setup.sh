@@ -12,8 +12,7 @@ echo "── Installing system packages ─────────────�
 dnf install -y python3 python3-pip python3-devel nginx git
 
 echo "── Creating directories ─────────────────────────────────────────────────"
-mkdir -p "$APP_DIR" "$LOG_DIR" /etc/family-app
-mkdir -p "$APP_DIR/db"
+mkdir -p "$LOG_DIR" /etc/family-app
 
 echo "── Cloning / updating repo ──────────────────────────────────────────────"
 if [ -d "$APP_DIR/.git" ]; then
@@ -21,6 +20,9 @@ if [ -d "$APP_DIR/.git" ]; then
 else
     git clone "$REPO_URL" "$APP_DIR"
 fi
+
+# db/ must exist before migrations; create after clone so git doesn't refuse a non-empty dir
+mkdir -p "$APP_DIR/db"
 
 echo "── Setting up Python virtual environment ────────────────────────────────"
 python3 -m venv "$APP_DIR/venv"
