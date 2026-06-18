@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}{% if object %}Edit Itinerary Item{% else %}Add Itinerary Item{% endif %} — Family App{% endblock %}
+{% block page_title %}{% if object %}Edit Itinerary Item{% else %}Add to Itinerary{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-lg">
+  <a href="{% url 'vacations:vacation_detail' vacation.pk %}?tab=itinerary"
+     class="mb-4 inline-block text-sm text-gray-500 hover:text-teal-600">← {{ vacation.name }}</a>
+
+  <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="space-y-4">
+        {% for field in form %}
+        <div>
+          <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700">
+            {{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}
+          </label>
+          {{ field }}
+          {% if field.errors %}
+          <p class="mt-1 text-xs text-red-600">{{ field.errors|join:", " }}</p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="mt-6 flex gap-3">
+        <button type="submit"
+                class="rounded-lg bg-teal-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-600 transition-colors">
+          {% if object %}Save Changes{% else %}Add to Itinerary{% endif %}
+        </button>
+        <a href="{% url 'vacations:vacation_detail' vacation.pk %}?tab=itinerary"
+           class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

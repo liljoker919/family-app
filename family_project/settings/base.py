@@ -14,6 +14,7 @@ INSTALLED_APPS = [
     "vehicles",
     "property",
     "calendar_events",
+    "vacations",
     # Utilities
     "django.contrib.humanize",
 ]

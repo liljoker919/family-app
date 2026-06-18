@@ -1,5 +1,5 @@
 import logging
-from datetime import date as dt_date, datetime, timezone as dt_timezone
+from datetime import date as dt_date, datetime, timedelta, timezone as dt_timezone
 
 import requests
 from django.conf import settings
@@ -209,6 +209,35 @@ def calendar_json_view(request):
             })
     except Exception:
         logger.exception("Vehicle service calendar fetch failed")
+
+    # ── Vacation windows ─────────────────────────────────────────────────────
+    try:
+        from vacations.models import Vacation  # noqa: PLC0415
+        from django.urls import reverse  # noqa: PLC0415
+
+        vac_qs = Vacation.objects.all()
+        if start_dt:
+            vac_qs = vac_qs.filter(end_date__gte=start_dt.date())
+        if end_dt:
+            vac_qs = vac_qs.filter(start_date__lt=end_dt.date())
+
+        for vac in vac_qs:
+            events.append({
+                "id": f"vacation-{vac.pk}",
+                "title": f"✈ {vac.name}",
+                "start": vac.start_date.isoformat(),
+                "end": (vac.end_date + timedelta(days=1)).isoformat(),
+                "allDay": True,
+                "color": "#14B8A6",
+                "url": reverse("vacations:vacation_detail", args=[vac.pk]),
+                "extendedProps": {
+                    "type": "vacation",
+                    "destination": vac.destination,
+                    "status": vac.get_status_display(),
+                },
+            })
+    except Exception:
+        logger.exception("Vacation calendar fetch failed")
 
     # ── Google Calendar (live proxy) ─────────────────────────────────────────
     try:
