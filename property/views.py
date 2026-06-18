@@ -5,8 +5,8 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
-from .forms import PropertyForm, PropertyTransactionForm
-from .models import Property, PropertyTransaction
+from .forms import MortgageForm, PropertyForm, PropertyTransactionForm
+from .models import Mortgage, Property, PropertyTransaction
 
 _MONTH_CHOICES = [
     (1, "January"), (2, "February"), (3, "March"), (4, "April"),
@@ -126,3 +126,40 @@ class TransactionDeleteView(LoginRequiredMixin, DeleteView):
 
     def get_success_url(self):
         return reverse_lazy("property:property_detail", kwargs={"pk": self.object.prop.pk})
+
+
+# ── Mortgage CRUD ─────────────────────────────────────────────────────────────
+
+class MortgageCreateView(LoginRequiredMixin, CreateView):
+    model = Mortgage
+    form_class = MortgageForm
+    template_name = "property/mortgage_form.html"
+
+    def _get_property(self):
+        return get_object_or_404(Property, pk=self.kwargs["property_pk"])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["prop"] = self._get_property()
+        return context
+
+    def form_valid(self, form):
+        form.instance.prop = self._get_property()
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy("property:property_detail", kwargs={"pk": self.kwargs["property_pk"]}) + "?tab=financials"
+
+
+class MortgageUpdateView(LoginRequiredMixin, UpdateView):
+    model = Mortgage
+    form_class = MortgageForm
+    template_name = "property/mortgage_form.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["prop"] = self.object.prop
+        return context
+
+    def get_success_url(self):
+        return reverse_lazy("property:property_detail", kwargs={"pk": self.object.prop.pk}) + "?tab=financials"

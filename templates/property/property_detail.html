@@ -35,150 +35,266 @@
   </div>
   <p class="text-sm text-gray-500 -mt-4">{{ property.address }}</p>
 
-  <!-- Year / Month filter -->
-  <form method="get"
-        class="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-    <span class="text-sm font-medium text-gray-600 shrink-0">Filter by:</span>
-
-    <select name="year"
-            class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-      {% for y in years %}
-      <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
-      {% endfor %}
-    </select>
-
-    <select name="month"
-            class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-      <option value="">All months</option>
-      {% for m_num, m_name in month_choices %}
-      <option value="{{ m_num }}" {% if m_num == selected_month %}selected{% endif %}>{{ m_name }}</option>
-      {% endfor %}
-    </select>
-
-    <button type="submit"
-            class="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
-      Apply
-    </button>
-
-    {% if selected_month %}
-    <a href="?year={{ selected_year }}"
-       class="text-sm text-gray-500 hover:text-gray-700">Clear month</a>
-    {% endif %}
-  </form>
-
-  <!-- Financial summary cards -->
-  <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-
-    <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-5">
-      <p class="text-xs font-semibold uppercase tracking-wider text-emerald-600">Income</p>
-      <p class="mt-2 text-3xl font-bold text-emerald-700">${{ totals.income|floatformat:2|intcomma }}</p>
-    </div>
-
-    <div class="rounded-xl border border-red-100 bg-red-50 p-5">
-      <p class="text-xs font-semibold uppercase tracking-wider text-red-500">Expenses</p>
-      <p class="mt-2 text-3xl font-bold text-red-600">${{ totals.expenses|floatformat:2|intcomma }}</p>
-    </div>
-
-    <div class="rounded-xl border p-5
-      {% if totals.net >= 0 %}border-blue-100 bg-blue-50{% else %}border-orange-100 bg-orange-50{% endif %}">
-      <p class="text-xs font-semibold uppercase tracking-wider
-        {% if totals.net >= 0 %}text-blue-600{% else %}text-orange-600{% endif %}">
-        Net
-      </p>
-      <p class="mt-2 text-3xl font-bold
-        {% if totals.net >= 0 %}text-blue-700{% else %}text-orange-700{% endif %}">
-        {% if totals.net >= 0 %}+{% endif %}${{ totals.net|floatformat:2|intcomma }}
-      </p>
-    </div>
-
+  <!-- Tab nav -->
+  <div class="border-b border-gray-200">
+    <nav class="-mb-px flex gap-6" id="tab-nav">
+      <button data-tab="transactions"
+              class="tab-btn border-b-2 border-blue-500 pb-3 text-sm font-medium text-blue-600">
+        Transactions
+      </button>
+      <button data-tab="financials"
+              class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+        Financials
+      </button>
+    </nav>
   </div>
 
-  <!-- Transaction ledger -->
-  <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-      <h2 class="text-base font-semibold text-gray-900">
-        Transactions
-        {% if selected_month %}
+  <!-- ── TRANSACTIONS TAB ───────────────────────────────────────────────── -->
+  <div id="tab-transactions" class="tab-panel space-y-6">
+
+    <!-- Year / Month filter -->
+    <form method="get" id="filter-form"
+          class="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+      <input type="hidden" name="tab" value="transactions">
+      <span class="text-sm font-medium text-gray-600 shrink-0">Filter by:</span>
+
+      <select name="year"
+              class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+        {% for y in years %}
+        <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+
+      <select name="month"
+              class="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+        <option value="">All months</option>
+        {% for m_num, m_name in month_choices %}
+        <option value="{{ m_num }}" {% if m_num == selected_month %}selected{% endif %}>{{ m_name }}</option>
+        {% endfor %}
+      </select>
+
+      <button type="submit"
+              class="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+        Apply
+      </button>
+
+      {% if selected_month %}
+      <a href="?tab=transactions&year={{ selected_year }}"
+         class="text-sm text-gray-500 hover:text-gray-700">Clear month</a>
+      {% endif %}
+    </form>
+
+    <!-- Financial summary cards -->
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-5">
+        <p class="text-xs font-semibold uppercase tracking-wider text-emerald-600">Income</p>
+        <p class="mt-2 text-3xl font-bold text-emerald-700">${{ totals.income|floatformat:2|intcomma }}</p>
+      </div>
+      <div class="rounded-xl border border-red-100 bg-red-50 p-5">
+        <p class="text-xs font-semibold uppercase tracking-wider text-red-500">Expenses</p>
+        <p class="mt-2 text-3xl font-bold text-red-600">${{ totals.expenses|floatformat:2|intcomma }}</p>
+      </div>
+      <div class="rounded-xl border p-5
+        {% if totals.net >= 0 %}border-blue-100 bg-blue-50{% else %}border-orange-100 bg-orange-50{% endif %}">
+        <p class="text-xs font-semibold uppercase tracking-wider
+          {% if totals.net >= 0 %}text-blue-600{% else %}text-orange-600{% endif %}">Net</p>
+        <p class="mt-2 text-3xl font-bold
+          {% if totals.net >= 0 %}text-blue-700{% else %}text-orange-700{% endif %}">
+          {% if totals.net >= 0 %}+{% endif %}${{ totals.net|floatformat:2|intcomma }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Transaction ledger -->
+    <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <h2 class="text-base font-semibold text-gray-900">
+          Transactions
+          {% if selected_month %}
           <span class="ml-2 text-sm font-normal text-gray-400">
             {% for m_num, m_name in month_choices %}{% if m_num == selected_month %}{{ m_name }}{% endif %}{% endfor %}
             {{ selected_year }}
           </span>
-        {% else %}
+          {% else %}
           <span class="ml-2 text-sm font-normal text-gray-400">{{ selected_year }}</span>
-        {% endif %}
-      </h2>
-      <a href="{% url 'property:transaction_create' property.pk %}"
-         class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
-        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          {% endif %}
+        </h2>
+        <a href="{% url 'property:transaction_create' property.pk %}"
+           class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+          <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Add Transaction
+        </a>
+      </div>
+
+      {% if transactions %}
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-100">
+          <thead>
+            <tr class="bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              <th class="px-6 py-3 text-left">Date</th>
+              <th class="px-6 py-3 text-left">Category</th>
+              <th class="px-6 py-3 text-left">Description</th>
+              <th class="px-6 py-3 text-right">Amount</th>
+              <th class="px-6 py-3 text-center">Type</th>
+              <th class="px-6 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            {% for txn in transactions %}
+            <tr class="hover:bg-gray-50 transition-colors">
+              <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{{ txn.date }}</td>
+              <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{{ txn.get_category_display }}</td>
+              <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{{ txn.description|default:"—" }}</td>
+              <td class="whitespace-nowrap px-6 py-4 text-sm text-right font-medium
+                {% if txn.transaction_type == 'income' %}text-emerald-600{% else %}text-gray-900{% endif %}">
+                ${{ txn.amount|floatformat:2|intcomma }}
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-center">
+                {% if txn.transaction_type == 'income' %}
+                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">Income</span>
+                {% else %}
+                <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">Expense</span>
+                {% endif %}
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-right text-sm">
+                <a href="{% url 'property:transaction_update' txn.pk %}" class="font-medium text-blue-600 hover:text-blue-800">Edit</a>
+                <span class="mx-2 text-gray-300">|</span>
+                <a href="{% url 'property:transaction_delete' txn.pk %}" class="font-medium text-red-500 hover:text-red-700">Delete</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="flex flex-col items-center justify-center py-14 text-center">
+        <svg class="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
         </svg>
-        Add Transaction
-      </a>
+        <p class="mt-3 text-sm text-gray-500">No transactions for this period.</p>
+        <a href="{% url 'property:transaction_create' property.pk %}"
+           class="mt-4 text-sm font-medium text-blue-600 hover:text-blue-800">Add the first transaction →</a>
+      </div>
+      {% endif %}
     </div>
 
-    {% if transactions %}
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-100">
-        <thead>
-          <tr class="bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
-            <th class="px-6 py-3 text-left">Date</th>
-            <th class="px-6 py-3 text-left">Category</th>
-            <th class="px-6 py-3 text-left">Description</th>
-            <th class="px-6 py-3 text-right">Amount</th>
-            <th class="px-6 py-3 text-center">Type</th>
-            <th class="px-6 py-3"></th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-100">
-          {% for txn in transactions %}
-          <tr class="hover:bg-gray-50 transition-colors">
-            <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{{ txn.date }}</td>
-            <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-              {{ txn.get_category_display }}
-            </td>
-            <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-              {{ txn.description|default:"—" }}
-            </td>
-            <td class="whitespace-nowrap px-6 py-4 text-sm text-right font-medium
-              {% if txn.transaction_type == 'income' %}text-emerald-600{% else %}text-gray-900{% endif %}">
-              ${{ txn.amount|floatformat:2|intcomma }}
-            </td>
-            <td class="whitespace-nowrap px-6 py-4 text-center">
-              {% if txn.transaction_type == 'income' %}
-              <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                Income
-              </span>
-              {% else %}
-              <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
-                Expense
-              </span>
-              {% endif %}
-            </td>
-            <td class="whitespace-nowrap px-6 py-4 text-right text-sm">
-              <a href="{% url 'property:transaction_update' txn.pk %}"
-                 class="font-medium text-blue-600 hover:text-blue-800">Edit</a>
-              <span class="mx-2 text-gray-300">|</span>
-              <a href="{% url 'property:transaction_delete' txn.pk %}"
-                 class="font-medium text-red-500 hover:text-red-700">Delete</a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  </div>
+
+  <!-- ── FINANCIALS TAB ─────────────────────────────────────────────────── -->
+  <div id="tab-financials" class="tab-panel hidden space-y-6">
+
+    <!-- Value + Mortgage + Equity summary cards -->
+    <div class="grid gap-4 sm:grid-cols-3">
+
+      <!-- Market Value -->
+      <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Market Value</p>
+        {% if property.current_value %}
+        <p class="mt-2 text-2xl font-bold text-gray-900">${{ property.current_value|floatformat:0|intcomma }}</p>
+        {% if property.purchase_price %}
+        <p class="mt-1 text-xs text-gray-400">Purchased at ${{ property.purchase_price|floatformat:0|intcomma }}
+          {% if property.purchase_date %} on {{ property.purchase_date|date:"M j, Y" }}{% endif %}
+        </p>
+        {% endif %}
+        {% else %}
+        <p class="mt-2 text-sm text-gray-400 italic">Not set</p>
+        {% endif %}
+        <a href="{% url 'property:property_update' property.pk %}"
+           class="mt-3 inline-block text-xs font-medium text-blue-600 hover:text-blue-700">Update value →</a>
+      </div>
+
+      <!-- Mortgage Balance -->
+      <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">Mortgage Balance</p>
+        {% if property.mortgage %}
+        <p class="mt-2 text-2xl font-bold text-gray-900">${{ property.mortgage.current_balance|floatformat:0|intcomma }}</p>
+        <p class="mt-1 text-xs text-gray-400">
+          {{ property.mortgage.lender }} · {{ property.mortgage.interest_rate }}% · {{ property.mortgage.term_years }}-yr
+        </p>
+        <p class="text-xs text-gray-400">${{ property.mortgage.monthly_payment|floatformat:2|intcomma }}/mo</p>
+        <a href="{% url 'property:mortgage_update' property.mortgage.pk %}"
+           class="mt-3 inline-block text-xs font-medium text-blue-600 hover:text-blue-700">Update balance →</a>
+        {% else %}
+        <p class="mt-2 text-sm text-gray-400 italic">No mortgage added</p>
+        <a href="{% url 'property:mortgage_create' property.pk %}"
+           class="mt-3 inline-block text-xs font-medium text-blue-600 hover:text-blue-700">Add mortgage →</a>
+        {% endif %}
+      </div>
+
+      <!-- Net Equity -->
+      <div class="rounded-xl border p-5 shadow-sm
+        {% if property.equity > 0 %}border-emerald-100 bg-emerald-50{% else %}border-gray-200 bg-white{% endif %}">
+        <p class="text-xs font-semibold uppercase tracking-wider
+          {% if property.equity > 0 %}text-emerald-600{% else %}text-gray-400{% endif %}">Net Equity</p>
+        <p class="mt-2 text-2xl font-bold
+          {% if property.equity > 0 %}text-emerald-700{% else %}text-gray-400{% endif %}">
+          ${{ property.equity|floatformat:0|intcomma }}
+        </p>
+        {% if property.current_value and property.mortgage %}
+        <p class="mt-1 text-xs text-gray-400">
+          ${{ property.current_value|floatformat:0|intcomma }} value − ${{ property.mortgage.current_balance|floatformat:0|intcomma }} owed
+        </p>
+        {% elif not property.current_value %}
+        <p class="mt-1 text-xs text-gray-400">Set a market value to calculate equity</p>
+        {% endif %}
+      </div>
+
     </div>
-    {% else %}
-    <div class="flex flex-col items-center justify-center py-14 text-center">
-      <svg class="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+
+    <!-- No mortgage prompt -->
+    {% if not property.mortgage %}
+    <div class="rounded-xl border border-dashed border-gray-200 bg-white py-12 text-center">
+      <svg class="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
       </svg>
-      <p class="mt-3 text-sm text-gray-500">No transactions for this period.</p>
-      <a href="{% url 'property:transaction_create' property.pk %}"
-         class="mt-4 text-sm font-medium text-blue-600 hover:text-blue-800">
-        Add the first transaction →
+      <p class="mt-3 text-sm font-medium text-gray-900">No mortgage information added yet</p>
+      <p class="mt-1 text-sm text-gray-500">Track your loan balance, rate, and monthly payment.</p>
+      <a href="{% url 'property:mortgage_create' property.pk %}"
+         class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+        + Add Mortgage Details
       </a>
     </div>
     {% endif %}
 
   </div>
+
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const initialTab = params.get('tab') || 'transactions';
+
+  const panels  = document.querySelectorAll('.tab-panel');
+  const buttons = document.querySelectorAll('.tab-btn');
+
+  function activate(tabName) {
+    panels.forEach(p => p.classList.add('hidden'));
+    buttons.forEach(b => {
+      const active = b.dataset.tab === tabName;
+      b.classList.toggle('border-blue-500', active);
+      b.classList.toggle('text-blue-600', active);
+      b.classList.toggle('border-transparent', !active);
+      b.classList.toggle('text-gray-500', !active);
+    });
+    const panel = document.getElementById('tab-' + tabName);
+    if (panel) panel.classList.remove('hidden');
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      activate(btn.dataset.tab);
+      const url = new URL(window.location);
+      url.searchParams.set('tab', btn.dataset.tab);
+      history.replaceState(null, '', url);
+    });
+  });
+
+  activate(initialTab);
+}());
+</script>
 {% endblock %}
