@@ -26,6 +26,10 @@
     Vehicle Maintenance
   </div>
   <div class="flex items-center gap-2">
+    <span class="h-2.5 w-2.5 rounded-full bg-teal-500"></span>
+    Vacation
+  </div>
+  <div class="flex items-center gap-2">
     <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
     Google Calendar
   </div>
@@ -213,6 +217,22 @@
         ? `<a href="${p.htmlLink}" target="_blank" rel="noopener noreferrer"
               class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
              Open in Google Calendar →
+           </a>`
+        : '';
+
+    } else if (p.type === 'vacation') {
+      /* ── Vacation ── */
+      modalBadge.className =
+        'mt-0.5 shrink-0 inline-flex items-center rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-medium text-teal-700';
+      modalBadge.textContent = 'Vacation';
+
+      modalBody.innerHTML += row('Destination', esc(p.destination));
+      modalBody.innerHTML += row('Status', esc(p.status));
+
+      modalActions.innerHTML = fcEvent.url
+        ? `<a href="${fcEvent.url}"
+              class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+             View Trip Details →
            </a>`
         : '';
 
