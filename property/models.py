@@ -88,6 +88,13 @@ class PropertyTransaction(models.Model):
         ("TAXES", "Taxes"),
         ("MAINTENANCE", "Maintenance"),
         ("INSURANCE", "Insurance"),
+        ("WATER", "Water"),
+        ("ELECTRIC", "Electric"),
+        ("INTERNET", "Internet"),
+        ("PEST_CONTROL", "Pest Control"),
+        ("SUPPLIES", "Supplies"),
+        ("LAWN", "Lawn Care"),
+        ("OTHER", "Other"),
     ]
 
     # Field is named 'prop' to avoid shadowing Python's built-in property() in this module

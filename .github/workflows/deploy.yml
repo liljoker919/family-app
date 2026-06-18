@@ -1,0 +1,42 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to AWS Lightsail
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.LIGHTSAIL_IP }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+
+            cd /srv/family-app
+
+            git fetch origin main
+            git reset --hard origin/main
+
+            set -a
+            source /etc/family-app/env
+            set +a
+
+            export DJANGO_SETTINGS_MODULE=family_project.settings.prod
+
+            /srv/family-app/venv/bin/pip install -r requirements.txt --quiet
+
+            /srv/family-app/venv/bin/python manage.py migrate --noinput
+            /srv/family-app/venv/bin/python manage.py collectstatic --noinput
+
+            sudo systemctl restart family-app
+            sudo systemctl reload nginx
+
+            echo "Deployment complete."
