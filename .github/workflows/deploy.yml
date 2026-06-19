@@ -28,7 +28,7 @@ jobs:
             git reset --hard origin/main
 
             set -a
-            source /etc/family-app/env
+            source <(sudo cat /etc/family-app/env)
             set +a
 
             export DJANGO_SETTINGS_MODULE=family_project.settings.prod
