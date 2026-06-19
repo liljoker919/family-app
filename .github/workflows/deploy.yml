@@ -36,6 +36,8 @@ jobs:
             /srv/family-app/venv/bin/pip install -r requirements.txt --quiet
 
             /srv/family-app/venv/bin/python manage.py migrate --noinput
+
+            sudo chown -R ec2-user:ec2-user /srv/family-app/staticfiles 2>/dev/null || true
             /srv/family-app/venv/bin/python manage.py collectstatic --noinput
 
             sudo systemctl restart family-app
