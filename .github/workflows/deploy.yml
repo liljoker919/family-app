@@ -20,9 +20,11 @@ jobs:
           script: |
             set -e
 
+            sudo chown -R ec2-user:ec2-user /srv/family-app
+
             cd /srv/family-app
 
-            sudo find /srv/family-app -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+            find /srv/family-app -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
             git fetch origin main
             git reset --hard origin/main
@@ -36,8 +38,6 @@ jobs:
             /srv/family-app/venv/bin/pip install -r requirements.txt --quiet
 
             /srv/family-app/venv/bin/python manage.py migrate --noinput
-
-            sudo chown -R ec2-user:ec2-user /srv/family-app/staticfiles 2>/dev/null || true
             /srv/family-app/venv/bin/python manage.py collectstatic --noinput
 
             sudo systemctl restart family-app
