@@ -239,6 +239,36 @@ def calendar_json_view(request):
     except Exception:
         logger.exception("Vacation calendar fetch failed")
 
+    # ── Maintenance deadlines ────────────────────────────────────────────────
+    try:
+        from property.models import MaintenanceProject  # noqa: PLC0415
+
+        maint_qs = MaintenanceProject.objects.select_related("prop").exclude(
+            status__in=["completed", "on_hold"]
+        ).exclude(due_date__isnull=True)
+        if start_dt:
+            maint_qs = maint_qs.filter(due_date__gte=start_dt.date())
+        if end_dt:
+            maint_qs = maint_qs.filter(due_date__lt=end_dt.date())
+
+        for project in maint_qs:
+            events.append({
+                "id": f"maintenance-{project.pk}",
+                "title": f"🔧 {project.title} — {project.prop}",
+                "start": project.due_date.isoformat(),
+                "allDay": True,
+                "color": "#F59E0B",
+                "extendedProps": {
+                    "type": "maintenance",
+                    "property": str(project.prop),
+                    "category": project.get_category_display(),
+                    "priority": project.get_priority_display(),
+                    "status": project.get_status_display(),
+                },
+            })
+    except Exception:
+        logger.exception("Maintenance calendar fetch failed")
+
     # ── Google Calendar (live proxy) ─────────────────────────────────────────
     try:
         events.extend(_fetch_google_events(start_dt, end_dt))

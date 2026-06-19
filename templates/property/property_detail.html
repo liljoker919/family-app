@@ -46,6 +46,10 @@
               class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-gray-500 hover:text-gray-700">
         Financials
       </button>
+      <button data-tab="maintenance"
+              class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+        Maintenance{% if open_projects %} <span class="ml-1 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700">{{ open_projects|length }}</span>{% endif %}
+      </button>
     </nav>
   </div>
 
@@ -256,6 +260,114 @@
         + Add Mortgage Details
       </a>
     </div>
+    {% endif %}
+
+  </div>
+
+  <!-- ── MAINTENANCE TAB ───────────────────────────────────────────────── -->
+  <div id="tab-maintenance" class="tab-panel hidden space-y-6">
+
+    <div class="flex items-center justify-between">
+      <p class="text-sm text-gray-500">Projects are sorted by priority then due date.</p>
+      <a href="{% url 'property:maintenance_create' property.pk %}"
+         class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Add Project
+      </a>
+    </div>
+
+    {% if open_projects %}
+    <div class="space-y-3">
+      {% for project in open_projects %}
+      <div class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-start gap-3">
+
+          <!-- Priority bar -->
+          <div class="shrink-0 mt-0.5">
+            {% if project.priority == "urgent" %}
+            <span class="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">Urgent</span>
+            {% elif project.priority == "high" %}
+            <span class="inline-flex rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-semibold text-orange-700">High</span>
+            {% elif project.priority == "medium" %}
+            <span class="inline-flex rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-semibold text-yellow-700">Medium</span>
+            {% else %}
+            <span class="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">Low</span>
+            {% endif %}
+          </div>
+
+          <!-- Body -->
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="text-sm font-semibold text-gray-900">{{ project.title }}</p>
+              <span class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">{{ project.get_category_display }}</span>
+              {% if project.status == "in_progress" %}
+              <span class="inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">In Progress</span>
+              {% elif project.status == "on_hold" %}
+              <span class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">On Hold</span>
+              {% else %}
+              <span class="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-600">Planned</span>
+              {% endif %}
+              {% if project.frequency_months %}
+              <span class="inline-flex rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-600">↻ every {{ project.frequency_months }}mo</span>
+              {% endif %}
+            </div>
+            {% if project.description %}
+            <p class="mt-1 text-xs text-gray-500">{{ project.description }}</p>
+            {% endif %}
+            <div class="mt-2 flex flex-wrap gap-4 text-xs text-gray-400">
+              {% if project.due_date %}<span>Due {{ project.due_date|date:"M j, Y" }}</span>{% endif %}
+              {% if project.estimated_cost %}<span>Est. ${{ project.estimated_cost|floatformat:0 }}</span>{% endif %}
+              {% if project.contractor_name %}<span>{{ project.contractor_name }}{% if project.contractor_phone %} · {{ project.contractor_phone }}{% endif %}</span>{% endif %}
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex gap-3 shrink-0 text-sm">
+            <a href="{% url 'property:maintenance_update' project.pk %}" class="font-medium text-blue-600 hover:text-blue-800">Edit</a>
+            <a href="{% url 'property:maintenance_delete' project.pk %}" class="font-medium text-red-500 hover:text-red-700">Delete</a>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="rounded-xl border border-dashed border-gray-200 bg-white py-14 text-center">
+      <svg class="mx-auto h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
+      </svg>
+      <p class="mt-3 text-sm font-medium text-gray-900">No open projects</p>
+      <p class="mt-1 text-sm text-gray-500">Track repairs, preventative tasks, and contractor work.</p>
+      <a href="{% url 'property:maintenance_create' property.pk %}"
+         class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+        + Add First Project
+      </a>
+    </div>
+    {% endif %}
+
+    <!-- Completed accordion -->
+    {% if completed_projects %}
+    <details class="rounded-xl border border-gray-200 bg-white shadow-sm">
+      <summary class="cursor-pointer select-none px-5 py-4 text-sm font-medium text-gray-600 hover:text-gray-800">
+        Completed ({{ completed_projects|length }})
+      </summary>
+      <div class="divide-y divide-gray-100 px-5 pb-4">
+        {% for project in completed_projects %}
+        <div class="flex items-center justify-between py-3">
+          <div>
+            <p class="text-sm font-medium text-gray-700 line-through decoration-gray-300">{{ project.title }}</p>
+            <p class="text-xs text-gray-400">
+              {{ project.get_category_display }}
+              {% if project.completion_date %} · Completed {{ project.completion_date|date:"M j, Y" }}{% endif %}
+              {% if project.actual_cost %} · ${{ project.actual_cost|floatformat:0 }}{% endif %}
+            </p>
+          </div>
+          <a href="{% url 'property:maintenance_update' project.pk %}" class="text-xs font-medium text-blue-500 hover:text-blue-700">Edit</a>
+        </div>
+        {% endfor %}
+      </div>
+    </details>
     {% endif %}
 
   </div>

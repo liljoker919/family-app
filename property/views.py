@@ -5,8 +5,10 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
-from .forms import MortgageForm, PropertyForm, PropertyTransactionForm
-from .models import Mortgage, Property, PropertyTransaction
+from .forms import MaintenanceProjectForm, MortgageForm, PropertyForm, PropertyTransactionForm
+from .models import MaintenanceProject, Mortgage, Property, PropertyTransaction
+
+_PRIORITY_ORDER = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
 
 _MONTH_CHOICES = [
     (1, "January"), (2, "February"), (3, "March"), (4, "April"),
@@ -25,6 +27,9 @@ class PropertyListView(LoginRequiredMixin, ListView):
         current_year = date.today().year
         for prop in context["properties"]:
             prop.ytd_totals = prop.calculate_totals(year=current_year)
+            prop.open_project_count = prop.maintenance_projects.filter(
+                status__in=["planned", "in_progress"]
+            ).count()
         context["current_year"] = current_year
         return context
 
@@ -60,6 +65,15 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
         context["selected_month"] = selected_month
         context["years"] = range(today.year - 5, today.year + 2)
         context["month_choices"] = _MONTH_CHOICES
+
+        open_projects = sorted(
+            self.object.maintenance_projects.filter(status__in=["planned", "in_progress", "on_hold"]),
+            key=lambda p: (_PRIORITY_ORDER.get(p.priority, 99), p.due_date or date(9999, 12, 31)),
+        )
+        context["open_projects"] = open_projects
+        context["completed_projects"] = self.object.maintenance_projects.filter(
+            status="completed"
+        ).order_by("-completion_date")
         return context
 
 
@@ -163,3 +177,48 @@ class MortgageUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_success_url(self):
         return reverse_lazy("property:property_detail", kwargs={"pk": self.object.prop.pk}) + "?tab=financials"
+
+
+# ── Maintenance CRUD ──────────────────────────────────────────────────────────
+
+class MaintenanceProjectCreateView(LoginRequiredMixin, CreateView):
+    model = MaintenanceProject
+    form_class = MaintenanceProjectForm
+    template_name = "property/maintenance_form.html"
+
+    def _get_property(self):
+        return get_object_or_404(Property, pk=self.kwargs["property_pk"])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["prop"] = self._get_property()
+        return context
+
+    def form_valid(self, form):
+        form.instance.prop = self._get_property()
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy("property:property_detail", kwargs={"pk": self.kwargs["property_pk"]}) + "?tab=maintenance"
+
+
+class MaintenanceProjectUpdateView(LoginRequiredMixin, UpdateView):
+    model = MaintenanceProject
+    form_class = MaintenanceProjectForm
+    template_name = "property/maintenance_form.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["prop"] = self.object.prop
+        return context
+
+    def get_success_url(self):
+        return reverse_lazy("property:property_detail", kwargs={"pk": self.object.prop.pk}) + "?tab=maintenance"
+
+
+class MaintenanceProjectDeleteView(LoginRequiredMixin, DeleteView):
+    model = MaintenanceProject
+    template_name = "property/maintenance_confirm_delete.html"
+
+    def get_success_url(self):
+        return reverse_lazy("property:property_detail", kwargs={"pk": self.object.prop.pk}) + "?tab=maintenance"

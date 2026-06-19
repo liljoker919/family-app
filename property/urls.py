@@ -15,4 +15,7 @@ urlpatterns = [
     path("transaction/<int:pk>/delete/", views.TransactionDeleteView.as_view(), name="transaction_delete"),
     path("<int:property_pk>/mortgage/add/", views.MortgageCreateView.as_view(), name="mortgage_create"),
     path("mortgage/<int:pk>/edit/", views.MortgageUpdateView.as_view(), name="mortgage_update"),
+    path("<int:property_pk>/maintenance/add/", views.MaintenanceProjectCreateView.as_view(), name="maintenance_create"),
+    path("maintenance/<int:pk>/edit/", views.MaintenanceProjectUpdateView.as_view(), name="maintenance_update"),
+    path("maintenance/<int:pk>/delete/", views.MaintenanceProjectDeleteView.as_view(), name="maintenance_delete"),
 ]
