@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.db.models import Sum
+from simple_history.models import HistoricalRecords
 
 INCOME_CATEGORIES = {"RENT_INCOME"}
 
@@ -24,6 +25,8 @@ class Property(models.Model):
     purchase_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     current_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     purchase_date = models.DateField(null=True, blank=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name_plural = "properties"
@@ -77,6 +80,8 @@ class Mortgage(models.Model):
     start_date = models.DateField()
     term_years = models.PositiveSmallIntegerField(default=30)
 
+    history = HistoricalRecords()
+
     def __str__(self):
         return f"{self.lender} — {self.prop}"
 
@@ -103,6 +108,8 @@ class PropertyTransaction(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.CharField(max_length=200, blank=True)
     date = models.DateField()
+
+    history = HistoricalRecords()
 
     class Meta:
         ordering = ["-date"]

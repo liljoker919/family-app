@@ -1,6 +1,7 @@
 from datetime import date
 
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 
 class Vehicle(models.Model):
@@ -12,6 +13,8 @@ class Vehicle(models.Model):
     license_plate = models.CharField(max_length=20)
     current_mileage = models.PositiveIntegerField()
     registration_expiry = models.DateField()
+
+    history = HistoricalRecords()
 
     class Meta:
         ordering = ["year", "make", "model"]
@@ -45,6 +48,8 @@ class VehicleService(models.Model):
     mileage_at_service = models.PositiveIntegerField()
     cost = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     provider = models.CharField(max_length=100, blank=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         ordering = ["-date", "-mileage_at_service"]

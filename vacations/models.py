@@ -1,5 +1,6 @@
 from django.db import models
 from django.db.models import Sum
+from simple_history.models import HistoricalRecords
 
 
 class Vacation(models.Model):
@@ -15,6 +16,8 @@ class Vacation(models.Model):
     end_date = models.DateField()
     notes = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="planning")
+
+    history = HistoricalRecords()
 
     class Meta:
         ordering = ["-start_date"]
@@ -46,6 +49,8 @@ class VacationExpense(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     paid_by = models.CharField(max_length=100)
 
+    history = HistoricalRecords()
+
     class Meta:
         ordering = ["date", "category"]
 
@@ -69,6 +74,8 @@ class Reservation(models.Model):
     arrival_time = models.DateTimeField()
     notes = models.TextField(blank=True)
 
+    history = HistoricalRecords()
+
     class Meta:
         ordering = ["departure_time"]
 
@@ -83,6 +90,8 @@ class ItineraryItem(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     location = models.CharField(max_length=300, blank=True)
+
+    history = HistoricalRecords()
 
     class Meta:
         ordering = ["date", "time"]
