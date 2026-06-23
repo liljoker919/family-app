@@ -10,4 +10,5 @@ urlpatterns = [
     path("calendar/", include("calendar_events.urls", namespace="calendar_events")),
     path("vacations/", include("vacations.urls", namespace="vacations")),
     path("cookbook/", include("cookbook.urls", namespace="cookbook")),
+    path("shopping/", include("shopping.urls", namespace="shopping")),
 ]

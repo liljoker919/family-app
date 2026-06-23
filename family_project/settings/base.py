@@ -19,6 +19,7 @@ INSTALLED_APPS = [
     "django.contrib.humanize",
     "simple_history",
     "cookbook",
+    "shopping",
 ]
 
 MIDDLEWARE = [
