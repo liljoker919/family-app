@@ -11,4 +11,5 @@ urlpatterns = [
     path("vacations/", include("vacations.urls", namespace="vacations")),
     path("cookbook/", include("cookbook.urls", namespace="cookbook")),
     path("shopping/", include("shopping.urls", namespace="shopping")),
+    path("tasks/", include("tasks.urls", namespace="tasks")),
 ]

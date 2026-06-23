@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Task Board — Family App{% endblock %}
+{% block page_title %}Task Board{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'tasks:task_create' %}"
+   class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+  + New Task
+</a>
+{% endblock %}
+
+{% block content %}
+<div id="task-board-columns">
+  {% include "tasks/_board.html" %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+{% endblock %}

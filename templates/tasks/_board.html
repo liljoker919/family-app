@@ -1,0 +1,45 @@
+<div class="grid gap-5 lg:grid-cols-3">
+
+  <!-- ── TO DO ────────────────────────────────────────────────── -->
+  <div>
+    <div class="mb-3 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+      <span class="h-2.5 w-2.5 rounded-full bg-gray-400"></span>
+      <span class="text-xs font-semibold uppercase tracking-wider text-gray-500">To Do</span>
+      <span class="ml-auto text-xs font-medium text-gray-400">{{ todo_tasks|length }}</span>
+    </div>
+    {% for task in todo_tasks %}
+      {% include "tasks/partials/task_card.html" %}
+    {% empty %}
+      <p class="rounded-lg border border-dashed border-gray-200 py-8 text-center text-xs text-gray-300">Nothing to do</p>
+    {% endfor %}
+  </div>
+
+  <!-- ── IN PROGRESS ──────────────────────────────────────────── -->
+  <div>
+    <div class="mb-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+      <span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
+      <span class="text-xs font-semibold uppercase tracking-wider text-amber-600">In Progress</span>
+      <span class="ml-auto text-xs font-medium text-amber-400">{{ in_progress_tasks|length }}</span>
+    </div>
+    {% for task in in_progress_tasks %}
+      {% include "tasks/partials/task_card.html" %}
+    {% empty %}
+      <p class="rounded-lg border border-dashed border-amber-100 py-8 text-center text-xs text-amber-200">Nothing in progress</p>
+    {% endfor %}
+  </div>
+
+  <!-- ── COMPLETED ─────────────────────────────────────────────── -->
+  <div>
+    <div class="mb-3 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+      <span class="h-2.5 w-2.5 rounded-full bg-green-400"></span>
+      <span class="text-xs font-semibold uppercase tracking-wider text-green-600">Done</span>
+      <span class="ml-auto text-xs font-medium text-green-400">{{ completed_tasks|length }}</span>
+    </div>
+    {% for task in completed_tasks %}
+      {% include "tasks/partials/task_card.html" %}
+    {% empty %}
+      <p class="rounded-lg border border-dashed border-green-100 py-8 text-center text-xs text-green-200">Nothing done yet</p>
+    {% endfor %}
+  </div>
+
+</div>

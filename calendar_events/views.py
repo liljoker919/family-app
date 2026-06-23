@@ -269,6 +269,40 @@ def calendar_json_view(request):
     except Exception:
         logger.exception("Maintenance calendar fetch failed")
 
+    # ── Family Tasks with due dates ─────────────────────────────────────────
+    try:
+        from tasks.models import FamilyTask  # noqa: PLC0415
+        from django.urls import reverse as _reverse  # noqa: PLC0415
+
+        task_qs = FamilyTask.objects.exclude(
+            status="COMPLETED"
+        ).exclude(due_date__isnull=True).select_related("assigned_to")
+        if start_dt:
+            task_qs = task_qs.filter(due_date__gte=start_dt.date())
+        if end_dt:
+            task_qs = task_qs.filter(due_date__lt=end_dt.date())
+
+        for t in task_qs:
+            events.append({
+                "id": f"task-{t.pk}",
+                "title": f"📋 {t.title}",
+                "start": t.due_date.isoformat(),
+                "allDay": True,
+                "color": "#3B82F6",
+                "url": _reverse("tasks:task_detail", args=[t.pk]),
+                "extendedProps": {
+                    "type": "task",
+                    "status": t.get_status_display(),
+                    "priority": t.get_priority_display(),
+                    "assignedTo": (
+                        t.assigned_to.get_full_name() or t.assigned_to.username
+                        if t.assigned_to else "Unassigned"
+                    ),
+                },
+            })
+    except Exception:
+        logger.exception("Family tasks calendar fetch failed")
+
     # ── Google Calendar (live proxy) ─────────────────────────────────────────
     try:
         events.extend(_fetch_google_events(start_dt, end_dt))

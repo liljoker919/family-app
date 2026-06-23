@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     "simple_history",
     "cookbook",
     "shopping",
+    "tasks",
 ]
 
 MIDDLEWARE = [
