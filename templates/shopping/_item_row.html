@@ -1,35 +1,10 @@
-<li id="item-{{ item.pk }}"
-    class="flex items-center gap-3 px-4 py-3 {% if item.is_purchased %}opacity-50{% endif %}">
-  <!-- Toggle checkbox form -->
-  <form method="post"
-        action="{% url 'shopping:toggle_purchased' item.pk %}"
-        hx-post="{% url 'shopping:toggle_purchased' item.pk %}"
-        hx-target="#item-{{ item.pk }}"
-        hx-swap="outerHTML"
-        class="inline">
-    {% csrf_token %}
-    <button type="submit"
-            class="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors
-                   {% if item.is_purchased %}border-green-500 bg-green-500 text-white{% else %}border-gray-300 hover:border-blue-500{% endif %}">
-      {% if item.is_purchased %}
-      <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-      </svg>
-      {% endif %}
-    </button>
-  </form>
-
-  <!-- Item info -->
+<li class="flex items-center gap-3 px-4 py-3">
   <div class="flex-1 min-w-0">
-    <span class="text-sm {% if item.is_purchased %}line-through text-gray-400{% else %}text-gray-800{% endif %}">
-      {{ item }}
-    </span>
+    <span class="text-sm text-gray-800">{{ item }}</span>
     {% if item.source_recipe %}
     <span class="ml-2 text-xs text-gray-400">from {{ item.source_recipe.title }}</span>
     {% endif %}
   </div>
-
-  <!-- Actions -->
   <div class="flex shrink-0 gap-3 text-xs">
     <a href="{% url 'shopping:item_update' item.pk %}"
        class="font-medium text-blue-500 hover:text-blue-700">Edit</a>

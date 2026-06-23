@@ -5,9 +5,30 @@ on:
     branches: [main]
 
 jobs:
+  test:
+    name: Run Django Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: python manage.py test --settings=family_project.settings.ci --verbosity=2
+
   deploy:
     name: Deploy to AWS Lightsail
     runs-on: ubuntu-latest
+    needs: test
 
     steps:
       - name: Deploy via SSH

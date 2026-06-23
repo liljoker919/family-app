@@ -44,7 +44,6 @@ class ShoppingItem(models.Model):
     quantity = models.CharField(max_length=20, blank=True)
     unit = models.CharField(max_length=20, blank=True)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default="PANTRY")
-    is_purchased = models.BooleanField(default=False)
     source_recipe = models.ForeignKey(
         "cookbook.Recipe",
         null=True,

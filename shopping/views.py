@@ -1,8 +1,8 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse, reverse_lazy
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
 from .forms import ShoppingItemForm
@@ -14,14 +14,8 @@ class ShoppingListView(LoginRequiredMixin, ListView):
     template_name = "shopping/shopping_list.html"
     context_object_name = "items"
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        all_items = ShoppingItem.objects.select_related("source_recipe").all()
-        context["active_items"] = all_items.filter(is_purchased=False)
-        context["purchased_items"] = all_items.filter(is_purchased=True)
-        context["form"] = ShoppingItemForm()
-        context["category_labels"] = dict(ShoppingItem.CATEGORY_CHOICES)
-        return context
+    def get_queryset(self):
+        return ShoppingItem.objects.select_related("source_recipe").all()
 
 
 class ShoppingItemCreateView(LoginRequiredMixin, CreateView):
@@ -31,7 +25,7 @@ class ShoppingItemCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy("shopping:list")
 
     def form_valid(self, form):
-        messages.success(self.request, f'Added “{form.instance.name}” to your list.')
+        messages.success(self.request, f'Added "{form.instance.name}" to your list.')
         return super().form_valid(form)
 
 
@@ -49,28 +43,15 @@ class ShoppingItemDeleteView(LoginRequiredMixin, DeleteView):
 
 
 @login_required
-def toggle_purchased(request, pk):
-    item = get_object_or_404(ShoppingItem, pk=pk)
-    if request.method == "POST":
-        item.is_purchased = not item.is_purchased
-        item.save(update_fields=["is_purchased"])
-
-    is_htmx = request.headers.get("HX-Request") == "true"
-    if is_htmx:
-        return render(request, "shopping/_item_row.html", {"item": item})
-    return redirect("shopping:list")
-
-
-@login_required
 def add_recipe_ingredients(request, recipe_pk):
     from cookbook.models import Recipe
     recipe = get_object_or_404(Recipe, pk=recipe_pk)
 
     if request.method == "POST":
         ingredients = recipe.ingredients.all()
-        existing_names = set(
-            ShoppingItem.objects.values_list("name__iexact", flat=True)
-        )
+        existing_names = {
+            n.lower() for n in ShoppingItem.objects.values_list("name", flat=True)
+        }
         added = 0
         skipped = 0
         for ing in ingredients:
@@ -101,11 +82,3 @@ def add_recipe_ingredients(request, recipe_pk):
             messages.info(request, f'All ingredients from "{recipe.title}" are already on your list.')
 
     return redirect("cookbook:recipe_detail", pk=recipe_pk)
-
-
-@login_required
-def clear_purchased(request):
-    if request.method == "POST":
-        count, _ = ShoppingItem.objects.filter(is_purchased=True).delete()
-        messages.success(request, f"Cleared {count} purchased item{'s' if count != 1 else ''} from your list.")
-    return redirect("shopping:list")

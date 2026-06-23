@@ -181,7 +181,7 @@
         </div>
         <div class="min-w-0 flex-1">
           <p class="truncate text-sm font-medium text-white">
-            {{ request.user.get_full_name|default:request.user.username }}
+            {% firstof request.user.get_full_name request.user.username %}
           </p>
           <form method="post" action="{% url 'logout' %}" class="inline">
             {% csrf_token %}
