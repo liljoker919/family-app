@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Delete Step — Family App{% endblock %}
+{% block page_title %}Delete Step{% endblock %}
+{% block content %}
+<div class="max-w-md">
+  <div class="rounded-xl border border-red-100 bg-white p-6 shadow-sm">
+    <p class="text-sm text-gray-700">Delete <strong>Step {{ object.step_number }}</strong> from <strong>{{ object.recipe.title }}</strong>?</p>
+    <form method="post" class="mt-5 flex gap-3">
+      {% csrf_token %}
+      <button type="submit" class="rounded-lg bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors">Delete</button>
+      <a href="{% url 'cookbook:recipe_detail' object.recipe.pk %}" class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     # Utilities
     "django.contrib.humanize",
     "simple_history",
+    "cookbook",
 ]
 
 MIDDLEWARE = [

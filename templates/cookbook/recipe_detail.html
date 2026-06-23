@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}{{ recipe.title }} — Cookbook — Family App{% endblock %}
+{% block page_title %}{{ recipe.title }}{% endblock %}
+
+{% block header_actions %}
+<div class="flex items-center gap-3">
+  <a href="{% url 'cookbook:recipe_update' recipe.pk %}"
+     class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+    Edit Recipe
+  </a>
+  <a href="{% url 'cookbook:recipe_delete' recipe.pk %}"
+     class="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+    Delete
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-4xl">
+
+  <a href="{% url 'cookbook:recipe_list' %}"
+     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+    Cookbook
+  </a>
+
+  <!-- Recipe header card -->
+  <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <div class="flex flex-wrap items-center gap-2 mb-3">
+      <span class="inline-flex rounded-full bg-gray-100 px-3 py-0.5 text-xs font-medium text-gray-600">
+        {{ recipe.get_category_display }}
+      </span>
+      {% if recipe.is_family_favorite %}
+      <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-0.5 text-xs font-semibold text-amber-700">
+        ★ Family Favorite
+      </span>
+      {% endif %}
+    </div>
+
+    {% if recipe.description %}
+    <p class="text-sm text-gray-600 mb-4">{{ recipe.description }}</p>
+    {% endif %}
+
+    <div class="flex flex-wrap gap-6 text-sm text-gray-500">
+      {% if recipe.prep_time_minutes %}
+      <div>
+        <span class="font-medium text-gray-700">Prep</span>
+        <span class="ml-1">{{ recipe.prep_time_minutes }} min</span>
+      </div>
+      {% endif %}
+      {% if recipe.cook_time_minutes %}
+      <div>
+        <span class="font-medium text-gray-700">Cook</span>
+        <span class="ml-1">{{ recipe.cook_time_minutes }} min</span>
+      </div>
+      {% endif %}
+      {% if recipe.total_time %}
+      <div>
+        <span class="font-medium text-gray-700">Total</span>
+        <span class="ml-1">{{ recipe.total_time }} min</span>
+      </div>
+      {% endif %}
+      <div>
+        <span class="font-medium text-gray-700">Servings</span>
+        <span class="ml-1">{{ recipe.servings }}</span>
+      </div>
+      {% if recipe.source %}
+      <div>
+        <span class="font-medium text-gray-700">Source</span>
+        <span class="ml-1">{{ recipe.source }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Ingredients + Steps side by side -->
+  <div class="grid gap-6 lg:grid-cols-2">
+
+    <!-- Ingredients -->
+    <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <h2 class="text-sm font-semibold text-gray-900">Ingredients</h2>
+        <a href="{% url 'cookbook:ingredient_create' recipe.pk %}"
+           class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors">
+          + Add
+        </a>
+      </div>
+      {% if recipe.ingredients.all %}
+      <ul class="divide-y divide-gray-100">
+        {% for ingredient in recipe.ingredients.all %}
+        <li class="flex items-center justify-between px-5 py-3">
+          <span class="text-sm text-gray-700">{{ ingredient }}</span>
+          <div class="flex gap-3 text-xs shrink-0 ml-4">
+            <a href="{% url 'cookbook:ingredient_update' ingredient.pk %}" class="font-medium text-blue-500 hover:text-blue-700">Edit</a>
+            <a href="{% url 'cookbook:ingredient_delete' ingredient.pk %}" class="font-medium text-red-400 hover:text-red-600">Del</a>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="px-5 py-6 text-sm text-gray-400 text-center">No ingredients yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Steps -->
+    <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <h2 class="text-sm font-semibold text-gray-900">Directions</h2>
+        <a href="{% url 'cookbook:step_create' recipe.pk %}"
+           class="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-blue-700 transition-colors">
+          + Add
+        </a>
+      </div>
+      {% if recipe.steps.all %}
+      <ol class="divide-y divide-gray-100">
+        {% for step in recipe.steps.all %}
+        <li class="flex gap-4 px-5 py-4">
+          <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+            {{ step.step_number }}
+          </span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-gray-700 leading-relaxed">{{ step.instruction }}</p>
+            <div class="mt-1.5 flex gap-3 text-xs">
+              <a href="{% url 'cookbook:step_update' step.pk %}" class="font-medium text-blue-500 hover:text-blue-700">Edit</a>
+              <a href="{% url 'cookbook:step_delete' step.pk %}" class="font-medium text-red-400 hover:text-red-600">Delete</a>
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="px-5 py-6 text-sm text-gray-400 text-center">No steps yet.</p>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}
