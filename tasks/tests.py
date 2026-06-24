@@ -103,3 +103,37 @@ class AddCommentTest(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertIn("/accounts/login/", response["Location"])
+
+
+class TaskBoardViewTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="boarduser", password="pass")
+        self.client = Client()
+        self.client.login(username="boarduser", password="pass")
+        FamilyTask.objects.create(title="Buy groceries", status="TODO", priority="medium")
+        FamilyTask.objects.create(title="Fix leak", status="IN_PROGRESS", priority="high")
+        FamilyTask.objects.create(title="Paint fence", status="COMPLETED", priority="low")
+
+    def test_board_requires_login(self):
+        self.client.logout()
+        response = self.client.get(reverse("tasks:board"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
+
+    def test_board_returns_200_with_full_template(self):
+        response = self.client.get(reverse("tasks:board"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "tasks/task_board.html")
+
+    def test_board_context_contains_three_column_keys(self):
+        response = self.client.get(reverse("tasks:board"))
+        for key in ("todo_tasks", "in_progress_tasks", "completed_tasks"):
+            self.assertIn(key, response.context)
+
+    def test_tasks_routed_into_correct_status_columns(self):
+        response = self.client.get(reverse("tasks:board"))
+        self.assertEqual(len(response.context["todo_tasks"]), 1)
+        self.assertEqual(response.context["todo_tasks"][0].title, "Buy groceries")
+        self.assertEqual(len(response.context["in_progress_tasks"]), 1)
+        self.assertEqual(response.context["in_progress_tasks"][0].title, "Fix leak")
+        self.assertEqual(len(response.context["completed_tasks"]), 1)

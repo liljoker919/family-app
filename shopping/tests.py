@@ -106,3 +106,65 @@ class AddRecipeIngredientsTest(TestCase):
         response = self._post()
         self.assertEqual(response.status_code, 302)
         self.assertIn("/accounts/login/", response["Location"])
+
+
+class ShoppingListViewTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="shopper", password="pass")
+        self.client = Client()
+        self.client.login(username="shopper", password="pass")
+        ShoppingItem.objects.create(name="Apples", category="PRODUCE")
+        ShoppingItem.objects.create(name="Sourdough", category="BAKERY")
+
+    def test_requires_login(self):
+        self.client.logout()
+        response = self.client.get(reverse("shopping:list"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
+
+    def test_returns_200_and_lists_items(self):
+        response = self.client.get(reverse("shopping:list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Apples")
+        self.assertContains(response, "Sourdough")
+
+
+class ShoppingItemCRUDTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="shopper2", password="pass")
+        self.client = Client()
+        self.client.login(username="shopper2", password="pass")
+        self.item = ShoppingItem.objects.create(name="Milk", category="DAIRY")
+
+    def test_create_adds_item_and_redirects_to_list(self):
+        response = self.client.post(
+            reverse("shopping:item_create"),
+            {"name": "Eggs", "category": "DAIRY"},
+        )
+        self.assertRedirects(response, reverse("shopping:list"))
+        self.assertTrue(ShoppingItem.objects.filter(name="Eggs").exists())
+
+    def test_create_requires_login(self):
+        self.client.logout()
+        response = self.client.post(
+            reverse("shopping:item_create"),
+            {"name": "Test Item", "category": "PANTRY"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
+
+    def test_update_changes_name_and_redirects_to_list(self):
+        response = self.client.post(
+            reverse("shopping:item_update", kwargs={"pk": self.item.pk}),
+            {"name": "Whole Milk", "category": "DAIRY"},
+        )
+        self.assertRedirects(response, reverse("shopping:list"))
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.name, "Whole Milk")
+
+    def test_delete_removes_item_and_redirects_to_list(self):
+        response = self.client.post(
+            reverse("shopping:item_delete", kwargs={"pk": self.item.pk}),
+        )
+        self.assertRedirects(response, reverse("shopping:list"))
+        self.assertFalse(ShoppingItem.objects.filter(pk=self.item.pk).exists())
