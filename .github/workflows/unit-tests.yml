@@ -17,26 +17,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: '20'
-          cache: 'npm'
+          python-version: "3.11"
+          cache: "pip"
 
       - name: Install dependencies
-        run: npm ci
+        run: pip install -r requirements.txt
 
       - name: Run unit tests
         id: run-tests
-        run: npm test -- --reporter=verbose --reporter=junit --outputFile=test-results/junit.xml
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-results
-          path: test-results/
-          retention-days: 30
+        run: python manage.py test --settings=family_project.settings.ci --verbosity=2
 
       - name: Test summary
         if: always()
@@ -45,5 +37,5 @@ jobs:
           if [ "${{ steps.run-tests.outcome }}" = "success" ]; then
             echo "✅ All unit tests passed." >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Some unit tests failed. Download the **unit-test-results** artifact for details." >> $GITHUB_STEP_SUMMARY
+            echo "❌ Some unit tests failed. See the job log for details." >> $GITHUB_STEP_SUMMARY
           fi
