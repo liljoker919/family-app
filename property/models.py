@@ -198,3 +198,103 @@ class MaintenanceProject(models.Model):
                     status="planned",
                 )
         super().save(*args, **kwargs)
+
+
+class Guest(models.Model):
+    name = models.CharField(max_length=150)
+    email = models.EmailField(null=True, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    notes = models.TextField(blank=True)
+
+    history = HistoricalRecords()
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class GuestBooking(models.Model):
+    SOURCE_CHOICES = [
+        ("AIRBNB", "AirBnB"),
+        ("VRBO", "VRBO"),
+        ("DIRECT", "Direct"),
+        ("HOUFY", "Houfy"),
+        ("FACEBOOK", "Facebook"),
+        ("FRIEND", "Friend"),
+        ("REPEAT", "Repeat"),
+        ("OTHER", "Other"),
+    ]
+
+    prop = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="bookings")
+    guest = models.ForeignKey(Guest, on_delete=models.CASCADE, related_name="bookings")
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default="OTHER")
+    start_date = models.DateField()
+    end_date = models.DateField()
+    total_cost = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # Direct-booking payment tracking; left blank for platform bookings (AirBnB/VRBO/Houfy
+    # collect payment themselves).
+    deposit_due = models.DateField(null=True, blank=True)
+    deposit_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    deposit_received = models.BooleanField(default=False)
+    balance_due = models.DateField(null=True, blank=True)
+    balance_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    balance_received = models.BooleanField(default=False)
+
+    transaction = models.OneToOneField(
+        PropertyTransaction,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="booking",
+    )
+
+    history = HistoricalRecords()
+
+    class Meta:
+        ordering = ["-start_date"]
+
+    def __str__(self):
+        return f"{self.guest} — {self.prop} ({self.start_date})"
+
+    @property
+    def nights(self):
+        return (self.end_date - self.start_date).days
+
+    @property
+    def per_night_price(self):
+        n = self.nights
+        return (self.total_cost / n) if n else Decimal("0")
+
+    def _sync_transaction(self):
+        description = f"{self.get_source_display()} - {self.guest.name}"
+        if self.transaction_id:
+            PropertyTransaction.objects.filter(pk=self.transaction_id).update(
+                prop=self.prop,
+                category="RENT_INCOME",
+                amount=self.total_cost,
+                description=description,
+                date=self.start_date,
+            )
+        else:
+            txn = PropertyTransaction.objects.create(
+                prop=self.prop,
+                category="RENT_INCOME",
+                amount=self.total_cost,
+                description=description,
+                date=self.start_date,
+            )
+            GuestBooking.objects.filter(pk=self.pk).update(transaction=txn)
+            self.transaction_id = txn.pk
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self._sync_transaction()
+
+    def delete(self, *args, **kwargs):
+        transaction_id = self.transaction_id
+        super().delete(*args, **kwargs)
+        if transaction_id:
+            PropertyTransaction.objects.filter(pk=transaction_id).delete()

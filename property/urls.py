@@ -18,4 +18,11 @@ urlpatterns = [
     path("<int:property_pk>/maintenance/add/", views.MaintenanceProjectCreateView.as_view(), name="maintenance_create"),
     path("maintenance/<int:pk>/edit/", views.MaintenanceProjectUpdateView.as_view(), name="maintenance_update"),
     path("maintenance/<int:pk>/delete/", views.MaintenanceProjectDeleteView.as_view(), name="maintenance_delete"),
+    path("guests/", views.GuestListView.as_view(), name="guest_list"),
+    path("guests/add/", views.GuestCreateView.as_view(), name="guest_create"),
+    path("guests/<int:pk>/edit/", views.GuestUpdateView.as_view(), name="guest_update"),
+    path("guests/<int:pk>/delete/", views.GuestDeleteView.as_view(), name="guest_delete"),
+    path("<int:property_pk>/booking/add/", views.BookingCreateView.as_view(), name="booking_create"),
+    path("booking/<int:pk>/edit/", views.BookingUpdateView.as_view(), name="booking_update"),
+    path("booking/<int:pk>/delete/", views.BookingDeleteView.as_view(), name="booking_delete"),
 ]

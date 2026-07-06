@@ -1,7 +1,7 @@
 from django.contrib import admin
 from simple_history.admin import SimpleHistoryAdmin
 
-from .models import MaintenanceProject, Mortgage, Property, PropertyTransaction
+from .models import Guest, GuestBooking, MaintenanceProject, Mortgage, Property, PropertyTransaction
 
 
 @admin.register(Property)
@@ -36,3 +36,19 @@ class PropertyTransactionAdmin(SimpleHistoryAdmin):
     search_fields = ["description", "prop__name"]
     date_hierarchy = "date"
     history_list_display = ["category", "amount"]
+
+
+@admin.register(Guest)
+class GuestAdmin(SimpleHistoryAdmin):
+    list_display = ["name", "email", "phone"]
+    search_fields = ["name", "email"]
+    history_list_display = ["name", "email"]
+
+
+@admin.register(GuestBooking)
+class GuestBookingAdmin(SimpleHistoryAdmin):
+    list_display = ["guest", "prop", "source", "start_date", "end_date", "total_cost", "deposit_received", "balance_received"]
+    list_filter = ["source", "prop", "deposit_received", "balance_received"]
+    search_fields = ["guest__name", "guest__email", "prop__name"]
+    date_hierarchy = "start_date"
+    history_list_display = ["source", "total_cost"]

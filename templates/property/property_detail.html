@@ -50,6 +50,10 @@
               class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-gray-500 hover:text-gray-700">
         Maintenance{% if open_projects %} <span class="ml-1 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700">{{ open_projects|length }}</span>{% endif %}
       </button>
+      <button data-tab="bookings"
+              class="tab-btn border-b-2 border-transparent pb-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+        Bookings{% if bookings %} <span class="ml-1 inline-flex items-center rounded-full bg-gray-100 px-1.5 py-0.5 text-xs font-semibold text-gray-600">{{ bookings|length }}</span>{% endif %}
+      </button>
     </nav>
   </div>
 
@@ -369,6 +373,88 @@
       </div>
     </details>
     {% endif %}
+
+  </div>
+
+  <!-- ── BOOKINGS TAB ───────────────────────────────────────────────────── -->
+  <div id="tab-bookings" class="tab-panel hidden space-y-6">
+
+    <div class="flex items-center justify-between">
+      <a href="{% url 'property:guest_list' %}" class="text-sm text-gray-500 hover:text-blue-600">Manage guests →</a>
+      <a href="{% url 'property:booking_create' property.pk %}"
+         class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Add Booking
+      </a>
+    </div>
+
+    <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      {% if bookings %}
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-100">
+          <thead>
+            <tr class="bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              <th class="px-6 py-3 text-left">Guest</th>
+              <th class="px-6 py-3 text-left">Source</th>
+              <th class="px-6 py-3 text-left">Dates</th>
+              <th class="px-6 py-3 text-right">Nights</th>
+              <th class="px-6 py-3 text-right">Per Night</th>
+              <th class="px-6 py-3 text-right">Total</th>
+              <th class="px-6 py-3 text-center">Deposit</th>
+              <th class="px-6 py-3 text-center">Balance</th>
+              <th class="px-6 py-3"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            {% for booking in bookings %}
+            <tr class="hover:bg-gray-50 transition-colors">
+              <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{{ booking.guest.name }}</td>
+              <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ booking.get_source_display }}</td>
+              <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ booking.start_date|date:"M j" }} – {{ booking.end_date|date:"M j, Y" }}</td>
+              <td class="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">{{ booking.nights }}</td>
+              <td class="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">${{ booking.per_night_price|floatformat:2 }}</td>
+              <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-emerald-600">${{ booking.total_cost|floatformat:2 }}</td>
+              <td class="whitespace-nowrap px-6 py-4 text-center">
+                {% if booking.source == "DIRECT" %}
+                {% if booking.deposit_received %}
+                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">Received</span>
+                {% else %}
+                <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">Pending</span>
+                {% endif %}
+                {% else %}
+                <span class="text-xs text-gray-300">—</span>
+                {% endif %}
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-center">
+                {% if booking.source == "DIRECT" %}
+                {% if booking.balance_received %}
+                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">Received</span>
+                {% else %}
+                <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700">Pending</span>
+                {% endif %}
+                {% else %}
+                <span class="text-xs text-gray-300">—</span>
+                {% endif %}
+              </td>
+              <td class="whitespace-nowrap px-6 py-4 text-right text-sm">
+                <a href="{% url 'property:booking_update' booking.pk %}" class="font-medium text-blue-600 hover:text-blue-800">Edit</a>
+                <span class="mx-2 text-gray-300">|</span>
+                <a href="{% url 'property:booking_delete' booking.pk %}" class="font-medium text-red-500 hover:text-red-700">Delete</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="flex flex-col items-center justify-center py-14 text-center">
+        <p class="text-sm text-gray-500">No bookings recorded for this property.</p>
+        <a href="{% url 'property:booking_create' property.pk %}" class="mt-4 text-sm font-medium text-blue-600 hover:text-blue-800">Add the first booking →</a>
+      </div>
+      {% endif %}
+    </div>
 
   </div>
 

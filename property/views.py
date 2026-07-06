@@ -1,12 +1,20 @@
 from datetime import date
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
-from .forms import MaintenanceProjectForm, MortgageForm, PropertyForm, PropertyTransactionForm
-from .models import MaintenanceProject, Mortgage, Property, PropertyTransaction
+from .forms import (
+    GuestBookingForm,
+    GuestForm,
+    MaintenanceProjectForm,
+    MortgageForm,
+    PropertyForm,
+    PropertyTransactionForm,
+)
+from .models import Guest, GuestBooking, MaintenanceProject, Mortgage, Property, PropertyTransaction
 
 _PRIORITY_ORDER = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
 
@@ -74,6 +82,7 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
         context["completed_projects"] = self.object.maintenance_projects.filter(
             status="completed"
         ).order_by("-completion_date")
+        context["bookings"] = self.object.bookings.select_related("guest").all()
         return context
 
 
@@ -222,3 +231,83 @@ class MaintenanceProjectDeleteView(LoginRequiredMixin, DeleteView):
 
     def get_success_url(self):
         return reverse_lazy("property:property_detail", kwargs={"pk": self.object.prop.pk}) + "?tab=maintenance"
+
+
+# ── Guest CRM ─────────────────────────────────────────────────────────────────
+
+class GuestListView(LoginRequiredMixin, ListView):
+    model = Guest
+    template_name = "property/guest_list.html"
+    context_object_name = "guests"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(Q(name__icontains=q) | Q(email__icontains=q))
+        return qs
+
+
+class GuestCreateView(LoginRequiredMixin, CreateView):
+    model = Guest
+    form_class = GuestForm
+    template_name = "property/guest_form.html"
+    success_url = reverse_lazy("property:guest_list")
+
+
+class GuestUpdateView(LoginRequiredMixin, UpdateView):
+    model = Guest
+    form_class = GuestForm
+    template_name = "property/guest_form.html"
+    success_url = reverse_lazy("property:guest_list")
+
+
+class GuestDeleteView(LoginRequiredMixin, DeleteView):
+    model = Guest
+    template_name = "property/guest_confirm_delete.html"
+    success_url = reverse_lazy("property:guest_list")
+
+
+# ── Booking CRUD ──────────────────────────────────────────────────────────────
+
+class BookingCreateView(LoginRequiredMixin, CreateView):
+    model = GuestBooking
+    form_class = GuestBookingForm
+    template_name = "property/booking_form.html"
+
+    def _get_property(self):
+        return get_object_or_404(Property, pk=self.kwargs["property_pk"])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["prop"] = self._get_property()
+        return context
+
+    def form_valid(self, form):
+        form.instance.prop = self._get_property()
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy("property:property_detail", kwargs={"pk": self.kwargs["property_pk"]}) + "?tab=bookings"
+
+
+class BookingUpdateView(LoginRequiredMixin, UpdateView):
+    model = GuestBooking
+    form_class = GuestBookingForm
+    template_name = "property/booking_form.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["prop"] = self.object.prop
+        return context
+
+    def get_success_url(self):
+        return reverse_lazy("property:property_detail", kwargs={"pk": self.object.prop.pk}) + "?tab=bookings"
+
+
+class BookingDeleteView(LoginRequiredMixin, DeleteView):
+    model = GuestBooking
+    template_name = "property/booking_confirm_delete.html"
+
+    def get_success_url(self):
+        return reverse_lazy("property:property_detail", kwargs={"pk": self.object.prop.pk}) + "?tab=bookings"

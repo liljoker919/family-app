@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import MaintenanceProject, Mortgage, Property, PropertyTransaction
+from .models import Guest, GuestBooking, MaintenanceProject, Mortgage, Property, PropertyTransaction
 
 _INPUT = (
     "mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm "
@@ -84,4 +84,37 @@ class PropertyTransactionForm(forms.ModelForm):
             "amount": forms.NumberInput(attrs={"class": _INPUT, "step": "0.01", "min": "0", "placeholder": "0.00"}),
             "description": forms.TextInput(attrs={"class": _INPUT, "placeholder": "Optional note"}),
             "date": forms.DateInput(attrs={"class": _INPUT, "type": "date"}),
+        }
+
+
+class GuestForm(forms.ModelForm):
+    class Meta:
+        model = Guest
+        fields = ["name", "email", "phone", "notes"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": _INPUT, "placeholder": "Guest name"}),
+            "email": forms.EmailInput(attrs={"class": _INPUT, "placeholder": "guest@example.com"}),
+            "phone": forms.TextInput(attrs={"class": _INPUT, "placeholder": "Phone number"}),
+            "notes": forms.Textarea(attrs={"class": _INPUT, "rows": 2, "placeholder": "Optional notes"}),
+        }
+
+
+class GuestBookingForm(forms.ModelForm):
+    class Meta:
+        model = GuestBooking
+        fields = [
+            "guest", "source", "start_date", "end_date", "total_cost",
+            "deposit_due", "deposit_amount", "deposit_received",
+            "balance_due", "balance_amount", "balance_received",
+        ]
+        widgets = {
+            "guest": forms.Select(attrs={"class": _SELECT}),
+            "source": forms.Select(attrs={"class": _SELECT}),
+            "start_date": forms.DateInput(attrs={"class": _INPUT, "type": "date"}),
+            "end_date": forms.DateInput(attrs={"class": _INPUT, "type": "date"}),
+            "total_cost": forms.NumberInput(attrs={"class": _INPUT, "step": "0.01", "min": "0", "placeholder": "0.00"}),
+            "deposit_due": forms.DateInput(attrs={"class": _INPUT, "type": "date"}),
+            "deposit_amount": forms.NumberInput(attrs={"class": _INPUT, "step": "0.01", "min": "0", "placeholder": "0.00"}),
+            "balance_due": forms.DateInput(attrs={"class": _INPUT, "type": "date"}),
+            "balance_amount": forms.NumberInput(attrs={"class": _INPUT, "step": "0.01", "min": "0", "placeholder": "0.00"}),
         }

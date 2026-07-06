@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Guests — Family App{% endblock %}
+{% block page_title %}Guests{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'property:guest_create' %}"
+   class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </svg>
+  Add Guest
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <form method="get" class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+    <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Search by name or email"
+           class="mt-1 block w-full max-w-sm rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+    <button type="submit"
+            class="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+      Search
+    </button>
+    {% if request.GET.q %}
+    <a href="{% url 'property:guest_list' %}" class="text-sm text-gray-500 hover:text-gray-700">Clear</a>
+    {% endif %}
+  </form>
+
+  <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+    {% if guests %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-100">
+        <thead>
+          <tr class="bg-gray-50 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            <th class="px-6 py-3 text-left">Name</th>
+            <th class="px-6 py-3 text-left">Email</th>
+            <th class="px-6 py-3 text-left">Phone</th>
+            <th class="px-6 py-3 text-center">Bookings</th>
+            <th class="px-6 py-3"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for guest in guests %}
+          <tr class="hover:bg-gray-50 transition-colors">
+            <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{{ guest.name }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ guest.email|default:"—" }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ guest.phone|default:"—" }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-center text-sm text-gray-500">{{ guest.bookings.count }}</td>
+            <td class="whitespace-nowrap px-6 py-4 text-right text-sm">
+              <a href="{% url 'property:guest_update' guest.pk %}" class="font-medium text-blue-600 hover:text-blue-800">Edit</a>
+              <span class="mx-2 text-gray-300">|</span>
+              <a href="{% url 'property:guest_delete' guest.pk %}" class="font-medium text-red-500 hover:text-red-700">Delete</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="flex flex-col items-center justify-center py-14 text-center">
+      <p class="text-sm text-gray-500">No guests found.</p>
+      <a href="{% url 'property:guest_create' %}" class="mt-4 text-sm font-medium text-blue-600 hover:text-blue-800">Add the first guest →</a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
