@@ -1,5 +1,8 @@
+from datetime import date, datetime, timedelta
+
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
+from django.utils import timezone as tz
 
 User = get_user_model()
 
@@ -51,6 +54,92 @@ _ALL_ENDPOINTS = [
     "/calendar/event/1/edit/",
     "/calendar/event/1/delete/",
 ]
+
+
+class DashboardUpcomingEventCountTest(TestCase):
+    """The dashboard's Calendar tile must count events from every source the
+    calendar page itself displays (manual events, vehicle service, vacations,
+    maintenance projects, family tasks) — not just the CalendarEvent table."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="dashuser", password="testpass")
+        self.client = Client()
+        self.client.login(username="dashuser", password="testpass")
+        self.today = date.today()
+
+    def _in_range(self, days):
+        return self.today + timedelta(days=days)
+
+    def test_counts_events_from_every_source_within_next_7_days(self):
+        from calendar_events.models import CalendarEvent  # noqa: PLC0415
+        from property.models import MaintenanceProject, Property  # noqa: PLC0415
+        from tasks.models import FamilyTask  # noqa: PLC0415
+        from vacations.models import Vacation  # noqa: PLC0415
+        from vehicles.models import Vehicle, VehicleService  # noqa: PLC0415
+
+        CalendarEvent.objects.create(
+            title="Manual Event",
+            start=tz.make_aware(datetime.combine(self._in_range(1), datetime.min.time())),
+            event_type="manual",
+        )
+
+        vehicle = Vehicle.objects.create(
+            year=2020, make="Honda", model="CR-V", vin="1HGCM82633A004352",
+            color="Blue", license_plate="ABC123", current_mileage=30000,
+            registration_expiry=self._in_range(365),
+        )
+        VehicleService.objects.create(
+            vehicle=vehicle, service_type="oil_change", date=self._in_range(2),
+            mileage_at_service=30100,
+        )
+
+        Vacation.objects.create(
+            name="Beach Trip", destination="Outer Banks",
+            start_date=self._in_range(3), end_date=self._in_range(4),
+        )
+
+        prop = Property.objects.create(name="Rental House", address="123 Main St")
+        MaintenanceProject.objects.create(
+            prop=prop, title="Fix gutter", due_date=self._in_range(5), status="planned",
+        )
+
+        FamilyTask.objects.create(
+            title="Pack for trip", status="TODO", priority="medium", due_date=self._in_range(6),
+        )
+
+        response = self.client.get("/")
+        self.assertEqual(response.context["upcoming_event_count"], 5)
+        self.assertContains(response, "5 events")
+
+    def test_excludes_events_outside_window_and_completed_or_on_hold_items(self):
+        from calendar_events.models import CalendarEvent  # noqa: PLC0415
+        from property.models import MaintenanceProject, Property  # noqa: PLC0415
+        from tasks.models import FamilyTask  # noqa: PLC0415
+        from vacations.models import Vacation  # noqa: PLC0415
+
+        # Outside the 7-day window entirely.
+        CalendarEvent.objects.create(
+            title="Far Future Event",
+            start=tz.make_aware(datetime.combine(self._in_range(30), datetime.min.time())),
+            event_type="manual",
+        )
+        Vacation.objects.create(
+            name="Next Year Trip", destination="Paris",
+            start_date=self._in_range(60), end_date=self._in_range(67),
+        )
+
+        # Within the window but excluded due to status.
+        prop = Property.objects.create(name="Rental House", address="123 Main St")
+        MaintenanceProject.objects.create(
+            prop=prop, title="On hold repair", due_date=self._in_range(2), status="on_hold",
+        )
+        FamilyTask.objects.create(
+            title="Already done", status="COMPLETED", priority="low", due_date=self._in_range(2),
+        )
+
+        response = self.client.get("/")
+        self.assertEqual(response.context["upcoming_event_count"], 0)
+        self.assertContains(response, "0 events")
 
 
 class AuthGuardTestCase(TestCase):

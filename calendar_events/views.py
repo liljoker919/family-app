@@ -134,19 +134,7 @@ class CalendarView(LoginRequiredMixin, TemplateView):
     template_name = "calendar_events/calendar.html"
 
 
-@login_required
-def calendar_json_view(request):
-    def _parse(s):
-        if not s:
-            return None
-        dt = parse_datetime(s.replace("Z", "+00:00"))
-        if dt and tz.is_naive(dt):
-            dt = tz.make_aware(dt)
-        return dt
-
-    start_dt = _parse(request.GET.get("start", ""))
-    end_dt = _parse(request.GET.get("end", ""))
-
+def collect_events(start_dt, end_dt):
     events = []
 
     # ── Manual CalendarEvents ────────────────────────────────────────────────
@@ -315,6 +303,23 @@ def calendar_json_view(request):
     except Exception:
         logger.exception("Outlook iCal fetch failed")
 
+    return events
+
+
+@login_required
+def calendar_json_view(request):
+    def _parse(s):
+        if not s:
+            return None
+        dt = parse_datetime(s.replace("Z", "+00:00"))
+        if dt and tz.is_naive(dt):
+            dt = tz.make_aware(dt)
+        return dt
+
+    start_dt = _parse(request.GET.get("start", ""))
+    end_dt = _parse(request.GET.get("end", ""))
+
+    events = collect_events(start_dt, end_dt)
     return JsonResponse(events, safe=False)
 
 

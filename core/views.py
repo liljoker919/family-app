@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
@@ -46,11 +46,11 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             pass
 
         try:
-            from calendar_events.models import CalendarEvent  # noqa: PLC0415
-            today = date.today()
-            summary["upcoming_event_count"] = CalendarEvent.objects.filter(
-                start__date__range=(today, today + timedelta(days=7))
-            ).count()
+            from django.utils import timezone as tz  # noqa: PLC0415
+            from calendar_events.views import collect_events  # noqa: PLC0415
+            start_dt = tz.make_aware(datetime.combine(date.today(), datetime.min.time()))
+            end_dt = start_dt + timedelta(days=7)
+            summary["upcoming_event_count"] = len(collect_events(start_dt, end_dt))
         except Exception:
             pass
 
