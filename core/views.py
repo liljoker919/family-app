@@ -25,7 +25,6 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             "vehicle_count": 0,
             "next_service_due": None,
             "property_count": 0,
-            "property_net_ytd": None,
             "upcoming_event_count": 0,
         }
 
@@ -43,13 +42,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         try:
             from property.models import Property  # noqa: PLC0415
-            props = list(Property.objects.all())
-            summary["property_count"] = len(props)
-            if props:
-                current_year = date.today().year
-                summary["property_net_ytd"] = sum(
-                    p.calculate_totals(year=current_year)["net"] for p in props
-                )
+            summary["property_count"] = Property.objects.count()
         except Exception:
             pass
 

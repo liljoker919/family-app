@@ -41,14 +41,9 @@
           </div>
           <span class="text-3xl font-bold text-gray-900">{{ property_count }}</span>
         </div>
-        <p class="mt-4 text-sm font-semibold text-gray-700">Properties</p>
-        {% if property_net_ytd is not None %}
-        <p class="mt-1 text-xs text-gray-500">
-          Net YTD:
-          <span class="font-medium {% if property_net_ytd >= 0 %}text-emerald-600{% else %}text-red-600{% endif %}">
-            {% if property_net_ytd >= 0 %}+{% endif %}${{ property_net_ytd|floatformat:2 }}
-          </span>
-        </p>
+        <p class="mt-4 text-sm font-semibold text-gray-700">Maintenance</p>
+        {% if property_count > 0 %}
+        <p class="mt-1 text-xs text-gray-500">Maintenance & repairs</p>
         {% else %}
         <p class="mt-1 text-xs text-gray-400">No properties tracked</p>
         {% endif %}

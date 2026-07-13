@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="max-w-2xl">
-  <a href="{% url 'property:property_detail' prop.pk %}?tab=maintenance"
+  <a href="{% url 'property:property_detail' prop.pk %}"
      class="mb-4 inline-block text-sm text-gray-500 hover:text-blue-600">← {{ prop.name }}</a>
 
   <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -24,11 +24,6 @@
             {% if field.errors %}<p class="mt-1 text-xs text-red-600">{{ field.errors|join:", " }}</p>{% endif %}
           </div>
           {% endwith %}
-
-          {% for fname in "category,status,priority" %}
-          {% with field=form|getitem:fname %}
-          {% endwith %}
-          {% endfor %}
 
           {% with field=form.category %}
           <div>
@@ -139,7 +134,7 @@
                 class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
           {% if object %}Save Changes{% else %}Add Project{% endif %}
         </button>
-        <a href="{% url 'property:property_detail' prop.pk %}?tab=maintenance"
+        <a href="{% url 'property:property_detail' prop.pk %}"
            class="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
           Cancel
         </a>
