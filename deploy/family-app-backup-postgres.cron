@@ -1,0 +1,4 @@
+# Install to /etc/cron.d/family-app-backup, REPLACING the SQLite-era version,
+# once the Postgres cutover (docs/deploy/postgres-migration.md) is complete.
+# Nightly Postgres backup at 3am, synced to S3 if BACKUP_S3_BUCKET is set in /etc/family-app/env.
+0 3 * * * ec2-user /srv/family-app/deploy/backup-db-postgres.sh >> /var/log/family-app/backup.log 2>&1
