@@ -1,24 +1,26 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
+
+from core.mixins import AccountScopedMixin, AccountStampMixin, get_scoped_object_or_404
 
 from .forms import ShoppingItemForm
 from .models import ShoppingItem, _guess_category
 
 
-class ShoppingListView(LoginRequiredMixin, ListView):
+class ShoppingListView(LoginRequiredMixin, AccountScopedMixin, ListView):
     model = ShoppingItem
     template_name = "shopping/shopping_list.html"
     context_object_name = "items"
 
     def get_queryset(self):
-        return ShoppingItem.objects.select_related("source_recipe").all()
+        return super().get_queryset().select_related("source_recipe")
 
 
-class ShoppingItemCreateView(LoginRequiredMixin, CreateView):
+class ShoppingItemCreateView(LoginRequiredMixin, AccountStampMixin, CreateView):
     model = ShoppingItem
     form_class = ShoppingItemForm
     template_name = "shopping/item_form.html"
@@ -29,14 +31,14 @@ class ShoppingItemCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class ShoppingItemUpdateView(LoginRequiredMixin, UpdateView):
+class ShoppingItemUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = ShoppingItem
     form_class = ShoppingItemForm
     template_name = "shopping/item_form.html"
     success_url = reverse_lazy("shopping:list")
 
 
-class ShoppingItemDeleteView(LoginRequiredMixin, DeleteView):
+class ShoppingItemDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = ShoppingItem
     template_name = "shopping/item_confirm_delete.html"
     success_url = reverse_lazy("shopping:list")
@@ -45,12 +47,13 @@ class ShoppingItemDeleteView(LoginRequiredMixin, DeleteView):
 @login_required
 def add_recipe_ingredients(request, recipe_pk):
     from cookbook.models import Recipe
-    recipe = get_object_or_404(Recipe, pk=recipe_pk)
+    recipe = get_scoped_object_or_404(Recipe, request.account, pk=recipe_pk)
 
     if request.method == "POST":
         ingredients = recipe.ingredients.all()
         existing_names = {
-            n.lower() for n in ShoppingItem.objects.values_list("name", flat=True)
+            n.lower() for n in
+            ShoppingItem.objects.filter(account=request.account).values_list("name", flat=True)
         }
         added = 0
         skipped = 0
@@ -63,6 +66,7 @@ def add_recipe_ingredients(request, recipe_pk):
             if ing.unit and ing.unit not in ("OTHER", "TO_TASTE"):
                 unit = ing.get_unit_display().lower()
             ShoppingItem.objects.create(
+                account=request.account,
                 name=ing.name,
                 quantity=qty,
                 unit=unit,

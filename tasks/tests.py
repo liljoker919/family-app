@@ -9,11 +9,15 @@ User = get_user_model()
 
 class ChangeStatusTest(TestCase):
     def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
         self.user = User.objects.create_user(username="testuser", password="testpass")
+        self.account = FamilyAccount.objects.create(name="Task Family", slug="task-family-1", owner=self.user)
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
         self.client = Client()
         self.client.login(username="testuser", password="testpass")
         self.task = FamilyTask.objects.create(
-            title="Test Task", status="TODO", priority="medium"
+            account=self.account, title="Test Task", status="TODO", priority="medium"
         )
 
     def _post(self, status, htmx=False):
@@ -62,11 +66,15 @@ class ChangeStatusTest(TestCase):
 
 class AddCommentTest(TestCase):
     def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
         self.user = User.objects.create_user(username="testuser", password="testpass")
+        self.account = FamilyAccount.objects.create(name="Task Family", slug="task-family-2", owner=self.user)
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
         self.client = Client()
         self.client.login(username="testuser", password="testpass")
         self.task = FamilyTask.objects.create(
-            title="Test Task", status="TODO", priority="medium"
+            account=self.account, title="Test Task", status="TODO", priority="medium"
         )
 
     def test_creates_comment_linked_to_task(self):
@@ -107,12 +115,16 @@ class AddCommentTest(TestCase):
 
 class TaskBoardViewTest(TestCase):
     def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
         self.user = User.objects.create_user(username="boarduser", password="pass")
+        self.account = FamilyAccount.objects.create(name="Board Family", slug="board-family", owner=self.user)
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
         self.client = Client()
         self.client.login(username="boarduser", password="pass")
-        FamilyTask.objects.create(title="Buy groceries", status="TODO", priority="medium")
-        FamilyTask.objects.create(title="Fix leak", status="IN_PROGRESS", priority="high")
-        FamilyTask.objects.create(title="Paint fence", status="COMPLETED", priority="low")
+        FamilyTask.objects.create(account=self.account, title="Buy groceries", status="TODO", priority="medium")
+        FamilyTask.objects.create(account=self.account, title="Fix leak", status="IN_PROGRESS", priority="high")
+        FamilyTask.objects.create(account=self.account, title="Paint fence", status="COMPLETED", priority="low")
 
     def test_board_requires_login(self):
         self.client.logout()

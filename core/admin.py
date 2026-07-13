@@ -2,7 +2,23 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 
+from .models import FamilyAccount, FamilyMembership
+
 admin.site.unregister(User)
+
+
+@admin.register(FamilyAccount)
+class FamilyAccountAdmin(admin.ModelAdmin):
+    list_display = ["name", "slug", "owner", "is_active", "created_at"]
+    list_filter = ["is_active"]
+    search_fields = ["name", "slug", "owner__username", "owner__email"]
+
+
+@admin.register(FamilyMembership)
+class FamilyMembershipAdmin(admin.ModelAdmin):
+    list_display = ["user", "account", "role", "joined_at"]
+    list_filter = ["role"]
+    search_fields = ["user__username", "account__name"]
 
 
 @admin.register(User)

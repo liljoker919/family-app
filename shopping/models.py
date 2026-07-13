@@ -29,6 +29,13 @@ def _guess_category(name: str) -> str:
 
 
 class ShoppingItem(models.Model):
+    account = models.ForeignKey(
+        "core.FamilyAccount",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="shopping_items",
+    )
     CATEGORY_CHOICES = [
         ("PRODUCE", "Produce"),
         ("MEAT", "Meat & Seafood"),

@@ -1,19 +1,20 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
+
+from core.mixins import AccountScopedMixin, AccountStampMixin, get_scoped_object_or_404
 
 from .forms import VehicleForm, VehicleServiceForm
 from .models import Vehicle, VehicleService
 
 
-class VehicleListView(LoginRequiredMixin, ListView):
+class VehicleListView(LoginRequiredMixin, AccountScopedMixin, ListView):
     model = Vehicle
     template_name = "vehicles/vehicle_list.html"
     context_object_name = "vehicles"
 
 
-class VehicleDetailView(LoginRequiredMixin, DetailView):
+class VehicleDetailView(LoginRequiredMixin, AccountScopedMixin, DetailView):
     model = Vehicle
     template_name = "vehicles/vehicle_detail.html"
 
@@ -28,14 +29,14 @@ class VehicleDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class VehicleCreateView(LoginRequiredMixin, CreateView):
+class VehicleCreateView(LoginRequiredMixin, AccountStampMixin, CreateView):
     model = Vehicle
     form_class = VehicleForm
     template_name = "vehicles/vehicle_form.html"
     success_url = reverse_lazy("vehicles:vehicle_list")
 
 
-class VehicleUpdateView(LoginRequiredMixin, UpdateView):
+class VehicleUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = Vehicle
     form_class = VehicleForm
     template_name = "vehicles/vehicle_form.html"
@@ -44,7 +45,7 @@ class VehicleUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy("vehicles:vehicle_detail", kwargs={"pk": self.object.pk})
 
 
-class VehicleDeleteView(LoginRequiredMixin, DeleteView):
+class VehicleDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = Vehicle
     template_name = "vehicles/vehicle_confirm_delete.html"
     success_url = reverse_lazy("vehicles:vehicle_list")
@@ -56,7 +57,7 @@ class ServiceCreateView(LoginRequiredMixin, CreateView):
     template_name = "vehicles/service_form.html"
 
     def _get_vehicle(self):
-        return get_object_or_404(Vehicle, pk=self.kwargs["vehicle_pk"])
+        return get_scoped_object_or_404(Vehicle, self.request.account, pk=self.kwargs["vehicle_pk"])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -71,10 +72,11 @@ class ServiceCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy("vehicles:vehicle_detail", kwargs={"pk": self.kwargs["vehicle_pk"]})
 
 
-class ServiceUpdateView(LoginRequiredMixin, UpdateView):
+class ServiceUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = VehicleService
     form_class = VehicleServiceForm
     template_name = "vehicles/service_form.html"
+    account_lookup = "vehicle__account"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -85,9 +87,10 @@ class ServiceUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy("vehicles:vehicle_detail", kwargs={"pk": self.object.vehicle.pk})
 
 
-class ServiceDeleteView(LoginRequiredMixin, DeleteView):
+class ServiceDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = VehicleService
     template_name = "vehicles/vehicleservice_confirm_delete.html"
+    account_lookup = "vehicle__account"
 
     def get_success_url(self):
         return reverse_lazy("vehicles:vehicle_detail", kwargs={"pk": self.object.vehicle.pk})
