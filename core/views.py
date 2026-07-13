@@ -1,7 +1,15 @@
 from datetime import date, datetime, timedelta
 
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import LoginView
+from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
+from django_ratelimit.decorators import ratelimit
+
+
+@method_decorator(ratelimit(key="ip", rate="5/m", method="POST", block=True), name="dispatch")
+class RateLimitedLoginView(LoginView):
+    pass
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):

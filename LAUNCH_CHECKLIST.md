@@ -1,6 +1,8 @@
 # Family App – Launch Checklist
 
-> **Purpose:** This document defines the formal pass/fail criteria, rollback strategy, and Family Beta dry-run sign-off required before any production release.
+> **Purpose:** Pass/fail criteria, rollback strategy, and deployment policy for shipping family-app as a public, multi-tenant SaaS product. This replaces an earlier draft of this document that described an unrelated Amplify/DynamoDB/Cognito stack — this app is Django, deployed to a single AWS Lightsail instance via gunicorn + nginx, currently on SQLite.
+
+This checklist tracks readiness against the SaaS launch program in GitHub milestones [#33-39](https://github.com/liljoker919/family-app/milestones?state=all): Launch Foundations → Multi-Tenancy Core → Postgres in Docker Migration → Payment Signup & Billing → Standard User Profile → Demo & Marketing Landing Page → GDPR Baseline Compliance.
 
 ---
 
@@ -8,177 +10,124 @@
 
 1. [Pass / Fail Criteria](#1-pass--fail-criteria)
 2. [Rollback Plan](#2-rollback-plan)
-3. [Family Beta Dry-Run](#3-family-beta-dry-run)
+3. [Pre-Launch Dry-Run](#3-pre-launch-dry-run)
 4. [Deployment Policy](#4-deployment-policy)
 
 ---
 
 ## 1. Pass / Fail Criteria
 
-A release is **approved** only when every item below is checked off by the responsible party.
+A release is **approved** only when every applicable item below is checked off. Sections 1.3 and 1.4 only become "applicable" once their corresponding milestone has shipped — until then they're aspirational, not blocking.
 
-### 1.1 Security Regressions (Tenant Isolation / RBAC)
-
-| # | Check | Required Result | Status |
-|---|-------|----------------|--------|
-| SR-1 | All Vitest RBAC unit tests pass (`security.rbac.test.ts`) | 100 % pass rate | ☐ |
-| SR-2 | All Vitest schema static-analysis tests pass (`security.schema.test.ts`) | 100 % pass rate | ☐ |
-| SR-3 | Security E2E suite passes in the staging environment (`security.spec.ts`) | 0 failures | ☐ |
-| SR-4 | Cross-family data access is impossible for all three roles (ADMIN / PLANNER / MEMBER) | No security leaks | ☐ |
-| SR-5 | `familyId` filter is enforced on all family-scoped models in AppSync | Confirmed in schema | ☐ |
-
-### 1.2 Critical Flows – Chores & Vacations
+### 1.1 Automated Tests
 
 | # | Check | Required Result | Status |
 |---|-------|----------------|--------|
-| CF-1 | Admin can create, edit, and delete a Chore | Pass | ☐ |
-| CF-2 | Planner can create and edit a Chore but **cannot** delete | Pass | ☐ |
-| CF-3 | Member can view and mark a Chore complete but **cannot** create or delete | Pass | ☐ |
-| CF-4 | Admin can create, edit, and delete a Vacation | Pass | ☐ |
-| CF-5 | Planner can create and edit a Vacation but **cannot** delete | Pass | ☐ |
-| CF-6 | Member can view a Vacation but **cannot** create, edit, or delete | Pass | ☐ |
-| CF-7 | Zero high-priority bugs open in the Chores or Vacations critical flows | 0 open bugs | ☐ |
+| AT-1 | `python manage.py test --settings=family_project.settings.ci` passes (CI workflow: `unit-tests.yml`) | 100% pass rate | ☐ |
+| AT-2 | Baseline CBV smoke tests exist for every app (200 authenticated / 302 anonymous) — [#293](https://github.com/liljoker919/family-app/issues/293) | All views covered | ☐ |
+| AT-3 | Playwright UI suite (`playwright.yml`, weekly + manual dispatch) | Reviewed if failing — **not currently a merge gate** (`continue-on-error: true`) | ☐ |
 
-### 1.3 Trust Breaker Workarounds
+### 1.2 Critical Flows (manual smoke pass)
+
+Walk through create/edit/delete for each app as the logged-in user before a release that touches shared code (settings, base templates, middleware):
+
+| # | App | Flow | Status |
+|---|-----|------|--------|
+| CF-1 | `vehicles` | Create, edit, delete a vehicle | ☐ |
+| CF-2 | `property` | Create/edit a maintenance project; confirm recurrence logic | ☐ |
+| CF-3 | `calendar_events` | Dashboard/calendar surfaces maintenance deadlines correctly | ☐ |
+| CF-4 | `vacations` | Create, edit, delete a vacation | ☐ |
+| CF-5 | `cookbook` | Create, edit, delete a recipe | ☐ |
+| CF-6 | `shopping` | Add/complete/delete a shopping item | ☐ |
+| CF-7 | `tasks` | Create, edit, complete, delete a family task | ☐ |
+
+### 1.3 Tenant Isolation (blocking once Multi-Tenancy Core / [#34](https://github.com/liljoker919/family-app/milestone/34) ships)
 
 | # | Check | Required Result | Status |
 |---|-------|----------------|--------|
-| TB-1 | No reload workarounds remain in the codebase (`grep -r "window.location.reload"`) | 0 matches | ☐ |
-| TB-2 | No `TODO: remove` / `FIXME: reload` comments referencing UI stalls | 0 matches | ☐ |
+| TI-1 | Cross-tenant isolation test suite passes ([#300](https://github.com/liljoker919/family-app/issues/300)) | 0 leaks — User B cannot see User A's records on any model | ☐ |
+| TI-2 | `AccountScopedMixin` applied to every ListView/DetailView/UpdateView/DeleteView | Confirmed by code review | ☐ |
+| TI-3 | Every CreateView stamps `form.instance.account` in `form_valid()` | Confirmed by code review | ☐ |
+
+### 1.4 Observability & Backups (blocking once Launch Foundations / [#33](https://github.com/liljoker919/family-app/milestone/33) ships)
+
+| # | Check | Required Result | Status |
+|---|-------|----------------|--------|
+| OB-1 | Sentry receives a test exception in prod ([#292](https://github.com/liljoker919/family-app/issues/292)) | Event visible in Sentry dashboard | ☐ |
+| OB-2 | Nightly DB backup job has run successfully in the last 24h and a restore has been test-run at least once ([#294](https://github.com/liljoker919/family-app/issues/294), later [#305](https://github.com/liljoker919/family-app/issues/305) post-Postgres) | Backup file present in S3, restore verified | ☐ |
+| OB-3 | Rate limiting active on login (and invite-send, once it exists) ([#295](https://github.com/liljoker919/family-app/issues/295)) | Confirmed via manual throttle test | ☐ |
 
 ---
 
 ## 2. Rollback Plan
 
-### 2.1 Frontend – Revert Amplify Hosting to Last Successful Build
+### 2.1 Application Rollback
 
-If a production deployment is found to be broken, the Amplify hosting can be rolled back to the previous successful build using the AWS CLI:
+`deploy.yml` deploys directly to the Lightsail instance via SSH on every push to `main` (after `unit-tests.yml`-equivalent tests pass in the same job). There is no staging environment and no manual approval gate today.
 
-```bash
-# 1. List recent deployments for your Amplify app.
-aws amplify list-jobs \
-  --app-id <AMPLIFY_APP_ID> \
-  --branch-name main \
-  --max-results 5
-
-# 2. Identify the last known-good Job ID from the list above (status = SUCCEED).
-# 3. Start a re-deployment of that specific job.
-aws amplify start-job \
-  --app-id <AMPLIFY_APP_ID> \
-  --branch-name main \
-  --job-type RETRY \
-  --job-id <LAST_GOOD_JOB_ID>
-```
-
-> Replace `<AMPLIFY_APP_ID>` with the value from the Amplify console (e.g. `d1gak7oijss0a0`) and `<LAST_GOOD_JOB_ID>` with the numeric job identifier of the last green build.
-
-Alternatively, from the **Amplify Console**:
-
-1. Open **AWS Amplify Console** → select the **family-app** app.
-2. Click the **main** branch → **Build history**.
-3. Locate the last green (✅) build and click **Redeploy this version**.
-
-### 2.2 Backend – Database Schema Migrations
-
-#### Point of No Return
-
-A database schema migration becomes **irreversible** at the moment the `npx ampx deploy` command completes successfully and DynamoDB table definitions (GSIs, key schemas) are updated in production.
-
-**Before crossing this threshold:**
-
-- Export a snapshot of all DynamoDB tables used by the app (use AWS Backup or `dynamodb:ExportTableToPointInTime`).
-- Tag the pre-migration Amplify backend deployment ID in the console or in a release note.
-
-#### Rollback Steps (before Point of No Return)
+To roll back a bad deploy:
 
 ```bash
-# Revert to the last known-good backend deployment by re-deploying
-# the previously committed amplify/data/resource.ts.
-git revert <migration-commit-sha>
-npx ampx deploy
+# On the Lightsail instance (or re-run via the same SSH deploy steps, pointed at an older SHA)
+cd /srv/family-app
+git fetch origin main
+git reset --hard <last-good-sha>
+source <(sudo cat /etc/family-app/env)
+export DJANGO_SETTINGS_MODULE=family_project.settings.prod
+venv/bin/pip install -r requirements.txt --quiet
+venv/bin/python manage.py migrate --noinput
+venv/bin/python manage.py collectstatic --noinput
+sudo systemctl restart family-app
+sudo systemctl reload nginx
 ```
 
-#### Rollback Steps (after Point of No Return – data migration required)
+> `git reset --hard` on the server discards any local drift — safe here because `/srv/family-app` is deploy-only, not a working directory anyone edits directly.
 
-1. Restore DynamoDB tables from the pre-migration AWS Backup snapshot.
-2. Revert the `amplify/data/resource.ts` changes and redeploy the backend.
-3. Validate data integrity with a full smoke test before re-enabling traffic.
+### 2.2 Database Rollback
 
-> ⚠️ After crossing the Point of No Return, contact the team lead before attempting any rollback. Data loss is possible.
+**Today (SQLite):** restore the most recent nightly backup (`deploy/env.example`-configured path, synced to S3 once [#294](https://github.com/liljoker919/family-app/issues/294) ships) by copying it over `db/db.sqlite3` and restarting `family-app`.
+
+**After the Postgres migration ([#35](https://github.com/liljoker919/family-app/milestone/35)):** restore from the most recent `pg_dump` snapshot. The point of no return is the moment a schema migration runs against Postgres in prod — take a fresh `pg_dump` immediately before any migration that alters or drops a column/table, not just nightly.
+
+### 2.3 Point of No Return — Data Migrations
+
+Once a migration has run in production and later code has written new-shape data, reverting the app code without also reverting the schema will break. Before any migration that isn't purely additive (drops a column, renames a field, makes a nullable FK required — e.g. the Multi-Tenancy Core "Migration C" in [#301](https://github.com/liljoker919/family-app/issues/301)):
+
+1. Take a fresh DB backup and confirm it's restorable.
+2. Note the pre-migration commit SHA somewhere retrievable (a release note, a tag).
+3. Only then deploy.
 
 ---
 
-## 3. Family Beta Dry-Run
+## 3. Pre-Launch Dry-Run
 
-### 3.1 Seeded Accounts
+Before opening signups to the public (i.e. before [#307-311](https://github.com/liljoker919/family-app/milestone/36) go live):
 
-The following accounts must be created in the staging Cognito User Pool before beginning the dry-run. Each account belongs to the stated Cognito group and represents a distinct RBAC persona.
-
-| Persona | Cognito Username | Email Pattern | Cognito Group | Notes |
-|---------|-----------------|---------------|---------------|-------|
-| Admin_Dad | `admin_dad` | `admin_dad@<family-domain>` | `ADMIN` | Full CRUD on all models |
-| Planner_Mom | `planner_mom` | `planner_mom@<family-domain>` | `PLANNER` | Create/read/update; no delete |
-| Member_Kid | `member_kid` | `member_kid@<family-domain>` | `MEMBER` | Read-only (limited actions) |
-
-> Accounts should share the same `familyId` so that cross-role data access can be verified. A second isolated family (e.g. `outsider_admin`) should also be created to verify **tenant isolation** (cross-family data access is blocked).
-
-### 3.2 Dry-Run Execution Checklist
-
-Perform the following walkthrough end-to-end using the seeded accounts in the staging environment.
-
-#### Family Code / Join Flow
-
-| Step | Actor | Action | Expected Result | Pass / Fail |
-|------|-------|--------|----------------|-------------|
-| JF-1 | Admin_Dad | Create a new family and copy the Family Code | Family Code generated and displayed | ☐ |
-| JF-2 | Planner_Mom | Enter the Family Code on the join screen | Successfully joins the family | ☐ |
-| JF-3 | Member_Kid | Enter the Family Code on the join screen | Successfully joins the family | ☐ |
-| JF-4 | outsider_admin | Attempt to access data belonging to the first family | Access denied / no data returned | ☐ |
-
-#### RBAC Boundary Verification
-
-| Step | Actor | Action | Expected Result | Pass / Fail |
-|------|-------|--------|----------------|-------------|
-| RB-1 | Admin_Dad | Create a Vacation, a Chore, and a Car | All items created successfully | ☐ |
-| RB-2 | Planner_Mom | Edit the Vacation created by Admin_Dad | Edit succeeds | ☐ |
-| RB-3 | Planner_Mom | Attempt to delete the Vacation | Action blocked (no delete button / 403) | ☐ |
-| RB-4 | Member_Kid | View the Vacation and Chore | Items visible | ☐ |
-| RB-5 | Member_Kid | Attempt to create a new Vacation | Action blocked (no create button / 403) | ☐ |
-| RB-6 | Member_Kid | Attempt to edit an existing Chore description | Action blocked | ☐ |
-| RB-7 | Admin_Dad | Delete the Chore | Deletion succeeds | ☐ |
-| RB-8 | outsider_admin | Query for Vacations / Chores of the first family | 0 results returned | ☐ |
-
-### 3.3 Beta Sign-off
-
-| Sign-off Item | Responsible Party | Date | Status |
-|--------------|-------------------|------|--------|
-| All dry-run steps above completed with 0 security leaks | QA Lead | | ☐ |
-| No UI stalls or reload workarounds observed during walkthrough | Frontend Lead | | ☐ |
-| Amplify deployment triggered only after all Required Checks passed | DevOps Lead | | ☐ |
-| LAUNCH_CHECKLIST reviewed and all items checked | Product Owner | | ☐ |
+| Step | Action | Expected Result | Status |
+|------|--------|-----------------|--------|
+| DR-1 | Create two separate accounts via the real onboarding flow | Each gets its own isolated `FamilyAccount` | ☐ |
+| DR-2 | Add data to every module (vehicles, maintenance, calendar, vacations, cookbook, shopping, tasks) under account A | Data saved and scoped to account A | ☐ |
+| DR-3 | Log in as account B | None of account A's data is visible anywhere (list views, dashboard, calendar) | ☐ |
+| DR-4 | Trigger a Stripe test-mode subscription and cancellation | `is_active` flips correctly on both events | ☐ |
+| DR-5 | Request a data export as account A | ZIP arrives with only account A's data | ☐ |
+| DR-6 | Request account deletion as account B | Account and its data are removed/anonymized; account A unaffected | ☐ |
 
 ---
 
 ## 4. Deployment Policy
 
-### 4.1 Required GitHub Checks (Branch Protection)
+### 4.1 Current CI Workflows
 
-The following GitHub Actions workflows are configured as **Required Status Checks** for the `main` branch. A Pull Request **cannot** be merged until all of these pass:
+| Workflow | Trigger | Gate? |
+|----------|---------|-------|
+| `unit-tests.yml` | Every push + PR | Runs on PRs, but **`main` currently has no branch protection rule** — merging isn't technically blocked on it. Recommend enabling required status checks before public launch (Settings → Branches). |
+| `deploy.yml` | Push to `main` | Runs the Django test suite, then deploys straight to Lightsail if tests pass. No manual approval step. |
+| `playwright.yml` | Weekly (Sun 23:00 UTC) + manual dispatch | Informational only (`continue-on-error: true`), not a deploy gate. |
 
-| Workflow | Job Name | Failure Action |
-|----------|----------|----------------|
-| **Security Regression Suite** | `Security Unit & Schema Tests (Vitest)` | ❌ Block merge |
-| **Security Regression Suite** | `Security E2E Tests (Playwright)` | ❌ Block merge |
-| **Unit Tests** | `Run Unit Tests` | ❌ Block merge |
-| **Playwright E2E Tests** | `Run Playwright E2E Tests` | ❌ Block merge |
+### 4.2 Recommended Change Before Public Launch
 
-> Branch protection settings are configured in **GitHub → Settings → Branches → Branch protection rules → main**.
+Enable **branch protection on `main`** requiring the `unit-tests.yml` job to pass before merge, so that `deploy.yml`'s auto-deploy-on-push can't ship an untested commit. This is a gap today because the app has only ever had one trusted operator (you) pushing to `main`; it stops being safe once the app has paying customers depending on uptime.
 
-### 4.2 Amplify Build Trigger Policy
+---
 
-The Amplify build for the `main` branch is configured to trigger **only after** the GitHub Actions Required Checks return a success status. This is enforced by:
-
-1. Disabling **Auto-build** in the Amplify Console for the `main` branch.
-2. Using the [Amplify GitHub App](https://docs.aws.amazon.com/amplify/latest/userguide/setting-up-GitHub-access.html) deployment protection rules so that Amplify waits for the `required_status_checks` to pass before starting a build.
-
-> To verify: Go to **Amplify Console → App settings → Build settings** and confirm that "Deploy on push" is gated by the GitHub Required Checks.
+*Last updated: 2026-07-13. Supersedes the pre-2026-07-13 Amplify/DynamoDB draft of this document.*

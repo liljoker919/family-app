@@ -1,0 +1,3 @@
+# Installed to /etc/cron.d/family-app-backup by deploy/setup.sh.
+# Nightly SQLite backup at 3am, synced to S3 if BACKUP_S3_BUCKET is set in /etc/family-app/env.
+0 3 * * * ec2-user /srv/family-app/deploy/backup-db.sh >> /var/log/family-app/backup.log 2>&1

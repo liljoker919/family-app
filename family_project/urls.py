@@ -1,8 +1,12 @@
 from django.contrib import admin
 from django.urls import include, path
 
+from core.views import RateLimitedLoginView
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Rate-limited login must come before the auth.urls include so it wins the match.
+    path("accounts/login/", RateLimitedLoginView.as_view(), name="login"),
     path("accounts/", include("django.contrib.auth.urls")),
     path("", include("core.urls")),
     path("vehicles/", include("vehicles.urls", namespace="vehicles")),

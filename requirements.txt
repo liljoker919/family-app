@@ -7,3 +7,5 @@ google-auth-httplib2
 google-api-python-client
 icalendar
 requests
+sentry-sdk[django]>=2.0.0
+django-ratelimit>=4.1.0

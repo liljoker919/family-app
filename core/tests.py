@@ -162,3 +162,91 @@ class AuthGuardTestCase(TestCase):
                     response["Location"],
                     f"Expected login redirect for GET {url}, got {response['Location']}",
                 )
+
+
+class AuthenticatedAccessTestCase(TestCase):
+    """Every application endpoint must return 200 for an authenticated user
+    when the referenced object exists — the authenticated counterpart to
+    AuthGuardTestCase's anonymous-redirect check."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="smokeuser", password="testpass")
+        self.client = Client()
+        self.client.login(username="smokeuser", password="testpass")
+
+        from calendar_events.models import CalendarEvent  # noqa: PLC0415
+        from cookbook.models import Recipe  # noqa: PLC0415
+        from property.models import Property  # noqa: PLC0415
+        from shopping.models import ShoppingItem  # noqa: PLC0415
+        from tasks.models import FamilyTask  # noqa: PLC0415
+        from vacations.models import Vacation  # noqa: PLC0415
+        from vehicles.models import Vehicle  # noqa: PLC0415
+
+        today = date.today()
+
+        self.vehicle = Vehicle.objects.create(
+            year=2020, make="Honda", model="CR-V", vin="1HGCM82633A004999",
+            color="Blue", license_plate="XYZ789", current_mileage=15000,
+            registration_expiry=today + timedelta(days=365),
+        )
+        self.prop = Property.objects.create(name="Home", address="1 Main St")
+        self.task = FamilyTask.objects.create(title="Smoke Task", status="TODO", priority="medium")
+        self.shopping_item = ShoppingItem.objects.create(name="Milk", category="DAIRY")
+        self.recipe = Recipe.objects.create(title="Smoke Recipe", category="DINNER")
+        self.vacation = Vacation.objects.create(
+            name="Smoke Trip", destination="Nowhere",
+            start_date=today, end_date=today + timedelta(days=1),
+        )
+        self.event = CalendarEvent.objects.create(
+            title="Smoke Event",
+            start=tz.make_aware(datetime.combine(today, datetime.min.time())),
+            event_type="manual",
+        )
+
+    def _endpoints(self):
+        return [
+            "/",
+            "/vehicles/",
+            "/vehicles/add/",
+            f"/vehicles/{self.vehicle.pk}/",
+            f"/vehicles/{self.vehicle.pk}/edit/",
+            f"/vehicles/{self.vehicle.pk}/delete/",
+            "/property/",
+            "/property/add/",
+            f"/property/{self.prop.pk}/",
+            f"/property/{self.prop.pk}/edit/",
+            f"/property/{self.prop.pk}/delete/",
+            "/tasks/",
+            "/tasks/new/",
+            f"/tasks/{self.task.pk}/",
+            f"/tasks/{self.task.pk}/edit/",
+            f"/tasks/{self.task.pk}/delete/",
+            "/shopping/",
+            "/shopping/add/",
+            f"/shopping/{self.shopping_item.pk}/edit/",
+            f"/shopping/{self.shopping_item.pk}/delete/",
+            "/cookbook/",
+            "/cookbook/add/",
+            f"/cookbook/{self.recipe.pk}/",
+            f"/cookbook/{self.recipe.pk}/edit/",
+            f"/cookbook/{self.recipe.pk}/delete/",
+            "/vacations/",
+            "/vacations/new/",
+            f"/vacations/{self.vacation.pk}/",
+            f"/vacations/{self.vacation.pk}/edit/",
+            f"/vacations/{self.vacation.pk}/delete/",
+            "/calendar/",
+            "/calendar/event/add/",
+            f"/calendar/event/{self.event.pk}/edit/",
+            f"/calendar/event/{self.event.pk}/delete/",
+        ]
+
+    def test_authenticated_get_returns_200(self):
+        for url in self._endpoints():
+            with self.subTest(url=url):
+                response = self.client.get(url)
+                self.assertEqual(
+                    response.status_code,
+                    200,
+                    f"Expected 200 for GET {url}, got {response.status_code}",
+                )

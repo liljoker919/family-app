@@ -9,7 +9,7 @@ ENV_FILE=/etc/family-app/env
 REPO_URL=https://github.com/liljoker919/family-app.git
 
 echo "── Installing system packages ───────────────────────────────────────────"
-dnf install -y python3.11 python3.11-pip nginx git
+dnf install -y python3.11 python3.11-pip nginx git sqlite awscli
 
 echo "── Creating directories ─────────────────────────────────────────────────"
 mkdir -p "$LOG_DIR" /etc/family-app
@@ -66,6 +66,11 @@ cp "$APP_DIR/deploy/nginx.conf" /etc/nginx/conf.d/family-app.conf
 nginx -t
 systemctl enable nginx
 systemctl restart nginx
+
+echo "── Installing nightly DB backup cron job ────────────────────────────────"
+chmod +x "$APP_DIR/deploy/backup-db.sh"
+cp "$APP_DIR/deploy/family-app-backup.cron" /etc/cron.d/family-app-backup
+chmod 644 /etc/cron.d/family-app-backup
 
 echo ""
 echo "✅  Setup complete. App is running at http://$(curl -sf http://checkip.amazonaws.com || echo '<your-ip>')"
