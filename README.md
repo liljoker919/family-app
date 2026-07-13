@@ -130,13 +130,6 @@ family-app/
 - Name and address
 - Property type
 
-### PropertyTransaction
-
-- Belongs to a property
-- Type (income/expense)
-- Amount and date
-- Description and category
-
 ### Car
 
 - Make, model, year

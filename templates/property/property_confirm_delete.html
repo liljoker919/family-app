@@ -27,8 +27,8 @@
           <h3 class="text-base font-semibold text-gray-900">Delete {{ property }}?</h3>
           <p class="mt-2 text-sm text-gray-600">
             This will permanently delete this property and all
-            <strong>{{ property.transactions.count }} transaction{{ property.transactions.count|pluralize }}</strong>
-            in its ledger. This action cannot be undone.
+            <strong>{{ property.maintenance_projects.count }} maintenance project{{ property.maintenance_projects.count|pluralize }}</strong>
+            associated with it. This action cannot be undone.
           </p>
         </div>
       </div>
