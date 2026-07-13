@@ -7,12 +7,14 @@ from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 
+from core.mixins import AccountScopedMixin, AccountStampMixin
+
 from .forms import FamilyTaskForm, TaskCommentForm
 from .models import FamilyTask, TaskComment, _PRIORITY_ORDER
 
 
-def _board_context():
-    base_qs = FamilyTask.objects.select_related("assigned_to").prefetch_related("comments")
+def _board_context(account):
+    base_qs = FamilyTask.objects.filter(account=account).select_related("assigned_to").prefetch_related("comments")
     today = date.today()
 
     def _sort_key(t):
@@ -28,10 +30,10 @@ def _board_context():
 
 class TaskBoardView(LoginRequiredMixin, View):
     def get(self, request):
-        return render(request, "tasks/task_board.html", _board_context())
+        return render(request, "tasks/task_board.html", _board_context(request.account))
 
 
-class TaskDetailView(LoginRequiredMixin, DetailView):
+class TaskDetailView(LoginRequiredMixin, AccountScopedMixin, DetailView):
     model = FamilyTask
     template_name = "tasks/task_detail.html"
     context_object_name = "task"
@@ -43,21 +45,21 @@ class TaskDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class TaskCreateView(LoginRequiredMixin, CreateView):
+class TaskCreateView(LoginRequiredMixin, AccountStampMixin, CreateView):
     model = FamilyTask
     form_class = FamilyTaskForm
     template_name = "tasks/task_form.html"
     success_url = reverse_lazy("tasks:board")
 
 
-class TaskUpdateView(LoginRequiredMixin, UpdateView):
+class TaskUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = FamilyTask
     form_class = FamilyTaskForm
     template_name = "tasks/task_form.html"
     success_url = reverse_lazy("tasks:board")
 
 
-class TaskDeleteView(LoginRequiredMixin, DeleteView):
+class TaskDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = FamilyTask
     template_name = "tasks/task_confirm_delete.html"
     success_url = reverse_lazy("tasks:board")
@@ -65,7 +67,7 @@ class TaskDeleteView(LoginRequiredMixin, DeleteView):
 
 @login_required
 def change_status(request, pk):
-    task = get_object_or_404(FamilyTask, pk=pk)
+    task = get_object_or_404(FamilyTask, pk=pk, account=request.account)
     if request.method == "POST":
         new_status = request.POST.get("status")
         valid = {s for s, _ in FamilyTask.STATUS_CHOICES}
@@ -75,13 +77,13 @@ def change_status(request, pk):
 
     is_htmx = request.headers.get("HX-Request") == "true"
     if is_htmx:
-        return render(request, "tasks/_board.html", _board_context())
+        return render(request, "tasks/_board.html", _board_context(request.account))
     return redirect("tasks:board")
 
 
 @login_required
 def add_comment(request, pk):
-    task = get_object_or_404(FamilyTask, pk=pk)
+    task = get_object_or_404(FamilyTask, pk=pk, account=request.account)
     if request.method == "POST":
         form = TaskCommentForm(request.POST)
         if form.is_valid():

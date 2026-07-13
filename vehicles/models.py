@@ -5,6 +5,13 @@ from simple_history.models import HistoricalRecords
 
 
 class Vehicle(models.Model):
+    account = models.ForeignKey(
+        "core.FamilyAccount",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="vehicles",
+    )
     year = models.PositiveSmallIntegerField()
     make = models.CharField(max_length=50)
     model = models.CharField(max_length=50)

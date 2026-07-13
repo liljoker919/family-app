@@ -3,17 +3,19 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
+from core.mixins import AccountScopedMixin, AccountStampMixin
+
 from .forms import IngredientForm, RecipeForm, RecipeStepForm
 from .models import Ingredient, Recipe, RecipeStep
 
 
-class RecipeListView(LoginRequiredMixin, ListView):
+class RecipeListView(LoginRequiredMixin, AccountScopedMixin, ListView):
     model = Recipe
     template_name = "cookbook/recipe_list.html"
     context_object_name = "recipes"
 
     def get_queryset(self):
-        qs = Recipe.objects.all()
+        qs = super().get_queryset()
         category = self.request.GET.get("category", "")
         favorites = self.request.GET.get("favorites", "")
         if category:
@@ -30,13 +32,13 @@ class RecipeListView(LoginRequiredMixin, ListView):
         return context
 
 
-class RecipeDetailView(LoginRequiredMixin, DetailView):
+class RecipeDetailView(LoginRequiredMixin, AccountScopedMixin, DetailView):
     model = Recipe
     template_name = "cookbook/recipe_detail.html"
     context_object_name = "recipe"
 
 
-class RecipeCreateView(LoginRequiredMixin, CreateView):
+class RecipeCreateView(LoginRequiredMixin, AccountStampMixin, CreateView):
     model = Recipe
     form_class = RecipeForm
     template_name = "cookbook/recipe_form.html"
@@ -45,7 +47,7 @@ class RecipeCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy("cookbook:recipe_detail", kwargs={"pk": self.object.pk})
 
 
-class RecipeUpdateView(LoginRequiredMixin, UpdateView):
+class RecipeUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = Recipe
     form_class = RecipeForm
     template_name = "cookbook/recipe_form.html"
@@ -54,7 +56,7 @@ class RecipeUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy("cookbook:recipe_detail", kwargs={"pk": self.object.pk})
 
 
-class RecipeDeleteView(LoginRequiredMixin, DeleteView):
+class RecipeDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = Recipe
     template_name = "cookbook/recipe_confirm_delete.html"
     success_url = reverse_lazy("cookbook:recipe_list")
@@ -68,7 +70,7 @@ class IngredientCreateView(LoginRequiredMixin, CreateView):
     template_name = "cookbook/ingredient_form.html"
 
     def _get_recipe(self):
-        return get_object_or_404(Recipe, pk=self.kwargs["recipe_pk"])
+        return get_object_or_404(Recipe, pk=self.kwargs["recipe_pk"], account=self.request.account)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -83,10 +85,11 @@ class IngredientCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy("cookbook:recipe_detail", kwargs={"pk": self.kwargs["recipe_pk"]})
 
 
-class IngredientUpdateView(LoginRequiredMixin, UpdateView):
+class IngredientUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = Ingredient
     form_class = IngredientForm
     template_name = "cookbook/ingredient_form.html"
+    account_lookup = "recipe__account"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -97,9 +100,10 @@ class IngredientUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy("cookbook:recipe_detail", kwargs={"pk": self.object.recipe.pk})
 
 
-class IngredientDeleteView(LoginRequiredMixin, DeleteView):
+class IngredientDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = Ingredient
     template_name = "cookbook/ingredient_confirm_delete.html"
+    account_lookup = "recipe__account"
 
     def get_success_url(self):
         return reverse_lazy("cookbook:recipe_detail", kwargs={"pk": self.object.recipe.pk})
@@ -113,7 +117,7 @@ class StepCreateView(LoginRequiredMixin, CreateView):
     template_name = "cookbook/step_form.html"
 
     def _get_recipe(self):
-        return get_object_or_404(Recipe, pk=self.kwargs["recipe_pk"])
+        return get_object_or_404(Recipe, pk=self.kwargs["recipe_pk"], account=self.request.account)
 
     def get_initial(self):
         recipe = self._get_recipe()
@@ -133,10 +137,11 @@ class StepCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy("cookbook:recipe_detail", kwargs={"pk": self.kwargs["recipe_pk"]})
 
 
-class StepUpdateView(LoginRequiredMixin, UpdateView):
+class StepUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = RecipeStep
     form_class = RecipeStepForm
     template_name = "cookbook/step_form.html"
+    account_lookup = "recipe__account"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -147,9 +152,10 @@ class StepUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy("cookbook:recipe_detail", kwargs={"pk": self.object.recipe.pk})
 
 
-class StepDeleteView(LoginRequiredMixin, DeleteView):
+class StepDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = RecipeStep
     template_name = "cookbook/step_confirm_delete.html"
+    account_lookup = "recipe__account"
 
     def get_success_url(self):
         return reverse_lazy("cookbook:recipe_detail", kwargs={"pk": self.object.recipe.pk})

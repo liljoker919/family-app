@@ -8,6 +8,13 @@ _PRIORITY_ORDER = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
 
 
 class FamilyTask(models.Model):
+    account = models.ForeignKey(
+        "core.FamilyAccount",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="tasks",
+    )
     STATUS_CHOICES = [
         ("TODO", "To Do"),
         ("IN_PROGRESS", "In Progress"),

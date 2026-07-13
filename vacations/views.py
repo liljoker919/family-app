@@ -5,25 +5,28 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
+from core.mixins import AccountScopedMixin, AccountStampMixin
+
 from .forms import ItineraryItemForm, ReservationForm, VacationExpenseForm, VacationForm
 from .models import ItineraryItem, Reservation, Vacation, VacationExpense
 
 
 # ── Vacation CRUD ─────────────────────────────────────────────────────────────
 
-class VacationListView(LoginRequiredMixin, ListView):
+class VacationListView(LoginRequiredMixin, AccountScopedMixin, ListView):
     model = Vacation
     template_name = "vacations/vacation_list.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         today = date.today()
-        context["upcoming"] = Vacation.objects.filter(end_date__gte=today).order_by("start_date")
-        context["past"] = Vacation.objects.filter(end_date__lt=today).order_by("-start_date")
+        base_qs = Vacation.objects.filter(account=self.request.account)
+        context["upcoming"] = base_qs.filter(end_date__gte=today).order_by("start_date")
+        context["past"] = base_qs.filter(end_date__lt=today).order_by("-start_date")
         return context
 
 
-class VacationDetailView(LoginRequiredMixin, DetailView):
+class VacationDetailView(LoginRequiredMixin, AccountScopedMixin, DetailView):
     model = Vacation
     template_name = "vacations/vacation_detail.html"
 
@@ -40,14 +43,14 @@ class VacationDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class VacationCreateView(LoginRequiredMixin, CreateView):
+class VacationCreateView(LoginRequiredMixin, AccountStampMixin, CreateView):
     model = Vacation
     form_class = VacationForm
     template_name = "vacations/vacation_form.html"
     success_url = reverse_lazy("vacations:vacation_list")
 
 
-class VacationUpdateView(LoginRequiredMixin, UpdateView):
+class VacationUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = Vacation
     form_class = VacationForm
     template_name = "vacations/vacation_form.html"
@@ -56,7 +59,7 @@ class VacationUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.object.pk})
 
 
-class VacationDeleteView(LoginRequiredMixin, DeleteView):
+class VacationDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = Vacation
     template_name = "vacations/vacation_confirm_delete.html"
     success_url = reverse_lazy("vacations:vacation_list")
@@ -70,7 +73,7 @@ class ExpenseCreateView(LoginRequiredMixin, CreateView):
     template_name = "vacations/expense_form.html"
 
     def _get_vacation(self):
-        return get_object_or_404(Vacation, pk=self.kwargs["vacation_pk"])
+        return get_object_or_404(Vacation, pk=self.kwargs["vacation_pk"], account=self.request.account)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -85,10 +88,11 @@ class ExpenseCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.kwargs["vacation_pk"]}) + "?tab=expenses"
 
 
-class ExpenseUpdateView(LoginRequiredMixin, UpdateView):
+class ExpenseUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = VacationExpense
     form_class = VacationExpenseForm
     template_name = "vacations/expense_form.html"
+    account_lookup = "vacation__account"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -99,9 +103,10 @@ class ExpenseUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.object.vacation.pk}) + "?tab=expenses"
 
 
-class ExpenseDeleteView(LoginRequiredMixin, DeleteView):
+class ExpenseDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = VacationExpense
     template_name = "vacations/expense_confirm_delete.html"
+    account_lookup = "vacation__account"
 
     def get_success_url(self):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.object.vacation.pk}) + "?tab=expenses"
@@ -115,7 +120,7 @@ class ReservationCreateView(LoginRequiredMixin, CreateView):
     template_name = "vacations/reservation_form.html"
 
     def _get_vacation(self):
-        return get_object_or_404(Vacation, pk=self.kwargs["vacation_pk"])
+        return get_object_or_404(Vacation, pk=self.kwargs["vacation_pk"], account=self.request.account)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -130,10 +135,11 @@ class ReservationCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.kwargs["vacation_pk"]}) + "?tab=reservations"
 
 
-class ReservationUpdateView(LoginRequiredMixin, UpdateView):
+class ReservationUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = Reservation
     form_class = ReservationForm
     template_name = "vacations/reservation_form.html"
+    account_lookup = "vacation__account"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -144,9 +150,10 @@ class ReservationUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.object.vacation.pk}) + "?tab=reservations"
 
 
-class ReservationDeleteView(LoginRequiredMixin, DeleteView):
+class ReservationDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = Reservation
     template_name = "vacations/reservation_confirm_delete.html"
+    account_lookup = "vacation__account"
 
     def get_success_url(self):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.object.vacation.pk}) + "?tab=reservations"
@@ -160,7 +167,7 @@ class ItineraryItemCreateView(LoginRequiredMixin, CreateView):
     template_name = "vacations/itineraryitem_form.html"
 
     def _get_vacation(self):
-        return get_object_or_404(Vacation, pk=self.kwargs["vacation_pk"])
+        return get_object_or_404(Vacation, pk=self.kwargs["vacation_pk"], account=self.request.account)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -175,10 +182,11 @@ class ItineraryItemCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.kwargs["vacation_pk"]}) + "?tab=itinerary"
 
 
-class ItineraryItemUpdateView(LoginRequiredMixin, UpdateView):
+class ItineraryItemUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = ItineraryItem
     form_class = ItineraryItemForm
     template_name = "vacations/itineraryitem_form.html"
+    account_lookup = "vacation__account"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -189,9 +197,10 @@ class ItineraryItemUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.object.vacation.pk}) + "?tab=itinerary"
 
 
-class ItineraryItemDeleteView(LoginRequiredMixin, DeleteView):
+class ItineraryItemDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = ItineraryItem
     template_name = "vacations/itineraryitem_confirm_delete.html"
+    account_lookup = "vacation__account"
 
     def get_success_url(self):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.object.vacation.pk}) + "?tab=itinerary"

@@ -5,13 +5,15 @@ from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
+from core.mixins import AccountScopedMixin, AccountStampMixin
+
 from .forms import MaintenanceProjectForm, PropertyForm
 from .models import MaintenanceProject, Property
 
 _PRIORITY_ORDER = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
 
 
-class PropertyListView(LoginRequiredMixin, ListView):
+class PropertyListView(LoginRequiredMixin, AccountScopedMixin, ListView):
     model = Property
     template_name = "property/property_list.html"
     context_object_name = "properties"
@@ -25,7 +27,7 @@ class PropertyListView(LoginRequiredMixin, ListView):
         return context
 
 
-class PropertyDetailView(LoginRequiredMixin, DetailView):
+class PropertyDetailView(LoginRequiredMixin, AccountScopedMixin, DetailView):
     model = Property
     template_name = "property/property_detail.html"
 
@@ -44,14 +46,14 @@ class PropertyDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class PropertyCreateView(LoginRequiredMixin, CreateView):
+class PropertyCreateView(LoginRequiredMixin, AccountStampMixin, CreateView):
     model = Property
     form_class = PropertyForm
     template_name = "property/property_form.html"
     success_url = reverse_lazy("property:property_list")
 
 
-class PropertyUpdateView(LoginRequiredMixin, UpdateView):
+class PropertyUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = Property
     form_class = PropertyForm
     template_name = "property/property_form.html"
@@ -60,13 +62,11 @@ class PropertyUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy("property:property_detail", kwargs={"pk": self.object.pk})
 
 
-class PropertyDeleteView(LoginRequiredMixin, DeleteView):
+class PropertyDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = Property
     template_name = "property/property_confirm_delete.html"
     success_url = reverse_lazy("property:property_list")
 
-
-# ── Maintenance CRUD ──────────────────────────────────────────────────────────
 
 class MaintenanceProjectCreateView(LoginRequiredMixin, CreateView):
     model = MaintenanceProject
@@ -74,7 +74,7 @@ class MaintenanceProjectCreateView(LoginRequiredMixin, CreateView):
     template_name = "property/maintenance_form.html"
 
     def _get_property(self):
-        return get_object_or_404(Property, pk=self.kwargs["property_pk"])
+        return get_object_or_404(Property, pk=self.kwargs["property_pk"], account=self.request.account)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -89,10 +89,11 @@ class MaintenanceProjectCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy("property:property_detail", kwargs={"pk": self.kwargs["property_pk"]})
 
 
-class MaintenanceProjectUpdateView(LoginRequiredMixin, UpdateView):
+class MaintenanceProjectUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = MaintenanceProject
     form_class = MaintenanceProjectForm
     template_name = "property/maintenance_form.html"
+    account_lookup = "prop__account"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -103,9 +104,10 @@ class MaintenanceProjectUpdateView(LoginRequiredMixin, UpdateView):
         return reverse_lazy("property:property_detail", kwargs={"pk": self.object.prop.pk})
 
 
-class MaintenanceProjectDeleteView(LoginRequiredMixin, DeleteView):
+class MaintenanceProjectDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = MaintenanceProject
     template_name = "property/maintenance_confirm_delete.html"
+    account_lookup = "prop__account"
 
     def get_success_url(self):
         return reverse_lazy("property:property_detail", kwargs={"pk": self.object.prop.pk})

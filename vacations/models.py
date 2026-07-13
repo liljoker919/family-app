@@ -4,6 +4,13 @@ from simple_history.models import HistoricalRecords
 
 
 class Vacation(models.Model):
+    account = models.ForeignKey(
+        "core.FamilyAccount",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="vacations",
+    )
     STATUS_CHOICES = [
         ("planning", "Planning"),
         ("confirmed", "Confirmed"),

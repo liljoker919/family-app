@@ -3,6 +3,13 @@ from simple_history.models import HistoricalRecords
 
 
 class Recipe(models.Model):
+    account = models.ForeignKey(
+        "core.FamilyAccount",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="recipes",
+    )
     CATEGORY_CHOICES = [
         ("BREAKFAST", "Breakfast"),
         ("LUNCH", "Lunch"),

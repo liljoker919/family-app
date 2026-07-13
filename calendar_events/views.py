@@ -11,6 +11,8 @@ from django.utils import timezone as tz
 from django.utils.dateparse import parse_date, parse_datetime
 from django.views.generic import CreateView, DeleteView, TemplateView, UpdateView
 
+from core.mixins import AccountScopedMixin, AccountStampMixin
+
 from .forms import CalendarEventForm
 from .models import CalendarEvent
 
@@ -134,11 +136,11 @@ class CalendarView(LoginRequiredMixin, TemplateView):
     template_name = "calendar_events/calendar.html"
 
 
-def collect_events(start_dt, end_dt):
+def collect_events(account, start_dt, end_dt):
     events = []
 
     # ── Manual CalendarEvents ────────────────────────────────────────────────
-    manual_qs = CalendarEvent.objects.filter(event_type="manual")
+    manual_qs = CalendarEvent.objects.filter(account=account, event_type="manual")
     if start_dt:
         manual_qs = manual_qs.filter(start__gte=start_dt)
     if end_dt:
@@ -172,7 +174,7 @@ def collect_events(start_dt, end_dt):
     try:
         from vehicles.models import VehicleService  # noqa: PLC0415
 
-        svc_qs = VehicleService.objects.select_related("vehicle").order_by("date")
+        svc_qs = VehicleService.objects.filter(vehicle__account=account).select_related("vehicle").order_by("date")
         if start_dt:
             svc_qs = svc_qs.filter(date__gte=start_dt.date())
         if end_dt:
@@ -203,7 +205,7 @@ def collect_events(start_dt, end_dt):
         from vacations.models import Vacation  # noqa: PLC0415
         from django.urls import reverse  # noqa: PLC0415
 
-        vac_qs = Vacation.objects.all()
+        vac_qs = Vacation.objects.filter(account=account)
         if start_dt:
             vac_qs = vac_qs.filter(end_date__gte=start_dt.date())
         if end_dt:
@@ -231,7 +233,7 @@ def collect_events(start_dt, end_dt):
     try:
         from property.models import MaintenanceProject  # noqa: PLC0415
 
-        maint_qs = MaintenanceProject.objects.select_related("prop").exclude(
+        maint_qs = MaintenanceProject.objects.filter(prop__account=account).select_related("prop").exclude(
             status__in=["completed", "on_hold"]
         ).exclude(due_date__isnull=True)
         if start_dt:
@@ -262,7 +264,7 @@ def collect_events(start_dt, end_dt):
         from tasks.models import FamilyTask  # noqa: PLC0415
         from django.urls import reverse as _reverse  # noqa: PLC0415
 
-        task_qs = FamilyTask.objects.exclude(
+        task_qs = FamilyTask.objects.filter(account=account).exclude(
             status="COMPLETED"
         ).exclude(due_date__isnull=True).select_related("assigned_to")
         if start_dt:
@@ -319,11 +321,11 @@ def calendar_json_view(request):
     start_dt = _parse(request.GET.get("start", ""))
     end_dt = _parse(request.GET.get("end", ""))
 
-    events = collect_events(start_dt, end_dt)
+    events = collect_events(request.account, start_dt, end_dt)
     return JsonResponse(events, safe=False)
 
 
-class EventCreateView(LoginRequiredMixin, CreateView):
+class EventCreateView(LoginRequiredMixin, AccountStampMixin, CreateView):
     model = CalendarEvent
     form_class = CalendarEventForm
     template_name = "calendar_events/event_form.html"
@@ -340,14 +342,14 @@ class EventCreateView(LoginRequiredMixin, CreateView):
         return initial
 
 
-class EventUpdateView(LoginRequiredMixin, UpdateView):
+class EventUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
     model = CalendarEvent
     form_class = CalendarEventForm
     template_name = "calendar_events/event_form.html"
     success_url = reverse_lazy("calendar_events:calendar")
 
 
-class EventDeleteView(LoginRequiredMixin, DeleteView):
+class EventDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
     model = CalendarEvent
     template_name = "calendar_events/event_confirm_delete.html"
     success_url = reverse_lazy("calendar_events:calendar")
