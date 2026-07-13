@@ -1,11 +1,11 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
-from core.mixins import AccountScopedMixin, AccountStampMixin
+from core.mixins import AccountScopedMixin, AccountStampMixin, get_scoped_object_or_404
 
 from .forms import ShoppingItemForm
 from .models import ShoppingItem, _guess_category
@@ -47,7 +47,7 @@ class ShoppingItemDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView)
 @login_required
 def add_recipe_ingredients(request, recipe_pk):
     from cookbook.models import Recipe
-    recipe = get_object_or_404(Recipe, pk=recipe_pk, account=request.account)
+    recipe = get_scoped_object_or_404(Recipe, request.account, pk=recipe_pk)
 
     if request.method == "POST":
         ingredients = recipe.ingredients.all()

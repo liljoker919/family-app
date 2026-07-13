@@ -57,10 +57,14 @@ class GuessCategoryTest(TestCase):
 
 class AddRecipeIngredientsTest(TestCase):
     def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
         self.user = User.objects.create_user(username="testuser", password="testpass")
+        self.account = FamilyAccount.objects.create(name="Test Family", slug="test-family-1", owner=self.user)
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
         self.client = Client()
         self.client.login(username="testuser", password="testpass")
-        self.recipe = Recipe.objects.create(title="Test Recipe", category="DINNER")
+        self.recipe = Recipe.objects.create(account=self.account, title="Test Recipe", category="DINNER")
         Ingredient.objects.create(recipe=self.recipe, name="Chicken", quantity=2, unit="POUND")
         Ingredient.objects.create(recipe=self.recipe, name="Garlic", quantity=3, unit="PIECE")
 
@@ -84,7 +88,7 @@ class AddRecipeIngredientsTest(TestCase):
         self.assertEqual(ShoppingItem.objects.get(name="Garlic").category, "PRODUCE")
 
     def test_skips_existing_name_case_insensitive(self):
-        ShoppingItem.objects.create(name="chicken", category="MEAT")
+        ShoppingItem.objects.create(account=self.account, name="chicken", category="MEAT")
         self._post()
         # "Chicken" already on list (case-insensitive) — only Garlic added
         self.assertEqual(ShoppingItem.objects.count(), 2)
@@ -97,7 +101,7 @@ class AddRecipeIngredientsTest(TestCase):
         )
 
     def test_empty_recipe_creates_no_items(self):
-        empty = Recipe.objects.create(title="Empty", category="LUNCH")
+        empty = Recipe.objects.create(account=self.account, title="Empty", category="LUNCH")
         self._post(recipe_pk=empty.pk)
         self.assertEqual(ShoppingItem.objects.count(), 0)
 
@@ -110,11 +114,15 @@ class AddRecipeIngredientsTest(TestCase):
 
 class ShoppingListViewTest(TestCase):
     def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
         self.user = User.objects.create_user(username="shopper", password="pass")
+        self.account = FamilyAccount.objects.create(name="Shopper Family", slug="shopper-family", owner=self.user)
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
         self.client = Client()
         self.client.login(username="shopper", password="pass")
-        ShoppingItem.objects.create(name="Apples", category="PRODUCE")
-        ShoppingItem.objects.create(name="Sourdough", category="BAKERY")
+        ShoppingItem.objects.create(account=self.account, name="Apples", category="PRODUCE")
+        ShoppingItem.objects.create(account=self.account, name="Sourdough", category="BAKERY")
 
     def test_requires_login(self):
         self.client.logout()
@@ -131,10 +139,14 @@ class ShoppingListViewTest(TestCase):
 
 class ShoppingItemCRUDTest(TestCase):
     def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
         self.user = User.objects.create_user(username="shopper2", password="pass")
+        self.account = FamilyAccount.objects.create(name="Shopper2 Family", slug="shopper2-family", owner=self.user)
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
         self.client = Client()
         self.client.login(username="shopper2", password="pass")
-        self.item = ShoppingItem.objects.create(name="Milk", category="DAIRY")
+        self.item = ShoppingItem.objects.create(account=self.account, name="Milk", category="DAIRY")
 
     def test_create_adds_item_and_redirects_to_list(self):
         response = self.client.post(

@@ -137,6 +137,11 @@ class CalendarView(LoginRequiredMixin, TemplateView):
 
 
 def collect_events(account, start_dt, end_dt):
+    if account is None:
+        # account is nullable until a later migration makes it required —
+        # filtering by account=None below would match legacy/orphaned rows.
+        return []
+
     events = []
 
     # ── Manual CalendarEvents ────────────────────────────────────────────────

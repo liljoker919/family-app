@@ -1,9 +1,8 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
-from core.mixins import AccountScopedMixin, AccountStampMixin
+from core.mixins import AccountScopedMixin, AccountStampMixin, get_scoped_object_or_404
 
 from .forms import VehicleForm, VehicleServiceForm
 from .models import Vehicle, VehicleService
@@ -58,7 +57,7 @@ class ServiceCreateView(LoginRequiredMixin, CreateView):
     template_name = "vehicles/service_form.html"
 
     def _get_vehicle(self):
-        return get_object_or_404(Vehicle, pk=self.kwargs["vehicle_pk"], account=self.request.account)
+        return get_scoped_object_or_404(Vehicle, self.request.account, pk=self.kwargs["vehicle_pk"])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

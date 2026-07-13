@@ -1,11 +1,10 @@
 from datetime import date
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
-from core.mixins import AccountScopedMixin, AccountStampMixin
+from core.mixins import AccountScopedMixin, AccountStampMixin, get_scoped_object_or_404
 
 from .forms import ItineraryItemForm, ReservationForm, VacationExpenseForm, VacationForm
 from .models import ItineraryItem, Reservation, Vacation, VacationExpense
@@ -73,7 +72,7 @@ class ExpenseCreateView(LoginRequiredMixin, CreateView):
     template_name = "vacations/expense_form.html"
 
     def _get_vacation(self):
-        return get_object_or_404(Vacation, pk=self.kwargs["vacation_pk"], account=self.request.account)
+        return get_scoped_object_or_404(Vacation, self.request.account, pk=self.kwargs["vacation_pk"])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -120,7 +119,7 @@ class ReservationCreateView(LoginRequiredMixin, CreateView):
     template_name = "vacations/reservation_form.html"
 
     def _get_vacation(self):
-        return get_object_or_404(Vacation, pk=self.kwargs["vacation_pk"], account=self.request.account)
+        return get_scoped_object_or_404(Vacation, self.request.account, pk=self.kwargs["vacation_pk"])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -167,7 +166,7 @@ class ItineraryItemCreateView(LoginRequiredMixin, CreateView):
     template_name = "vacations/itineraryitem_form.html"
 
     def _get_vacation(self):
-        return get_object_or_404(Vacation, pk=self.kwargs["vacation_pk"], account=self.request.account)
+        return get_scoped_object_or_404(Vacation, self.request.account, pk=self.kwargs["vacation_pk"])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -29,6 +29,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         }
 
         account = self.request.account
+        if account is None:
+            # account is nullable until a later migration makes it required —
+            # querying account=None below would match legacy/orphaned rows.
+            return summary
 
         try:
             from vehicles.models import Vehicle, VehicleService  # noqa: PLC0415

@@ -2,19 +2,22 @@ from datetime import date
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 
-from core.mixins import AccountScopedMixin, AccountStampMixin
+from core.mixins import AccountScopedMixin, AccountStampMixin, get_scoped_object_or_404
 
 from .forms import FamilyTaskForm, TaskCommentForm
 from .models import FamilyTask, TaskComment, _PRIORITY_ORDER
 
 
 def _board_context(account):
-    base_qs = FamilyTask.objects.filter(account=account).select_related("assigned_to").prefetch_related("comments")
+    if account is None:
+        base_qs = FamilyTask.objects.none()
+    else:
+        base_qs = FamilyTask.objects.filter(account=account).select_related("assigned_to").prefetch_related("comments")
     today = date.today()
 
     def _sort_key(t):
@@ -67,7 +70,7 @@ class TaskDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
 
 @login_required
 def change_status(request, pk):
-    task = get_object_or_404(FamilyTask, pk=pk, account=request.account)
+    task = get_scoped_object_or_404(FamilyTask, request.account, pk=pk)
     if request.method == "POST":
         new_status = request.POST.get("status")
         valid = {s for s, _ in FamilyTask.STATUS_CHOICES}
@@ -83,7 +86,7 @@ def change_status(request, pk):
 
 @login_required
 def add_comment(request, pk):
-    task = get_object_or_404(FamilyTask, pk=pk, account=request.account)
+    task = get_scoped_object_or_404(FamilyTask, request.account, pk=pk)
     if request.method == "POST":
         form = TaskCommentForm(request.POST)
         if form.is_valid():

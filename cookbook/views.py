@@ -1,9 +1,8 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
-from core.mixins import AccountScopedMixin, AccountStampMixin
+from core.mixins import AccountScopedMixin, AccountStampMixin, get_scoped_object_or_404
 
 from .forms import IngredientForm, RecipeForm, RecipeStepForm
 from .models import Ingredient, Recipe, RecipeStep
@@ -70,7 +69,7 @@ class IngredientCreateView(LoginRequiredMixin, CreateView):
     template_name = "cookbook/ingredient_form.html"
 
     def _get_recipe(self):
-        return get_object_or_404(Recipe, pk=self.kwargs["recipe_pk"], account=self.request.account)
+        return get_scoped_object_or_404(Recipe, self.request.account, pk=self.kwargs["recipe_pk"])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -117,7 +116,7 @@ class StepCreateView(LoginRequiredMixin, CreateView):
     template_name = "cookbook/step_form.html"
 
     def _get_recipe(self):
-        return get_object_or_404(Recipe, pk=self.kwargs["recipe_pk"], account=self.request.account)
+        return get_scoped_object_or_404(Recipe, self.request.account, pk=self.kwargs["recipe_pk"])
 
     def get_initial(self):
         recipe = self._get_recipe()
