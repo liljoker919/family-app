@@ -130,6 +130,9 @@ __pycache__/
 # Django local database
 db.sqlite3
 
+# Rental data export output (contains real financial/guest PII, never commit)
+/exports/
+
 # Terraform
 infra/.terraform/
 infra/terraform.tfstate
