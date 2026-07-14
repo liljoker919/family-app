@@ -18,7 +18,7 @@ set +a
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/pg-$TIMESTAMP.sql.gz"
 
-docker compose -f "$APP_DIR/deploy/docker-compose.yml" --env-file "$ENV_FILE" \
+docker compose -f "$APP_DIR/deploy/docker-compose.yml" \
     exec -T postgres pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "$BACKUP_FILE"
 
 find "$BACKUP_DIR" -name "pg-*.sql.gz" -mtime "+$RETENTION_DAYS" -delete
