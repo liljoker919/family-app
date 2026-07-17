@@ -16,6 +16,12 @@ class FamilyAccount(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def email(self):
+        # dj-stripe's Customer.get_or_create() requires the subscriber model
+        # to have an email — the owner's is the natural choice here.
+        return self.owner.email
+
 
 class FamilyMembership(models.Model):
     ROLE_CHOICES = [("owner", "Owner"), ("member", "Member")]

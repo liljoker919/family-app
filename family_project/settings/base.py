@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "cookbook",
     "shopping",
     "tasks",
+    "djstripe",
 ]
 
 MIDDLEWARE = [
@@ -77,3 +78,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
+
+# dj-stripe: the paying subscriber is a FamilyAccount, not a User — set in base.py
+# (not just prod.py) so every environment's migrations agree on the FK target.
+DJSTRIPE_SUBSCRIBER_MODEL = "core.FamilyAccount"
+DJSTRIPE_SUBSCRIBER_MODEL_REQUEST_CALLBACK = "core.djstripe_callbacks.get_subscriber_for_request"
+# Required since dj-stripe 2.4, no default. "id" (Stripe's own string ID) is
+# recommended for new installations — this is one, there's no prior data.
+DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
