@@ -83,3 +83,6 @@ LOGOUT_REDIRECT_URL = "/accounts/login/"
 # (not just prod.py) so every environment's migrations agree on the FK target.
 DJSTRIPE_SUBSCRIBER_MODEL = "core.FamilyAccount"
 DJSTRIPE_SUBSCRIBER_MODEL_REQUEST_CALLBACK = "core.djstripe_callbacks.get_subscriber_for_request"
+# Required since dj-stripe 2.4, no default. "id" (Stripe's own string ID) is
+# recommended for new installations — this is one, there's no prior data.
+DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
