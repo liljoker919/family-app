@@ -73,6 +73,6 @@ def handle_payment_failed(sender, event, **kwargs):
             recipient_list=[account.email],
         )
     except Exception:
-        # Email delivery isn't configured yet (see ticket #311) — don't let a
-        # notification failure break webhook processing or trigger Stripe retries.
+        # A transient SES/network failure here must never break webhook
+        # processing or trigger Stripe retries.
         logger.exception("Failed to send payment-failed email for account %s", account.pk)

@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "shopping",
     "tasks",
     "djstripe",
+    "django_ses",
 ]
 
 MIDDLEWARE = [
