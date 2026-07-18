@@ -60,7 +60,9 @@ class AddRecipeIngredientsTest(TestCase):
         from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
 
         self.user = User.objects.create_user(username="testuser", password="testpass")
-        self.account = FamilyAccount.objects.create(name="Test Family", slug="test-family-1", owner=self.user)
+        self.account = FamilyAccount.objects.create(
+            name="Test Family", slug="test-family-1", owner=self.user, tier=FamilyAccount.TIER_FAMILY,
+        )
         FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
         self.client = Client()
         self.client.login(username="testuser", password="testpass")

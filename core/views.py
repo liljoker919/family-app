@@ -12,6 +12,10 @@ class RateLimitedLoginView(LoginView):
     pass
 
 
+class UpgradeRequiredView(LoginRequiredMixin, TemplateView):
+    template_name = "core/upgrade_required.html"
+
+
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "core/dashboard.html"
 

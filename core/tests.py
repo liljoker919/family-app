@@ -177,7 +177,9 @@ class AuthenticatedAccessTestCase(TestCase):
         from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
 
         self.user = User.objects.create_user(username="smokeuser", password="testpass")
-        self.account = FamilyAccount.objects.create(name="Smoke Family", slug="smoke-family", owner=self.user)
+        self.account = FamilyAccount.objects.create(
+            name="Smoke Family", slug="smoke-family", owner=self.user, tier=FamilyAccount.TIER_FAMILY,
+        )
         FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
         self.client = Client()
         self.client.login(username="smokeuser", password="testpass")
@@ -284,10 +286,14 @@ class CrossTenantIsolationTestCase(TestCase):
         self.user_a = User.objects.create_user(username="tenant_a", password="pass")
         self.user_b = User.objects.create_user(username="tenant_b", password="pass")
 
-        self.account_a = FamilyAccount.objects.create(name="Family A", slug="family-a", owner=self.user_a)
+        self.account_a = FamilyAccount.objects.create(
+            name="Family A", slug="family-a", owner=self.user_a, tier=FamilyAccount.TIER_FAMILY,
+        )
         FamilyMembership.objects.create(account=self.account_a, user=self.user_a, role="owner")
 
-        self.account_b = FamilyAccount.objects.create(name="Family B", slug="family-b", owner=self.user_b)
+        self.account_b = FamilyAccount.objects.create(
+            name="Family B", slug="family-b", owner=self.user_b, tier=FamilyAccount.TIER_FAMILY,
+        )
         FamilyMembership.objects.create(account=self.account_b, user=self.user_b, role="owner")
 
         self.client_b = Client()
@@ -382,29 +388,39 @@ class CrossTenantIsolationTestCase(TestCase):
 class NoAccountUserTestCase(TestCase):
     """An authenticated user with no FamilyMembership at all (request.account
     is None) must never see account-less/legacy rows just because both sides
-    of an `account=None` filter happen to match — see #327/#328/#329/#330."""
+    of an `account=None` filter happen to match — see #327/#328/#329/#330.
+
+    property/vehicles are Family-tier-gated (#308): SubscriptionRequiredMixin
+    now intercepts account=None requests before AccountScopedMixin/
+    AccountStampMixin ever run, so those endpoints redirect to the upgrade
+    page rather than exercising the underlying no-leak behavior directly.
+    tasks is Free-tier (ungated), so it still exercises AccountScopedMixin/
+    AccountStampMixin's account=None handling directly — that protection
+    remains load-bearing for every Free-tier-accessible module.
+    """
 
     def setUp(self):
         from property.models import Property  # noqa: PLC0415
+        from tasks.models import FamilyTask  # noqa: PLC0415
 
         self.no_account_user = User.objects.create_user(username="no_account", password="pass")
         self.client_no_account = Client()
         self.client_no_account.login(username="no_account", password="pass")
 
-        # An orphaned/legacy row with no account — must never surface to a
+        # Orphaned/legacy rows with no account — must never surface to a
         # user whose own request.account also resolves to None.
         self.orphaned_property = Property.objects.create(name="Orphaned House", address="0 Nowhere Ave")
+        self.orphaned_task = FamilyTask.objects.create(title="Orphaned Task", status="TODO", priority="medium")
 
-    def test_list_view_is_empty_not_leaking_orphaned_rows(self):
+    def test_gated_list_view_redirects_to_upgrade(self):
         response = self.client_no_account.get("/property/")
-        self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "Orphaned House")
+        self.assertRedirects(response, "/upgrade/")
 
-    def test_detail_view_404s_on_orphaned_row(self):
+    def test_gated_detail_view_redirects_to_upgrade(self):
         response = self.client_no_account.get(f"/property/{self.orphaned_property.pk}/")
-        self.assertEqual(response.status_code, 404)
+        self.assertRedirects(response, "/upgrade/")
 
-    def test_create_view_blocked_with_403(self):
+    def test_gated_create_view_redirects_to_upgrade(self):
         response = self.client_no_account.post(
             "/vehicles/add/",
             {
@@ -412,6 +428,22 @@ class NoAccountUserTestCase(TestCase):
                 "color": "Black", "license_plate": "NOACCT", "current_mileage": 10,
                 "registration_expiry": "2030-01-01",
             },
+        )
+        self.assertRedirects(response, "/upgrade/")
+
+    def test_ungated_list_view_is_empty_not_leaking_orphaned_rows(self):
+        response = self.client_no_account.get("/tasks/")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Orphaned Task")
+
+    def test_ungated_detail_view_404s_on_orphaned_row(self):
+        response = self.client_no_account.get(f"/tasks/{self.orphaned_task.pk}/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_ungated_create_view_blocked_with_403(self):
+        response = self.client_no_account.post(
+            "/tasks/new/",
+            {"title": "New Task", "status": "TODO", "priority": "medium"},
         )
         self.assertEqual(response.status_code, 403)
 
@@ -421,3 +453,105 @@ class NoAccountUserTestCase(TestCase):
         self.assertEqual(response.context["vehicle_count"], 0)
         self.assertEqual(response.context["property_count"], 0)
         self.assertEqual(response.context["upcoming_event_count"], 0)
+
+
+class SubscriptionRequiredMixinTestCase(TestCase):
+    """Free-tier accounts must be redirected off Family-tier-only modules
+    (vehicles/property/calendar/vacations/cookbook, #308) to the upgrade
+    page, while Free-tier modules (tasks/shopping) and the dashboard itself
+    stay reachable. Family-tier accounts get full access to both."""
+
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.free_user = User.objects.create_user(username="free_user", password="pass")
+        self.free_account = FamilyAccount.objects.create(
+            name="Free Family", slug="free-family", owner=self.free_user,
+        )
+        FamilyMembership.objects.create(account=self.free_account, user=self.free_user, role="owner")
+        self.free_client = Client()
+        self.free_client.login(username="free_user", password="pass")
+
+        self.family_user = User.objects.create_user(username="family_user", password="pass")
+        self.family_account = FamilyAccount.objects.create(
+            name="Family Family", slug="family-family", owner=self.family_user, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.family_account, user=self.family_user, role="owner")
+        self.family_client = Client()
+        self.family_client.login(username="family_user", password="pass")
+
+    def test_free_tier_gated_endpoints_redirect_to_upgrade(self):
+        gated_urls = ["/vehicles/", "/property/", "/calendar/", "/vacations/", "/cookbook/"]
+        for url in gated_urls:
+            with self.subTest(url=url):
+                response = self.free_client.get(url)
+                self.assertRedirects(response, "/upgrade/")
+
+    def test_free_tier_ungated_endpoints_stay_reachable(self):
+        ungated_urls = ["/", "/tasks/", "/shopping/"]
+        for url in ungated_urls:
+            with self.subTest(url=url):
+                response = self.free_client.get(url)
+                self.assertEqual(response.status_code, 200)
+
+    def test_free_tier_calendar_json_returns_403(self):
+        response = self.free_client.get("/calendar/events.json")
+        self.assertEqual(response.status_code, 403)
+
+    def test_family_tier_gated_endpoints_return_200(self):
+        gated_urls = ["/vehicles/", "/property/", "/calendar/", "/vacations/", "/cookbook/"]
+        for url in gated_urls:
+            with self.subTest(url=url):
+                response = self.family_client.get(url)
+                self.assertEqual(response.status_code, 200)
+
+    def test_family_tier_calendar_json_returns_200(self):
+        response = self.family_client.get("/calendar/events.json")
+        self.assertEqual(response.status_code, 200)
+
+
+class StripeWebhookTierTestCase(TestCase):
+    """Stripe subscription webhooks must flip both `is_active` and `tier`
+    together (#308) — is_active alone doesn't distinguish Free from Family."""
+
+    def setUp(self):
+        from core.models import FamilyAccount  # noqa: PLC0415
+
+        self.user = User.objects.create_user(username="webhook_user", password="pass")
+        self.account = FamilyAccount.objects.create(name="Webhook Family", slug="webhook-family", owner=self.user)
+
+    def test_subscription_created_sets_family_tier_and_active(self):
+        from unittest.mock import patch  # noqa: PLC0415
+
+        from core.stripe_handlers import handle_subscription_created  # noqa: PLC0415
+
+        with patch("core.stripe_handlers._account_for_stripe_customer", return_value=self.account):
+            handle_subscription_created(sender=None, event=_FakeEvent())
+
+        self.account.refresh_from_db()
+        self.assertTrue(self.account.is_active)
+        self.assertEqual(self.account.tier, self.account.TIER_FAMILY)
+
+    def test_subscription_deleted_sets_free_tier_and_inactive(self):
+        from unittest.mock import patch  # noqa: PLC0415
+
+        from core.models import FamilyAccount  # noqa: PLC0415
+        from core.stripe_handlers import handle_subscription_deleted  # noqa: PLC0415
+
+        self.account.tier = FamilyAccount.TIER_FAMILY
+        self.account.is_active = True
+        self.account.save(update_fields=["tier", "is_active"])
+
+        with patch("core.stripe_handlers._account_for_stripe_customer", return_value=self.account):
+            handle_subscription_deleted(sender=None, event=_FakeEvent())
+
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.is_active)
+        self.assertEqual(self.account.tier, self.account.TIER_FREE)
+
+
+class _FakeEvent:
+    """Minimal stand-in for a dj-stripe Event, just enough for
+    `event.data.get("object", {}).get("customer")` in core/stripe_handlers.py."""
+
+    data = {"object": {"customer": "cus_fake123"}}

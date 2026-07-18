@@ -4,7 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
-from core.mixins import AccountScopedMixin, AccountStampMixin, get_scoped_object_or_404
+from core.mixins import AccountScopedMixin, AccountStampMixin, SubscriptionRequiredMixin, get_scoped_object_or_404
 
 from .forms import ItineraryItemForm, ReservationForm, VacationExpenseForm, VacationForm
 from .models import ItineraryItem, Reservation, Vacation, VacationExpense
@@ -12,7 +12,7 @@ from .models import ItineraryItem, Reservation, Vacation, VacationExpense
 
 # ── Vacation CRUD ─────────────────────────────────────────────────────────────
 
-class VacationListView(LoginRequiredMixin, AccountScopedMixin, ListView):
+class VacationListView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, ListView):
     model = Vacation
     template_name = "vacations/vacation_list.html"
 
@@ -25,7 +25,7 @@ class VacationListView(LoginRequiredMixin, AccountScopedMixin, ListView):
         return context
 
 
-class VacationDetailView(LoginRequiredMixin, AccountScopedMixin, DetailView):
+class VacationDetailView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, DetailView):
     model = Vacation
     template_name = "vacations/vacation_detail.html"
 
@@ -42,14 +42,14 @@ class VacationDetailView(LoginRequiredMixin, AccountScopedMixin, DetailView):
         return context
 
 
-class VacationCreateView(LoginRequiredMixin, AccountStampMixin, CreateView):
+class VacationCreateView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountStampMixin, CreateView):
     model = Vacation
     form_class = VacationForm
     template_name = "vacations/vacation_form.html"
     success_url = reverse_lazy("vacations:vacation_list")
 
 
-class VacationUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
+class VacationUpdateView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, UpdateView):
     model = Vacation
     form_class = VacationForm
     template_name = "vacations/vacation_form.html"
@@ -58,7 +58,7 @@ class VacationUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.object.pk})
 
 
-class VacationDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
+class VacationDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, DeleteView):
     model = Vacation
     template_name = "vacations/vacation_confirm_delete.html"
     success_url = reverse_lazy("vacations:vacation_list")
@@ -66,7 +66,7 @@ class VacationDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
 
 # ── Expense CRUD ──────────────────────────────────────────────────────────────
 
-class ExpenseCreateView(LoginRequiredMixin, CreateView):
+class ExpenseCreateView(LoginRequiredMixin, SubscriptionRequiredMixin, CreateView):
     model = VacationExpense
     form_class = VacationExpenseForm
     template_name = "vacations/expense_form.html"
@@ -87,7 +87,7 @@ class ExpenseCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.kwargs["vacation_pk"]}) + "?tab=expenses"
 
 
-class ExpenseUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
+class ExpenseUpdateView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, UpdateView):
     model = VacationExpense
     form_class = VacationExpenseForm
     template_name = "vacations/expense_form.html"
@@ -102,7 +102,7 @@ class ExpenseUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.object.vacation.pk}) + "?tab=expenses"
 
 
-class ExpenseDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
+class ExpenseDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, DeleteView):
     model = VacationExpense
     template_name = "vacations/expense_confirm_delete.html"
     account_lookup = "vacation__account"
@@ -113,7 +113,7 @@ class ExpenseDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
 
 # ── Reservation CRUD ──────────────────────────────────────────────────────────
 
-class ReservationCreateView(LoginRequiredMixin, CreateView):
+class ReservationCreateView(LoginRequiredMixin, SubscriptionRequiredMixin, CreateView):
     model = Reservation
     form_class = ReservationForm
     template_name = "vacations/reservation_form.html"
@@ -134,7 +134,7 @@ class ReservationCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.kwargs["vacation_pk"]}) + "?tab=reservations"
 
 
-class ReservationUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
+class ReservationUpdateView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, UpdateView):
     model = Reservation
     form_class = ReservationForm
     template_name = "vacations/reservation_form.html"
@@ -149,7 +149,7 @@ class ReservationUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.object.vacation.pk}) + "?tab=reservations"
 
 
-class ReservationDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
+class ReservationDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, DeleteView):
     model = Reservation
     template_name = "vacations/reservation_confirm_delete.html"
     account_lookup = "vacation__account"
@@ -160,7 +160,7 @@ class ReservationDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
 
 # ── Itinerary CRUD ────────────────────────────────────────────────────────────
 
-class ItineraryItemCreateView(LoginRequiredMixin, CreateView):
+class ItineraryItemCreateView(LoginRequiredMixin, SubscriptionRequiredMixin, CreateView):
     model = ItineraryItem
     form_class = ItineraryItemForm
     template_name = "vacations/itineraryitem_form.html"
@@ -181,7 +181,7 @@ class ItineraryItemCreateView(LoginRequiredMixin, CreateView):
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.kwargs["vacation_pk"]}) + "?tab=itinerary"
 
 
-class ItineraryItemUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
+class ItineraryItemUpdateView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, UpdateView):
     model = ItineraryItem
     form_class = ItineraryItemForm
     template_name = "vacations/itineraryitem_form.html"
@@ -196,7 +196,7 @@ class ItineraryItemUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView
         return reverse_lazy("vacations:vacation_detail", kwargs={"pk": self.object.vacation.pk}) + "?tab=itinerary"
 
 
-class ItineraryItemDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
+class ItineraryItemDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, DeleteView):
     model = ItineraryItem
     template_name = "vacations/itineraryitem_confirm_delete.html"
     account_lookup = "vacation__account"

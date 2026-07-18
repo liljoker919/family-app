@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Upgrade Required — Family App{% endblock %}
+{% block page_title %}Upgrade Required{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto text-center py-16">
+  <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
+    <svg class="h-7 w-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+    </svg>
+  </div>
+  <h2 class="mt-6 text-2xl font-bold text-gray-900">This feature is part of the Family plan</h2>
+  <p class="mt-3 text-gray-600">
+    Your account is currently on the Free plan (Tasks + Shopping List, up to 2 members).
+    Upgrade to Family ($4.99/mo) to unlock every module — vehicles, home maintenance,
+    calendar sync, recipes, and vacations — with unlimited members.
+  </p>
+  <div class="mt-8 flex items-center justify-center gap-4">
+    <a href="/" class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+      Back to dashboard
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -22,18 +22,34 @@ def _account_for_stripe_customer(stripe_customer_id):
 def handle_subscription_created(sender, event, **kwargs):
     stripe_customer_id = event.data.get("object", {}).get("customer")
     account = _account_for_stripe_customer(stripe_customer_id)
-    if account and not account.is_active:
+    if account is None:
+        return
+    update_fields = []
+    if not account.is_active:
         account.is_active = True
-        account.save(update_fields=["is_active"])
+        update_fields.append("is_active")
+    if account.tier != account.TIER_FAMILY:
+        account.tier = account.TIER_FAMILY
+        update_fields.append("tier")
+    if update_fields:
+        account.save(update_fields=update_fields)
 
 
 @djstripe_receiver(["customer.subscription.deleted"])
 def handle_subscription_deleted(sender, event, **kwargs):
     stripe_customer_id = event.data.get("object", {}).get("customer")
     account = _account_for_stripe_customer(stripe_customer_id)
-    if account and account.is_active:
+    if account is None:
+        return
+    update_fields = []
+    if account.is_active:
         account.is_active = False
-        account.save(update_fields=["is_active"])
+        update_fields.append("is_active")
+    if account.tier != account.TIER_FREE:
+        account.tier = account.TIER_FREE
+        update_fields.append("tier")
+    if update_fields:
+        account.save(update_fields=update_fields)
 
 
 @djstripe_receiver(["invoice.payment_failed"])

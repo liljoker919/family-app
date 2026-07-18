@@ -1,6 +1,24 @@
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
+
+from core.models import FamilyAccount
+
+
+class SubscriptionRequiredMixin:
+    """Gates a view to accounts on the Family tier, redirecting Free-tier
+    (or account-less) users to the upgrade page instead of raising.
+
+    Apply after LoginRequiredMixin so anonymous users still hit the login
+    redirect first, e.g.:
+        class VehicleListView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, ListView):
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        account = request.account
+        if account is None or account.tier != FamilyAccount.TIER_FAMILY:
+            return redirect("core:upgrade_required")
+        return super().dispatch(request, *args, **kwargs)
 
 
 class AccountScopedMixin:

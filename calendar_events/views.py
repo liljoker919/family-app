@@ -11,7 +11,7 @@ from django.utils import timezone as tz
 from django.utils.dateparse import parse_date, parse_datetime
 from django.views.generic import CreateView, DeleteView, TemplateView, UpdateView
 
-from core.mixins import AccountScopedMixin, AccountStampMixin
+from core.mixins import AccountScopedMixin, AccountStampMixin, SubscriptionRequiredMixin
 
 from .forms import CalendarEventForm
 from .models import CalendarEvent
@@ -132,7 +132,7 @@ def _fetch_outlook_events(start_dt, end_dt):
 
 # ── Views ─────────────────────────────────────────────────────────────────────
 
-class CalendarView(LoginRequiredMixin, TemplateView):
+class CalendarView(LoginRequiredMixin, SubscriptionRequiredMixin, TemplateView):
     template_name = "calendar_events/calendar.html"
 
 
@@ -323,14 +323,18 @@ def calendar_json_view(request):
             dt = tz.make_aware(dt)
         return dt
 
+    account = request.account
+    if account is None or account.tier != account.TIER_FAMILY:
+        return JsonResponse({"error": "Family plan required"}, status=403)
+
     start_dt = _parse(request.GET.get("start", ""))
     end_dt = _parse(request.GET.get("end", ""))
 
-    events = collect_events(request.account, start_dt, end_dt)
+    events = collect_events(account, start_dt, end_dt)
     return JsonResponse(events, safe=False)
 
 
-class EventCreateView(LoginRequiredMixin, AccountStampMixin, CreateView):
+class EventCreateView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountStampMixin, CreateView):
     model = CalendarEvent
     form_class = CalendarEventForm
     template_name = "calendar_events/event_form.html"
@@ -347,14 +351,14 @@ class EventCreateView(LoginRequiredMixin, AccountStampMixin, CreateView):
         return initial
 
 
-class EventUpdateView(LoginRequiredMixin, AccountScopedMixin, UpdateView):
+class EventUpdateView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, UpdateView):
     model = CalendarEvent
     form_class = CalendarEventForm
     template_name = "calendar_events/event_form.html"
     success_url = reverse_lazy("calendar_events:calendar")
 
 
-class EventDeleteView(LoginRequiredMixin, AccountScopedMixin, DeleteView):
+class EventDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, DeleteView):
     model = CalendarEvent
     template_name = "calendar_events/event_confirm_delete.html"
     success_url = reverse_lazy("calendar_events:calendar")
