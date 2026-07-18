@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils.text import slugify
 
 
 class FamilyAccount(models.Model):
@@ -16,6 +17,7 @@ class FamilyAccount(models.Model):
     slug = models.SlugField(unique=True)
     is_active = models.BooleanField(default=True)
     tier = models.CharField(max_length=10, choices=TIER_CHOICES, default=TIER_FREE)
+    onboarding_complete = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -26,6 +28,16 @@ class FamilyAccount(models.Model):
         # dj-stripe's Customer.get_or_create() requires the subscriber model
         # to have an email — the owner's is the natural choice here.
         return self.owner.email
+
+    @classmethod
+    def generate_unique_slug(cls, name):
+        base = slugify(name) or "family"
+        slug = base
+        suffix = 2
+        while cls.objects.filter(slug=slug).exists():
+            slug = f"{base}-{suffix}"
+            suffix += 1
+        return slug
 
 
 class FamilyMembership(models.Model):

@@ -555,3 +555,211 @@ class _FakeEvent:
     `event.data.get("object", {}).get("customer")` in core/stripe_handlers.py."""
 
     data = {"object": {"customer": "cus_fake123"}}
+
+
+class OnboardingSignupViewTestCase(TestCase):
+    """Step 1 (#309) — the only place in the app that creates a User at all."""
+
+    def setUp(self):
+        from django.core.cache import cache  # noqa: PLC0415
+
+        # OnboardingSignupView is rate-limited (5/min/IP); the default LocMemCache
+        # backend persists across test methods within one test run, so clear it
+        # per-test rather than let counters bleed between methods.
+        cache.clear()
+        self.client = Client()
+        self.valid_data = {
+            "family_name": "The Testers",
+            "username": "newfamily",
+            "email": "newfamily@example.com",
+            "password1": "correct horse battery staple",
+            "password2": "correct horse battery staple",
+        }
+
+    def test_get_renders_form_for_anonymous_user(self):
+        response = self.client.get("/onboarding/signup/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "family_name")
+
+    def test_get_redirects_authenticated_user(self):
+        User.objects.create_user(username="already_in", password="pass12345")
+        self.client.login(username="already_in", password="pass12345")
+        response = self.client.get("/onboarding/signup/")
+        # /onboarding/ itself redirects further (no account yet) — just check
+        # the immediate hop, not the final page.
+        self.assertRedirects(response, "/onboarding/", fetch_redirect_response=False)
+
+    def test_post_valid_creates_user_account_and_membership_and_logs_in(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        response = self.client.post("/onboarding/signup/", self.valid_data)
+        self.assertRedirects(response, "/onboarding/invite/")
+
+        user = User.objects.get(username="newfamily")
+        self.assertEqual(user.email, "newfamily@example.com")
+
+        account = FamilyAccount.objects.get(owner=user)
+        self.assertEqual(account.name, "The Testers")
+        self.assertEqual(account.tier, FamilyAccount.TIER_FREE)
+        self.assertFalse(account.onboarding_complete)
+
+        self.assertTrue(
+            FamilyMembership.objects.filter(account=account, user=user, role="owner").exists()
+        )
+
+        # Logged in as part of signup — an authenticated-only page now works.
+        dash_response = self.client.get("/onboarding/invite/")
+        self.assertEqual(dash_response.status_code, 200)
+
+    def test_post_duplicate_username_rejected(self):
+        User.objects.create_user(username="newfamily", password="whatever123")
+        response = self.client.post("/onboarding/signup/", self.valid_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "already taken")
+
+    def test_post_password_mismatch_rejected(self):
+        data = dict(self.valid_data, password2="something else entirely")
+        response = self.client.post("/onboarding/signup/", data)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "don&#x27;t match")
+
+    def test_post_weak_password_rejected(self):
+        data = dict(self.valid_data, password1="password", password2="password")
+        response = self.client.post("/onboarding/signup/", data)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(username="newfamily").exists())
+
+
+class OnboardingRedirectViewTestCase(TestCase):
+    def test_anonymous_redirects_to_signup(self):
+        response = self.client.get("/onboarding/")
+        self.assertRedirects(response, "/onboarding/signup/")
+
+    def test_authenticated_incomplete_redirects_to_invite(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        user = User.objects.create_user(username="onb_user", password="pass12345")
+        account = FamilyAccount.objects.create(name="Onb Family", slug="onb-family", owner=user)
+        FamilyMembership.objects.create(account=account, user=user, role="owner")
+        self.client.login(username="onb_user", password="pass12345")
+
+        response = self.client.get("/onboarding/")
+        self.assertRedirects(response, "/onboarding/invite/")
+
+    def test_authenticated_complete_redirects_to_dashboard(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        user = User.objects.create_user(username="done_user", password="pass12345")
+        account = FamilyAccount.objects.create(
+            name="Done Family", slug="done-family", owner=user, onboarding_complete=True,
+        )
+        FamilyMembership.objects.create(account=account, user=user, role="owner")
+        self.client.login(username="done_user", password="pass12345")
+
+        response = self.client.get("/onboarding/")
+        self.assertRedirects(response, "/")
+
+    def test_authenticated_no_account_redirects_to_dashboard(self):
+        User.objects.create_user(username="no_acct", password="pass12345")
+        self.client.login(username="no_acct", password="pass12345")
+
+        response = self.client.get("/onboarding/")
+        self.assertRedirects(response, "/")
+
+
+class OnboardingInviteViewTestCase(TestCase):
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.user = User.objects.create_user(username="invite_user", password="pass12345")
+        self.account = FamilyAccount.objects.create(name="Invite Family", slug="invite-family", owner=self.user)
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
+        self.client.login(username="invite_user", password="pass12345")
+
+    def test_renders_when_incomplete(self):
+        response = self.client.get("/onboarding/invite/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Continue")
+
+    def test_redirects_to_dashboard_when_already_complete(self):
+        self.account.onboarding_complete = True
+        self.account.save(update_fields=["onboarding_complete"])
+        response = self.client.get("/onboarding/invite/")
+        self.assertRedirects(response, "/")
+
+
+class OnboardingPlanViewTestCase(TestCase):
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.user = User.objects.create_user(username="plan_user", password="pass12345")
+        self.account = FamilyAccount.objects.create(name="Plan Family", slug="plan-family", owner=self.user)
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
+        self.client.login(username="plan_user", password="pass12345")
+
+    def test_get_renders_when_incomplete(self):
+        response = self.client.get("/onboarding/plan/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Start Free")
+        self.assertContains(response, "Start Family")
+
+    def test_get_redirects_to_dashboard_when_already_complete(self):
+        self.account.onboarding_complete = True
+        self.account.save(update_fields=["onboarding_complete"])
+        response = self.client.get("/onboarding/plan/")
+        self.assertRedirects(response, "/")
+
+    def test_post_free_marks_complete_and_redirects_dashboard(self):
+        response = self.client.post("/onboarding/plan/", {"plan": "free"})
+        self.assertRedirects(response, "/")
+        self.account.refresh_from_db()
+        self.assertTrue(self.account.onboarding_complete)
+        self.assertEqual(self.account.tier, self.account.TIER_FREE)
+
+    def test_post_family_with_no_price_id_configured_shows_error(self):
+        # Test settings never set STRIPE_FAMILY_PRICE_ID — checkout stays inert.
+        response = self.client.post("/onboarding/plan/", {"plan": "family"})
+        self.assertRedirects(response, "/onboarding/plan/")
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.onboarding_complete)
+
+    def test_post_family_with_checkout_configured_redirects_to_stripe(self):
+        from unittest.mock import patch  # noqa: PLC0415
+
+        with patch(
+            "core.views._create_family_checkout_session",
+            return_value="https://checkout.stripe.com/test-session",
+        ):
+            response = self.client.post("/onboarding/plan/", {"plan": "family"}, follow=False)
+        self.assertRedirects(
+            response, "https://checkout.stripe.com/test-session", fetch_redirect_response=False,
+        )
+
+    def test_post_invalid_plan_shows_error(self):
+        response = self.client.post("/onboarding/plan/", {"plan": "bogus"})
+        self.assertRedirects(response, "/onboarding/plan/")
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.onboarding_complete)
+
+    def test_post_with_no_account_redirects_dashboard(self):
+        User.objects.create_user(username="acctless", password="pass12345")
+        client = Client()
+        client.login(username="acctless", password="pass12345")
+        response = client.post("/onboarding/plan/", {"plan": "free"})
+        self.assertRedirects(response, "/")
+
+
+class OnboardingCompleteViewTestCase(TestCase):
+    def test_marks_onboarding_complete_and_redirects_dashboard(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        user = User.objects.create_user(username="complete_user", password="pass12345")
+        account = FamilyAccount.objects.create(name="Complete Family", slug="complete-family", owner=user)
+        FamilyMembership.objects.create(account=account, user=user, role="owner")
+        self.client.login(username="complete_user", password="pass12345")
+
+        response = self.client.get("/onboarding/complete/")
+        self.assertRedirects(response, "/")
+
+        account.refresh_from_db()
+        self.assertTrue(account.onboarding_complete)
