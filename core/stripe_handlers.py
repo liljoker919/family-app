@@ -61,13 +61,13 @@ def handle_payment_failed(sender, event, **kwargs):
 
     try:
         send_mail(
-            subject="Action needed: your Famly App payment didn't go through",
+            subject="Action needed: your Hey Famly payment didn't go through",
             message=(
                 f"Hi {account.owner.first_name or account.owner.username},\n\n"
-                "We weren't able to process your latest payment for Famly App. "
+                "We weren't able to process your latest payment for Hey Famly. "
                 "Please update your payment method to avoid losing access to "
                 f"the {account.name} account.\n\n"
-                "— Famly App"
+                "— Hey Famly"
             ),
             from_email=None,
             recipient_list=[account.email],

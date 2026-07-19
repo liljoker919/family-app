@@ -1,1 +1,1 @@
-{% load i18n %}{% autoescape off %}{% blocktrans %}You've been invited to join a family on Famly App{% endblocktrans %}{% endautoescape %}
+{% load i18n %}{% autoescape off %}{% blocktrans %}You've been invited to join a family on Hey Famly{% endblocktrans %}{% endautoescape %}

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Family App{% endblock %}</title>
+  <title>{% block title %}Hey Famly{% endblock %}</title>
   <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -30,8 +30,8 @@
 
     <!-- Logo / App Name -->
     <div class="flex h-16 shrink-0 items-center gap-3 border-b border-slate-700 px-6">
-      <img src="{% static 'img/logo.svg' %}" alt="" class="h-8 w-8 rounded-lg">
-      <span class="text-white font-semibold text-lg tracking-tight">Family App</span>
+      <img src="{% static 'img/sidebar_logo.png' %}" alt="" class="h-8 w-8">
+      <span class="text-white font-semibold text-lg tracking-tight">Hey Famly</span>
     </div>
 
     <!-- Navigation -->
@@ -39,7 +39,7 @@
       {% with url_name=request.resolver_match.url_name app_name=request.resolver_match.app_name %}
 
       <!-- Dashboard -->
-      <a href="/"
+      <a href="{% url 'core:dashboard' %}"
          class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
                 {% if url_name == 'dashboard' %}
                   bg-blue-600 text-white

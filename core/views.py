@@ -263,7 +263,7 @@ class OnboardingPlanView(LoginRequiredMixin, View):
         if plan == "free":
             account.onboarding_complete = True
             account.save(update_fields=["onboarding_complete"])
-            messages.success(request, f"Welcome to Famly App, {account.name}!")
+            messages.success(request, f"Welcome to Hey Famly, {account.name}!")
             return redirect("core:dashboard")
 
         if plan == "family":
@@ -291,7 +291,7 @@ class OnboardingCompleteView(LoginRequiredMixin, View):
         if account is not None and not account.onboarding_complete:
             account.onboarding_complete = True
             account.save(update_fields=["onboarding_complete"])
-        messages.success(request, "Welcome to Famly App! Your subscription is being activated.")
+        messages.success(request, "Welcome to Hey Famly! Your subscription is being activated.")
         return redirect("core:dashboard")
 
 
@@ -324,6 +324,20 @@ class StyledPasswordChangeView(DjangoPasswordChangeView):
 
     form_class = PasswordChangeForm
     template_name = "registration/password_change_form.html"
+
+
+# ── Public marketing page ────────────────────────────────────────────────
+
+class LandingPageView(TemplateView):
+    """Public, no-login-required marketing page at `/` (#315) — root used to
+    go straight to the login-gated dashboard with no public page at all."""
+
+    template_name = "core/landing.html"
+
+    def get(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect("core:dashboard")
+        return super().get(request, *args, **kwargs)
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):

@@ -12,7 +12,7 @@ _LOGIN_URL = "/accounts/login/"
 # redirects before any DB lookup, so the object need not exist.
 _ALL_ENDPOINTS = [
     # Dashboard
-    "/",
+    "/dashboard/",
     # Vehicles
     "/vehicles/",
     "/vehicles/add/",
@@ -116,7 +116,7 @@ class DashboardUpcomingEventCountTest(TestCase):
             account=self.account, title="Pack for trip", status="TODO", priority="medium", due_date=self._in_range(6),
         )
 
-        response = self.client.get("/")
+        response = self.client.get("/dashboard/")
         self.assertEqual(response.context["upcoming_event_count"], 5)
         self.assertContains(response, "5 events")
 
@@ -146,7 +146,7 @@ class DashboardUpcomingEventCountTest(TestCase):
             account=self.account, title="Already done", status="COMPLETED", priority="low", due_date=self._in_range(2),
         )
 
-        response = self.client.get("/")
+        response = self.client.get("/dashboard/")
         self.assertEqual(response.context["upcoming_event_count"], 0)
         self.assertContains(response, "0 events")
 
@@ -222,7 +222,7 @@ class AuthenticatedAccessTestCase(TestCase):
 
     def _endpoints(self):
         return [
-            "/",
+            "/dashboard/",
             "/vehicles/",
             "/vehicles/add/",
             f"/vehicles/{self.vehicle.pk}/",
@@ -380,7 +380,7 @@ class CrossTenantIsolationTestCase(TestCase):
                 )
 
     def test_dashboard_counts_do_not_include_other_accounts_data(self):
-        response = self.client_b.get("/")
+        response = self.client_b.get("/dashboard/")
         self.assertEqual(response.context["vehicle_count"], 0)
         self.assertEqual(response.context["property_count"], 0)
         self.assertEqual(response.context["upcoming_event_count"], 0)
@@ -456,7 +456,7 @@ class NoAccountUserTestCase(TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_dashboard_shows_zero_counts(self):
-        response = self.client_no_account.get("/")
+        response = self.client_no_account.get("/dashboard/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["vehicle_count"], 0)
         self.assertEqual(response.context["property_count"], 0)
@@ -496,7 +496,7 @@ class SubscriptionRequiredMixinTestCase(TestCase):
                 self.assertRedirects(response, "/upgrade/")
 
     def test_free_tier_ungated_endpoints_stay_reachable(self):
-        ungated_urls = ["/", "/tasks/", "/shopping/"]
+        ungated_urls = ["/dashboard/", "/tasks/", "/shopping/"]
         for url in ungated_urls:
             with self.subTest(url=url):
                 response = self.free_client.get(url)
@@ -665,14 +665,14 @@ class OnboardingRedirectViewTestCase(TestCase):
         self.client.login(username="done_user", password="pass12345")
 
         response = self.client.get("/onboarding/")
-        self.assertRedirects(response, "/")
+        self.assertRedirects(response, "/dashboard/")
 
     def test_authenticated_no_account_redirects_to_dashboard(self):
         User.objects.create_user(username="no_acct", password="pass12345")
         self.client.login(username="no_acct", password="pass12345")
 
         response = self.client.get("/onboarding/")
-        self.assertRedirects(response, "/")
+        self.assertRedirects(response, "/dashboard/")
 
 
 class OnboardingInviteViewTestCase(TestCase):
@@ -693,7 +693,7 @@ class OnboardingInviteViewTestCase(TestCase):
         self.account.onboarding_complete = True
         self.account.save(update_fields=["onboarding_complete"])
         response = self.client.get("/onboarding/invite/")
-        self.assertRedirects(response, "/")
+        self.assertRedirects(response, "/dashboard/")
 
 
 class OnboardingPlanViewTestCase(TestCase):
@@ -715,11 +715,11 @@ class OnboardingPlanViewTestCase(TestCase):
         self.account.onboarding_complete = True
         self.account.save(update_fields=["onboarding_complete"])
         response = self.client.get("/onboarding/plan/")
-        self.assertRedirects(response, "/")
+        self.assertRedirects(response, "/dashboard/")
 
     def test_post_free_marks_complete_and_redirects_dashboard(self):
         response = self.client.post("/onboarding/plan/", {"plan": "free"})
-        self.assertRedirects(response, "/")
+        self.assertRedirects(response, "/dashboard/")
         self.account.refresh_from_db()
         self.assertTrue(self.account.onboarding_complete)
         self.assertEqual(self.account.tier, self.account.TIER_FREE)
@@ -754,7 +754,7 @@ class OnboardingPlanViewTestCase(TestCase):
         client = Client()
         client.login(username="acctless", password="pass12345")
         response = client.post("/onboarding/plan/", {"plan": "free"})
-        self.assertRedirects(response, "/")
+        self.assertRedirects(response, "/dashboard/")
 
 
 class OnboardingCompleteViewTestCase(TestCase):
@@ -767,7 +767,7 @@ class OnboardingCompleteViewTestCase(TestCase):
         self.client.login(username="complete_user", password="pass12345")
 
         response = self.client.get("/onboarding/complete/")
-        self.assertRedirects(response, "/")
+        self.assertRedirects(response, "/dashboard/")
 
         account.refresh_from_db()
         self.assertTrue(account.onboarding_complete)
@@ -822,7 +822,7 @@ class InvitationFlowTestCase(TestCase):
             "/onboarding/signup/",
             {"username": "newmember", "password1": "correct horse battery staple", "password2": "correct horse battery staple"},
         )
-        self.assertRedirects(signup_post, "/")
+        self.assertRedirects(signup_post, "/dashboard/")
 
         new_user = User.objects.get(username="newmember")
         self.assertEqual(new_user.email, "newmember@example.com")
@@ -834,7 +834,7 @@ class InvitationFlowTestCase(TestCase):
         self.assertEqual(membership.role, "member")
 
         # Signed in and account-scoped as of the very next request.
-        dashboard = invitee_client.get("/")
+        dashboard = invitee_client.get("/dashboard/")
         self.assertEqual(dashboard.status_code, 200)
 
     def test_invited_signup_get_rejects_duplicate_username(self):
@@ -1022,3 +1022,22 @@ class PasswordChangeTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("original-pass-123"))
+
+
+class LandingPageViewTestCase(TestCase):
+    """#315 — public marketing page at `/`, root no longer requires login."""
+
+    def test_anonymous_get_returns_200_with_marketing_copy(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "One Place for Everything Your Family Runs On")
+
+    def test_start_free_links_to_onboarding_signup(self):
+        response = self.client.get("/")
+        self.assertContains(response, "/onboarding/signup/")
+
+    def test_authenticated_user_redirected_to_dashboard(self):
+        User.objects.create_user(username="landing_user", password="pass12345")
+        self.client.login(username="landing_user", password="pass12345")
+        response = self.client.get("/")
+        self.assertRedirects(response, "/dashboard/")

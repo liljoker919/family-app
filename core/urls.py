@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     DashboardView,
     InviteMembersView,
+    LandingPageView,
     OnboardingCompleteView,
     OnboardingInviteView,
     OnboardingPlanView,
@@ -16,7 +17,8 @@ from .views import (
 app_name = "core"
 
 urlpatterns = [
-    path("", DashboardView.as_view(), name="dashboard"),
+    path("", LandingPageView.as_view(), name="landing"),
+    path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("upgrade/", UpgradeRequiredView.as_view(), name="upgrade_required"),
     path("onboarding/", OnboardingRedirectView.as_view(), name="onboarding"),
     path("onboarding/signup/", OnboardingSignupView.as_view(), name="onboarding_signup"),
