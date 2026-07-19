@@ -2,11 +2,13 @@ from django.urls import path
 
 from .views import (
     DashboardView,
+    InviteMembersView,
     OnboardingCompleteView,
     OnboardingInviteView,
     OnboardingPlanView,
     OnboardingRedirectView,
     OnboardingSignupView,
+    SendInviteView,
     UpgradeRequiredView,
 )
 
@@ -20,4 +22,6 @@ urlpatterns = [
     path("onboarding/invite/", OnboardingInviteView.as_view(), name="onboarding_invite"),
     path("onboarding/plan/", OnboardingPlanView.as_view(), name="onboarding_plan"),
     path("onboarding/complete/", OnboardingCompleteView.as_view(), name="onboarding_complete"),
+    path("invite/", InviteMembersView.as_view(), name="invite_members"),
+    path("invite/send/", SendInviteView.as_view(), name="send_invite"),
 ]

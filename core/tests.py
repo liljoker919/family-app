@@ -53,6 +53,8 @@ _ALL_ENDPOINTS = [
     "/calendar/event/add/",
     "/calendar/event/1/edit/",
     "/calendar/event/1/delete/",
+    # Family members / invitations
+    "/invite/",
 ]
 
 
@@ -251,6 +253,7 @@ class AuthenticatedAccessTestCase(TestCase):
             "/calendar/event/add/",
             f"/calendar/event/{self.event.pk}/edit/",
             f"/calendar/event/{self.event.pk}/delete/",
+            "/invite/",
         ]
 
     def test_authenticated_get_returns_200(self):
@@ -763,3 +766,163 @@ class OnboardingCompleteViewTestCase(TestCase):
 
         account.refresh_from_db()
         self.assertTrue(account.onboarding_complete)
+
+
+class InvitationFlowTestCase(TestCase):
+    """End-to-end: owner sends an invite, invitee clicks the link, signs up,
+    and lands as a 'member' FamilyMembership on the owner's account (#310).
+    No django-allauth in this app, so this also exercises the custom
+    adapter/signal wiring in core/invitations_adapter.py."""
+
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.owner = User.objects.create_user(username="owner_user", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Invite Test Family", slug="invite-test-family", owner=self.owner,
+            tier=FamilyAccount.TIER_FAMILY, onboarding_complete=True,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.owner, role="owner")
+        self.client.login(username="owner_user", password="pass12345")
+
+    def _accept_invite_url(self, key):
+        from django.urls import reverse  # noqa: PLC0415
+        return reverse("invitations:accept-invite", args=[key])
+
+    def test_full_invite_accept_signup_flow(self):
+        from core.models import FamilyMembership  # noqa: PLC0415
+        from invitations.utils import get_invitation_model  # noqa: PLC0415
+
+        Invitation = get_invitation_model()
+
+        send_response = self.client.post("/invite/send/", {"email": "newmember@example.com"})
+        self.assertRedirects(send_response, "/invite/")
+        invitation = Invitation.objects.get(email="newmember@example.com")
+        self.assertEqual(invitation.inviter, self.owner)
+        self.assertFalse(invitation.accepted)
+
+        # Invitee (a different, anonymous browser session) clicks the emailed link.
+        invitee_client = Client()
+        accept_response = invitee_client.get(self._accept_invite_url(invitation.key))
+        self.assertRedirects(accept_response, "/onboarding/signup/")
+        invitation.refresh_from_db()
+        self.assertFalse(invitation.accepted, "clicking the link only stashes the email, doesn't accept yet")
+
+        # Signup form should now be the invited variant, not the family-creation one.
+        signup_get = invitee_client.get("/onboarding/signup/")
+        self.assertContains(signup_get, "newmember@example.com")
+        self.assertNotContains(signup_get, "family_name")
+
+        signup_post = invitee_client.post(
+            "/onboarding/signup/",
+            {"username": "newmember", "password1": "correct horse battery staple", "password2": "correct horse battery staple"},
+        )
+        self.assertRedirects(signup_post, "/")
+
+        new_user = User.objects.get(username="newmember")
+        self.assertEqual(new_user.email, "newmember@example.com")
+
+        invitation.refresh_from_db()
+        self.assertTrue(invitation.accepted)
+
+        membership = FamilyMembership.objects.get(account=self.account, user=new_user)
+        self.assertEqual(membership.role, "member")
+
+        # Signed in and account-scoped as of the very next request.
+        dashboard = invitee_client.get("/")
+        self.assertEqual(dashboard.status_code, 200)
+
+    def test_invited_signup_get_rejects_duplicate_username(self):
+        User.objects.create_user(username="taken", password="whatever123")
+        invitee_client = Client()
+        invitee_client.session["account_verified_email"] = "dupe@example.com"
+        invitee_client.session.save()
+
+        response = invitee_client.post(
+            "/onboarding/signup/",
+            {"username": "taken", "password1": "correct horse battery staple", "password2": "correct horse battery staple"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "already taken")
+
+
+class SendInviteViewTestCase(TestCase):
+    def setUp(self):
+        from django.core.cache import cache  # noqa: PLC0415
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        # SendInviteView is rate-limited (5/min/IP) — same LocMemCache
+        # persistence caveat as OnboardingSignupViewTestCase.
+        cache.clear()
+
+        self.owner = User.objects.create_user(username="cap_owner", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Cap Family", slug="cap-family", owner=self.owner, onboarding_complete=True,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.owner, role="owner")
+        self.client.login(username="cap_owner", password="pass12345")
+
+    def test_free_tier_blocks_invite_past_two_members(self):
+        # Owner alone = 1 member; Free tier caps at 2, so exactly one more invite should succeed.
+        first = self.client.post("/invite/send/", {"email": "member1@example.com"})
+        self.assertRedirects(first, "/invite/")
+        from invitations.utils import get_invitation_model  # noqa: PLC0415
+        self.assertTrue(get_invitation_model().objects.filter(email="member1@example.com").exists())
+
+        second = self.client.post("/invite/send/", {"email": "member2@example.com"})
+        self.assertRedirects(second, "/invite/")
+        self.assertFalse(get_invitation_model().objects.filter(email="member2@example.com").exists())
+
+    def test_family_tier_allows_more_than_two_members(self):
+        from core.models import FamilyAccount  # noqa: PLC0415
+        self.account.tier = FamilyAccount.TIER_FAMILY
+        self.account.save(update_fields=["tier"])
+
+        for i in range(3):
+            response = self.client.post("/invite/send/", {"email": f"member{i}@example.com"})
+            self.assertRedirects(response, "/invite/")
+
+        from invitations.utils import get_invitation_model  # noqa: PLC0415
+        self.assertEqual(get_invitation_model().objects.count(), 3)
+
+    def test_invalid_email_shows_error_and_redirects(self):
+        response = self.client.post("/invite/send/", {"email": "not-an-email"})
+        self.assertRedirects(response, "/invite/")
+        from invitations.utils import get_invitation_model  # noqa: PLC0415
+        self.assertEqual(get_invitation_model().objects.count(), 0)
+
+    def test_redirects_to_onboarding_invite_when_onboarding_incomplete(self):
+        self.account.onboarding_complete = False
+        self.account.save(update_fields=["onboarding_complete"])
+        response = self.client.post("/invite/send/", {"email": "duringonboarding@example.com"})
+        self.assertRedirects(response, "/onboarding/invite/")
+
+    def test_no_account_shows_error(self):
+        User.objects.create_user(username="acctless_inviter", password="pass12345")
+        client = Client()
+        client.login(username="acctless_inviter", password="pass12345")
+        response = client.post("/invite/send/", {"email": "whoever@example.com"})
+        self.assertRedirects(response, "/invite/")
+
+
+class InviteMembersViewTestCase(TestCase):
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+        from invitations.utils import get_invitation_model  # noqa: PLC0415
+
+        Invitation = get_invitation_model()
+        self.owner = User.objects.create_user(username="view_owner", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="View Family", slug="view-family", owner=self.owner, onboarding_complete=True,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.owner, role="owner")
+        invite = Invitation.create(email="pending@example.com", inviter=self.owner)
+        invite.sent = tz.now()
+        invite.save()
+        self.client.login(username="view_owner", password="pass12345")
+
+    def test_shows_members_and_pending_invites(self):
+        response = self.client.get("/invite/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "view_owner")
+        self.assertContains(response, "pending@example.com")

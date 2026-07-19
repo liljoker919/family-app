@@ -12,9 +12,14 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import TemplateView
 from django_ratelimit.decorators import ratelimit
+from invitations.forms import InviteForm
+from invitations.utils import get_invitation_model
 
-from .forms import SignupForm
+from .forms import InvitedSignupForm, SignupForm
+from .invitations_adapter import user_signed_up
 from .models import FamilyAccount, FamilyMembership
+
+Invitation = get_invitation_model()
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -49,19 +54,33 @@ class OnboardingSignupView(View):
 
     The only entry point in the app that creates an account at all — no
     other registration flow exists yet (#309).
+
+    Also doubles as the landing page for invite links (#310): django-invitations
+    redirects here (INVITATIONS_SIGNUP_REDIRECT) after stashing a verified
+    email in the session, so this branches into a simpler "join" form with no
+    family_name field — they're joining an existing account, not creating one.
     """
 
     template_name = "core/onboarding_signup.html"
+    invited_template_name = "core/onboarding_signup_invited.html"
 
     def get(self, request):
         if request.user.is_authenticated:
             return redirect("core:onboarding")
+        invited_email = request.session.get("account_verified_email")
+        if invited_email:
+            return render(request, self.invited_template_name, {"form": InvitedSignupForm(), "email": invited_email})
         return render(request, self.template_name, {"form": SignupForm()})
 
     def post(self, request):
         if request.user.is_authenticated:
             return redirect("core:onboarding")
+        invited_email = request.session.get("account_verified_email")
+        if invited_email:
+            return self._post_invited(request, invited_email)
+        return self._post_fresh(request)
 
+    def _post_fresh(self, request):
         form = SignupForm(request.POST)
         if not form.is_valid():
             return render(request, self.template_name, {"form": form})
@@ -80,9 +99,36 @@ class OnboardingSignupView(View):
         login(request, user)
         return redirect("core:onboarding_invite")
 
+    def _post_invited(self, request, invited_email):
+        form = InvitedSignupForm(request.POST)
+        if not form.is_valid():
+            return render(request, self.invited_template_name, {"form": form, "email": invited_email})
+
+        if User.objects.filter(email__iexact=invited_email).exists():
+            # Shouldn't normally happen (InviteForm blocks inviting an email
+            # that's already a registered user), but don't 500 on the race.
+            messages.error(request, "An account with that email already exists — sign in instead.")
+            return redirect("login")
+
+        data = form.cleaned_data
+        user = User.objects.create_user(
+            username=data["username"], email=invited_email, password=data["password1"],
+        )
+
+        # Fires invitations' accept_invite_after_signup handler (connected via
+        # our custom adapter, see core/invitations_adapter.py), which marks
+        # the Invitation accepted and fires invite_accepted — handled in
+        # core/invitation_handlers.py to create the FamilyMembership.
+        user_signed_up.send(sender=User, request=request, user=user)
+        request.session.pop("account_verified_email", None)
+
+        login(request, user)
+        messages.success(request, "Welcome! You've joined the family.")
+        return redirect("core:dashboard")
+
 
 class OnboardingInviteView(LoginRequiredMixin, TemplateView):
-    """Step 2 (stub): real invite form lands with #310 + SES (#311)."""
+    """Step 2: real invite form (#310), posts to SendInviteView."""
 
     template_name = "core/onboarding_invite.html"
 
@@ -92,6 +138,74 @@ class OnboardingInviteView(LoginRequiredMixin, TemplateView):
         if request.account.onboarding_complete:
             return redirect("core:dashboard")
         return super().get(request, *args, **kwargs)
+
+
+def _pending_invites_for(account):
+    member_user_ids = FamilyMembership.objects.filter(account=account).values("user")
+    return Invitation.objects.all_valid().filter(inviter__in=member_user_ids)
+
+
+class SendInviteView(LoginRequiredMixin, View):
+    """Rate-limited, Free-tier-capped wrapper around django-invitations'
+    InviteForm — the only supported way to send an invite (#310). The
+    package's own send-invite/send-json-invite URLs aren't wired at all
+    (see family_project/urls.py)."""
+
+    @method_decorator(ratelimit(key="ip", rate="5/m", method="POST", block=True))
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request):
+        account = request.account
+        redirect_to = (
+            "core:onboarding_invite" if account and not account.onboarding_complete else "core:invite_members"
+        )
+
+        if account is None:
+            messages.error(request, "No active family account found.")
+            return redirect(redirect_to)
+
+        if account.tier == FamilyAccount.TIER_FREE:
+            member_count = FamilyMembership.objects.filter(account=account).count()
+            pending_count = _pending_invites_for(account).count()
+            if member_count + pending_count >= 2:
+                messages.error(
+                    request,
+                    "The Free plan is capped at 2 members. Upgrade to Family for unlimited members.",
+                )
+                return redirect(redirect_to)
+
+        form = InviteForm(request.POST)
+        if not form.is_valid():
+            error = next(iter(form.errors.get("email", [])), "Couldn't send that invite.")
+            messages.error(request, error)
+            return redirect(redirect_to)
+
+        email = form.cleaned_data["email"]
+        invite = form.save(email)
+        invite.inviter = request.user
+        invite.save()
+        invite.send_invitation(request)
+        messages.success(request, f"Invited {email}.")
+        return redirect(redirect_to)
+
+
+class InviteMembersView(LoginRequiredMixin, TemplateView):
+    """Standalone "manage family members" page — unlike the onboarding invite
+    step, this stays reachable after onboarding is complete."""
+
+    template_name = "core/invite_members.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        account = self.request.account
+        if account is not None:
+            context["members"] = FamilyMembership.objects.filter(account=account).select_related("user")
+            context["pending_invites"] = _pending_invites_for(account)
+        else:
+            context["members"] = []
+            context["pending_invites"] = []
+        return context
 
 
 def _create_family_checkout_session(request, account):

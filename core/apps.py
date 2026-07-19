@@ -6,4 +6,4 @@ class CoreConfig(AppConfig):
     name = "core"
 
     def ready(self):
-        from . import stripe_handlers  # noqa: F401
+        from . import invitation_handlers, stripe_handlers  # noqa: F401

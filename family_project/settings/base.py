@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "tasks",
     "djstripe",
     "django_ses",
+    "invitations",
 ]
 
 MIDDLEWARE = [
@@ -87,3 +88,14 @@ DJSTRIPE_SUBSCRIBER_MODEL_REQUEST_CALLBACK = "core.djstripe_callbacks.get_subscr
 # Required since dj-stripe 2.4, no default. "id" (Stripe's own string ID) is
 # recommended for new installations — this is one, there's no prior data.
 DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"
+
+# django-invitations: this app has no django-allauth, so acceptance is wired
+# through a custom adapter + signal (core/invitations_adapter.py) instead of
+# allauth's user_signed_up. ACCEPT_INVITE_AFTER_SIGNUP=True means clicking the
+# emailed link only verifies/stashes the email and redirects to signup — the
+# invitation isn't actually marked accepted (and no FamilyMembership created)
+# until that signup form is actually submitted successfully.
+INVITATIONS_ADAPTER = "core.invitations_adapter.FamlyAppInvitationsAdapter"
+INVITATIONS_ACCEPT_INVITE_AFTER_SIGNUP = True
+INVITATIONS_SIGNUP_REDIRECT = "core:onboarding_signup"
+INVITATIONS_CONFIRMATION_URL_NAME = "invitations:accept-invite"

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Family Members — Family App{% endblock %}
+{% block page_title %}Family Members{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-8">
+
+  <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">Invite Someone</h2>
+    <form method="post" action="{% url 'core:send_invite' %}" class="flex gap-3">
+      {% csrf_token %}
+      <input type="email" name="email" placeholder="family-member@example.com" required
+             class="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+      <button type="submit"
+              class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shrink-0">
+        Send invite
+      </button>
+    </form>
+  </section>
+
+  <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">Members</h2>
+    <ul class="divide-y divide-gray-100">
+      {% for membership in members %}
+      <li class="py-3 flex items-center justify-between">
+        <span class="text-sm text-gray-900">{{ membership.user.get_full_name|default:membership.user.username }}</span>
+        <span class="text-xs font-medium text-gray-500 uppercase">{{ membership.get_role_display }}</span>
+      </li>
+      {% empty %}
+      <li class="py-3 text-sm text-gray-400">No members yet.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  {% if pending_invites %}
+  <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">Pending Invites</h2>
+    <ul class="divide-y divide-gray-100">
+      {% for invite in pending_invites %}
+      <li class="py-3 flex items-center justify-between">
+        <span class="text-sm text-gray-900">{{ invite.email }}</span>
+        <span class="text-xs font-medium text-amber-600 uppercase">Pending</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+</div>
+{% endblock %}

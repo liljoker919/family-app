@@ -1,0 +1,10 @@
+{% load i18n %}{% autoescape off %}{% blocktrans %}Hi,
+
+{{ inviter }} has invited you to join their family on Famly App.
+
+Click below to accept and set up your login:
+{{ invite_url }}
+
+If you weren't expecting this, you can safely ignore this email.
+
+— Famly App{% endblocktrans %}{% endautoescape %}
