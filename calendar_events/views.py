@@ -2,10 +2,10 @@ import logging
 from datetime import date as dt_date, datetime, timedelta, timezone as dt_timezone
 
 import requests
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.utils import timezone as tz
 from django.utils.dateparse import parse_date, parse_datetime
@@ -13,74 +13,31 @@ from django.views.generic import CreateView, DeleteView, TemplateView, UpdateVie
 
 from core.mixins import AccountScopedMixin, AccountStampMixin, SubscriptionRequiredMixin
 
-from .forms import CalendarEventForm
-from .models import CalendarEvent
+from .forms import CalendarEventForm, ExternalCalendarFeedForm
+from .models import CalendarEvent, ExternalCalendarFeed
 
 logger = logging.getLogger(__name__)
 
-
-# ── External calendar source helpers ─────────────────────────────────────────
-
-def _fetch_google_events(start_dt, end_dt):
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-
-    creds_path = getattr(settings, "GOOGLE_CALENDAR_CREDENTIALS", None)
-    calendar_id = getattr(settings, "GOOGLE_CALENDAR_ID", "primary")
-    if not creds_path:
-        return []
-
-    credentials = service_account.Credentials.from_service_account_file(
-        creds_path,
-        scopes=["https://www.googleapis.com/auth/calendar.readonly"],
-    )
-    service = build("calendar", "v3", credentials=credentials, cache_discovery=False)
-
-    params = {"calendarId": calendar_id, "singleEvents": True, "orderBy": "startTime"}
-    if start_dt:
-        params["timeMin"] = start_dt.isoformat()
-    if end_dt:
-        params["timeMax"] = end_dt.isoformat()
-
-    items = service.events().list(**params).execute().get("items", [])
-    events = []
-    for item in items:
-        start_raw = item["start"].get("dateTime") or item["start"].get("date")
-        end_raw = item["end"].get("dateTime") or item["end"].get("date") if "end" in item else None
-        all_day = "dateTime" not in item["start"]
-
-        payload = {
-            "id": f"google-{item['id']}",
-            "title": item.get("summary") or "(No title)",
-            "start": start_raw,
-            "allDay": all_day,
-            "color": "#10B981",
-            "extendedProps": {
-                "type": "google",
-                "description": item.get("description", ""),
-                "location": item.get("location", ""),
-                "htmlLink": item.get("htmlLink", ""),
-            },
-        }
-        if end_raw:
-            payload["end"] = end_raw
-        events.append(payload)
-
-    return events
+_PROVIDER_COLORS = {
+    ExternalCalendarFeed.PROVIDER_GOOGLE: "#10B981",
+    ExternalCalendarFeed.PROVIDER_OUTLOOK: "#8B5CF6",
+}
 
 
-def _fetch_outlook_events(start_dt, end_dt):
+# ── External calendar source helper ──────────────────────────────────────────
+
+def _fetch_ical_events(ical_url, provider, start_dt, end_dt):
+    """Fetch and parse a single account's iCal feed URL (#338) — same
+    mechanism for Google and Outlook, since both expose a "secret address in
+    iCal format" per calendar with no OAuth required."""
     from icalendar import Calendar as ICalendar
-
-    ical_url = getattr(settings, "OUTLOOK_ICAL_URL", None)
-    if not ical_url:
-        return []
 
     resp = requests.get(ical_url, timeout=10)
     resp.raise_for_status()
 
     cal = ICalendar.from_ical(resp.content)
     events = []
+    color = _PROVIDER_COLORS.get(provider, "#8B5CF6")
 
     for component in cal.walk():
         if component.name != "VEVENT":
@@ -112,13 +69,13 @@ def _fetch_outlook_events(start_dt, end_dt):
         end_str = end_val.isoformat() if end_val is not None else None
 
         payload = {
-            "id": f"outlook-{component.get('UID', '')}",
+            "id": f"{provider}-{component.get('UID', '')}",
             "title": str(component.get("SUMMARY", "(No title)")),
             "start": start_str,
             "allDay": all_day,
-            "color": "#8B5CF6",
+            "color": color,
             "extendedProps": {
-                "type": "outlook",
+                "type": provider,
                 "description": str(component.get("DESCRIPTION") or ""),
                 "location": str(component.get("LOCATION") or ""),
             },
@@ -298,17 +255,12 @@ def collect_events(account, start_dt, end_dt):
     except Exception:
         logger.exception("Family tasks calendar fetch failed")
 
-    # ── Google Calendar (live proxy) ─────────────────────────────────────────
-    try:
-        events.extend(_fetch_google_events(start_dt, end_dt))
-    except Exception:
-        logger.exception("Google Calendar fetch failed")
-
-    # ── Outlook iCal (live proxy) ────────────────────────────────────────────
-    try:
-        events.extend(_fetch_outlook_events(start_dt, end_dt))
-    except Exception:
-        logger.exception("Outlook iCal fetch failed")
+    # ── External calendar feeds (Google/Outlook iCal, live proxy) ───────────
+    for feed in ExternalCalendarFeed.objects.filter(account=account):
+        try:
+            events.extend(_fetch_ical_events(feed.ical_url, feed.provider, start_dt, end_dt))
+        except Exception:
+            logger.exception("External calendar fetch failed for feed %s", feed.pk)
 
     return events
 
@@ -362,3 +314,42 @@ class EventDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScop
     model = CalendarEvent
     template_name = "calendar_events/event_confirm_delete.html"
     success_url = reverse_lazy("calendar_events:calendar")
+
+
+class FeedSettingsView(LoginRequiredMixin, SubscriptionRequiredMixin, TemplateView):
+    """List + add page for per-account Google/Outlook iCal feed URLs (#338).
+    Family-tier only, same as the calendar itself."""
+
+    template_name = "calendar_events/feed_settings.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["feeds"] = ExternalCalendarFeed.objects.filter(account=self.request.account)
+        context["form"] = ExternalCalendarFeedForm()
+        return context
+
+
+class FeedCreateView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountStampMixin, CreateView):
+    """POST-only — the add form lives inline on the settings page itself."""
+
+    model = ExternalCalendarFeed
+    form_class = ExternalCalendarFeedForm
+    http_method_names = ["post"]
+    success_url = reverse_lazy("calendar_events:feed_settings")
+
+    def form_invalid(self, form):
+        # Simple redirect-with-error rather than a second template — the
+        # settings page already re-renders an empty form either way.
+        return redirect("calendar_events:feed_settings")
+
+
+class FeedDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, DeleteView):
+    """POST-only — no separate confirmation page, just a delete button on
+    the settings list itself."""
+
+    model = ExternalCalendarFeed
+    http_method_names = ["post"]
+    success_url = reverse_lazy("calendar_events:feed_settings")
+
+    def post(self, request, *args, **kwargs):
+        return self.delete(request, *args, **kwargs)

@@ -2,9 +2,6 @@ Django>=5.1,<6.0
 django-simple-history>=3.10.0
 gunicorn>=22.0.0
 whitenoise>=6.7.0
-google-auth
-google-auth-httplib2
-google-api-python-client
 icalendar
 requests
 sentry-sdk[django]>=2.0.0

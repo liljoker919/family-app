@@ -44,11 +44,6 @@ STORAGES = {
     },
 }
 
-GOOGLE_CALENDAR_CREDENTIALS = os.environ.get("GOOGLE_CALENDAR_CREDENTIALS", "")
-GOOGLE_CALENDAR_ID = os.environ.get("GOOGLE_CALENDAR_ID", "primary")
-
-OUTLOOK_ICAL_URL = os.environ.get("OUTLOOK_ICAL_URL", "")
-
 # Stripe / dj-stripe — blank until a real Stripe account exists; djstripe's own
 # settings shim defaults every one of these to "" / False, so the app runs fine
 # with billing simply inert until they're set.

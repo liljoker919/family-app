@@ -14,7 +14,3 @@ DATABASES = {
 # Suppress WhiteNoise warning about missing staticfiles dir in CI
 WHITENOISE_AUTOREFRESH = True
 STATICFILES_DIRS = []
-
-# Disable external service integrations during CI tests
-OUTLOOK_ICAL_URL = None
-GOOGLE_CALENDAR_CREDENTIALS = None

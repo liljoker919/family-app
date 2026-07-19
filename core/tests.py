@@ -489,7 +489,7 @@ class SubscriptionRequiredMixinTestCase(TestCase):
         self.family_client.login(username="family_user", password="pass")
 
     def test_free_tier_gated_endpoints_redirect_to_upgrade(self):
-        gated_urls = ["/vehicles/", "/property/", "/calendar/", "/vacations/", "/cookbook/"]
+        gated_urls = ["/vehicles/", "/property/", "/calendar/", "/vacations/", "/cookbook/", "/calendar/settings/"]
         for url in gated_urls:
             with self.subTest(url=url):
                 response = self.free_client.get(url)
@@ -507,7 +507,7 @@ class SubscriptionRequiredMixinTestCase(TestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_family_tier_gated_endpoints_return_200(self):
-        gated_urls = ["/vehicles/", "/property/", "/calendar/", "/vacations/", "/cookbook/"]
+        gated_urls = ["/vehicles/", "/property/", "/calendar/", "/vacations/", "/cookbook/", "/calendar/settings/"]
         for url in gated_urls:
             with self.subTest(url=url):
                 response = self.family_client.get(url)

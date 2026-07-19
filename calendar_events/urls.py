@@ -10,4 +10,7 @@ urlpatterns = [
     path("event/add/", views.EventCreateView.as_view(), name="event_create"),
     path("event/<int:pk>/edit/", views.EventUpdateView.as_view(), name="event_update"),
     path("event/<int:pk>/delete/", views.EventDeleteView.as_view(), name="event_delete"),
+    path("settings/", views.FeedSettingsView.as_view(), name="feed_settings"),
+    path("settings/add/", views.FeedCreateView.as_view(), name="feed_create"),
+    path("settings/<int:pk>/delete/", views.FeedDeleteView.as_view(), name="feed_delete"),
 ]
