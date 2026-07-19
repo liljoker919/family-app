@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import PasswordChangeView as DjangoPasswordChangeView
 from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -15,7 +16,7 @@ from django_ratelimit.decorators import ratelimit
 from invitations.forms import InviteForm
 from invitations.utils import get_invitation_model
 
-from .forms import InvitedSignupForm, SignupForm
+from .forms import InvitedSignupForm, PasswordChangeForm, ProfileForm, SignupForm
 from .invitations_adapter import user_signed_up
 from .models import FamilyAccount, FamilyMembership
 
@@ -292,6 +293,37 @@ class OnboardingCompleteView(LoginRequiredMixin, View):
             account.save(update_fields=["onboarding_complete"])
         messages.success(request, "Welcome to Famly App! Your subscription is being activated.")
         return redirect("core:dashboard")
+
+
+# ── Profile ───────────────────────────────────────────────────────────────
+
+class ProfileView(LoginRequiredMixin, View):
+    """Name/email edit for the logged-in user (#312). Password change is
+    handled separately by Django's built-in PasswordChangeView, already
+    registered via django.contrib.auth.urls — just linked from here with
+    app-styled templates (templates/registration/password_change_*.html)."""
+
+    template_name = "core/profile.html"
+
+    def get(self, request):
+        return render(request, self.template_name, {"form": ProfileForm(instance=request.user)})
+
+    def post(self, request):
+        form = ProfileForm(request.POST, instance=request.user)
+        if not form.is_valid():
+            return render(request, self.template_name, {"form": form})
+        form.save()
+        messages.success(request, "Profile updated.")
+        return redirect("core:profile")
+
+
+class StyledPasswordChangeView(DjangoPasswordChangeView):
+    """Overrides the plain default from django.contrib.auth.urls with the
+    app-styled form/template — wired ahead of that include() in
+    family_project/urls.py so this wins the `password_change` URL name."""
+
+    form_class = PasswordChangeForm
+    template_name = "registration/password_change_form.html"
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):

@@ -8,6 +8,7 @@ from .views import (
     OnboardingPlanView,
     OnboardingRedirectView,
     OnboardingSignupView,
+    ProfileView,
     SendInviteView,
     UpgradeRequiredView,
 )
@@ -24,4 +25,5 @@ urlpatterns = [
     path("onboarding/complete/", OnboardingCompleteView.as_view(), name="onboarding_complete"),
     path("invite/", InviteMembersView.as_view(), name="invite_members"),
     path("invite/send/", SendInviteView.as_view(), name="send_invite"),
+    path("profile/", ProfileView.as_view(), name="profile"),
 ]

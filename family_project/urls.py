@@ -2,12 +2,14 @@ from django.contrib import admin
 from django.urls import include, path
 from invitations.views import AcceptInvite
 
-from core.views import RateLimitedLoginView
+from core.views import RateLimitedLoginView, StyledPasswordChangeView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # Rate-limited login must come before the auth.urls include so it wins the match.
+    # Rate-limited login and the app-styled password-change form must come
+    # before the auth.urls include so they win the name match.
     path("accounts/login/", RateLimitedLoginView.as_view(), name="login"),
+    path("accounts/password_change/", StyledPasswordChangeView.as_view(), name="password_change"),
     path("accounts/", include("django.contrib.auth.urls")),
     path("stripe/", include("djstripe.urls", namespace="djstripe")),
     # Only the accept-invite endpoint is wired — send-invite/send-json-invite

@@ -178,16 +178,22 @@
           {% endif %}
         </div>
         <div class="min-w-0 flex-1">
-          <p class="truncate text-sm font-medium text-white">
+          <a href="{% url 'core:profile' %}" class="block truncate text-sm font-medium text-white hover:text-blue-300 transition-colors">
             {% firstof request.user.get_full_name request.user.username %}
-          </p>
-          <form method="post" action="{% url 'logout' %}" class="inline">
-            {% csrf_token %}
-            <button type="submit"
-                    class="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer">
-              Sign out
-            </button>
-          </form>
+          </a>
+          <div class="flex items-center gap-2">
+            <a href="{% url 'core:profile' %}" class="text-xs text-slate-400 hover:text-white transition-colors">
+              Profile
+            </a>
+            <span class="text-slate-600">·</span>
+            <form method="post" action="{% url 'logout' %}" class="inline">
+              {% csrf_token %}
+              <button type="submit"
+                      class="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer">
+                Sign out
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>

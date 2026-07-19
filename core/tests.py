@@ -55,6 +55,9 @@ _ALL_ENDPOINTS = [
     "/calendar/event/1/delete/",
     # Family members / invitations
     "/invite/",
+    # Profile
+    "/profile/",
+    "/accounts/password_change/",
 ]
 
 
@@ -254,6 +257,8 @@ class AuthenticatedAccessTestCase(TestCase):
             f"/calendar/event/{self.event.pk}/edit/",
             f"/calendar/event/{self.event.pk}/delete/",
             "/invite/",
+            "/profile/",
+            "/accounts/password_change/",
         ]
 
     def test_authenticated_get_returns_200(self):
@@ -926,3 +931,94 @@ class InviteMembersViewTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "view_owner")
         self.assertContains(response, "pending@example.com")
+
+
+class ProfileViewTestCase(TestCase):
+    """#312/#314 — name/email edit, scoped to the logged-in user only."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="profile_user", password="pass12345",
+            first_name="Pat", last_name="Original", email="pat@example.com",
+        )
+        self.other_user = User.objects.create_user(
+            username="other_profile_user", password="pass12345", email="other@example.com",
+        )
+        self.client.login(username="profile_user", password="pass12345")
+
+    def test_get_shows_current_values(self):
+        response = self.client.get("/profile/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pat")
+        self.assertContains(response, "pat@example.com")
+
+    def test_post_updates_own_profile(self):
+        response = self.client.post(
+            "/profile/",
+            {"first_name": "Patricia", "last_name": "Updated", "email": "patricia@example.com"},
+        )
+        self.assertRedirects(response, "/profile/")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, "Patricia")
+        self.assertEqual(self.user.last_name, "Updated")
+        self.assertEqual(self.user.email, "patricia@example.com")
+
+    def test_post_does_not_affect_other_users(self):
+        self.client.post(
+            "/profile/",
+            {"first_name": "Patricia", "last_name": "Updated", "email": "patricia@example.com"},
+        )
+        self.other_user.refresh_from_db()
+        self.assertEqual(self.other_user.email, "other@example.com")
+
+    def test_post_duplicate_email_rejected(self):
+        response = self.client.post(
+            "/profile/",
+            {"first_name": "Pat", "last_name": "Original", "email": "other@example.com"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Another account is already using that email")
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "pat@example.com")
+
+    def test_keeping_own_email_is_not_a_duplicate(self):
+        response = self.client.post(
+            "/profile/",
+            {"first_name": "Pat", "last_name": "Original", "email": "pat@example.com"},
+        )
+        self.assertRedirects(response, "/profile/")
+
+
+class PasswordChangeTestCase(TestCase):
+    """Wired via core.views.StyledPasswordChangeView (#312) — styled
+    override of Django's built-in PasswordChangeView."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="pwd_user", password="original-pass-123")
+        self.client.login(username="pwd_user", password="original-pass-123")
+
+    def test_correct_old_password_changes_it(self):
+        response = self.client.post(
+            "/accounts/password_change/",
+            {
+                "old_password": "original-pass-123",
+                "new_password1": "a much better new password 456",
+                "new_password2": "a much better new password 456",
+            },
+        )
+        self.assertRedirects(response, "/accounts/password_change/done/")
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("a much better new password 456"))
+
+    def test_wrong_old_password_rejected(self):
+        response = self.client.post(
+            "/accounts/password_change/",
+            {
+                "old_password": "totally-wrong-password",
+                "new_password1": "a much better new password 456",
+                "new_password2": "a much better new password 456",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("original-pass-123"))

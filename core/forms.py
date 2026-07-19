@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import PasswordChangeForm as DjangoPasswordChangeForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
@@ -62,6 +63,33 @@ class SignupForm(_UsernamePasswordMixin, forms.Form):
         if User.objects.filter(email__iexact=email).exists():
             raise ValidationError("An account with that email already exists.")
         return email
+
+
+class ProfileForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "email"]
+        widgets = {
+            "first_name": forms.TextInput(attrs={"class": _INPUT}),
+            "last_name": forms.TextInput(attrs={"class": _INPUT}),
+            "email": forms.EmailInput(attrs={"class": _INPUT}),
+        }
+
+    def clean_email(self):
+        email = self.cleaned_data["email"]
+        if User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+            raise ValidationError("Another account is already using that email.")
+        return email
+
+
+class PasswordChangeForm(DjangoPasswordChangeForm):
+    """Django's PasswordChangeForm has no CSS hooks — style it to match
+    every other form in the app instead of leaving it bare."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs["class"] = _INPUT
 
 
 class InvitedSignupForm(_UsernamePasswordMixin, forms.Form):
