@@ -1,4 +1,25 @@
+from urllib.parse import urlparse
+
 from django.db import models
+
+# #355 — the feed URL is fetched server-side (SSRF shape), so it's restricted
+# to the actual calendar-provider hostnames this feature supports rather than
+# accepting any URL. https-only, exact hostname match (not a suffix match, to
+# avoid tricks like "calendar.google.com.evil.example").
+ALLOWED_ICAL_HOSTS = {
+    "calendar.google.com",
+    "outlook.live.com",
+    "outlook.office365.com",
+    "outlook.office.com",
+}
+
+
+def is_allowed_ical_host(url):
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return False
+    return parsed.scheme == "https" and parsed.hostname in ALLOWED_ICAL_HOSTS
 
 
 class ExternalCalendarFeed(models.Model):

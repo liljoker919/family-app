@@ -72,9 +72,13 @@ AWS_SES_SECRET_ACCESS_KEY = os.environ.get("AWS_SES_SECRET_ACCESS_KEY", "")
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "false").lower() == "true"
-SESSION_COOKIE_SECURE = os.environ.get("SECURE_SSL_REDIRECT", "false").lower() == "true"
-CSRF_COOKIE_SECURE = os.environ.get("SECURE_SSL_REDIRECT", "false").lower() == "true"
+# prod.py only ever runs in production — there's no legitimate case where it
+# should serve plain HTTP or send cookies without the Secure flag, so these
+# are unconditional rather than env-gated (#343: the previous env-var-gated
+# version defaulted to insecure if the var was ever unset/misspelled).
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 X_FRAME_OPTIONS = "DENY"
 
 LOGGING = {

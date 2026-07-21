@@ -2,6 +2,7 @@ import logging
 from datetime import date as dt_date, datetime, timedelta, timezone as dt_timezone
 
 import requests
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
@@ -14,7 +15,7 @@ from django.views.generic import CreateView, DeleteView, TemplateView, UpdateVie
 from core.mixins import AccountScopedMixin, AccountStampMixin, SubscriptionRequiredMixin
 
 from .forms import CalendarEventForm, ExternalCalendarFeedForm
-from .models import CalendarEvent, ExternalCalendarFeed
+from .models import CalendarEvent, ExternalCalendarFeed, is_allowed_ical_host
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,21 @@ def _fetch_ical_events(ical_url, provider, start_dt, end_dt):
     iCal format" per calendar with no OAuth required."""
     from icalendar import Calendar as ICalendar
 
+    # Defense-in-depth: ExternalCalendarFeedForm already rejects non-provider
+    # hosts at save time (#355) — this is the last line of defense against
+    # SSRF regardless of how a URL ended up in the DB.
+    if not is_allowed_ical_host(ical_url):
+        logger.warning("Refused to fetch disallowed calendar host: %s", ical_url)
+        return []
+
     resp = requests.get(ical_url, timeout=10)
     resp.raise_for_status()
+
+    # Re-check the *final* URL post-redirect — a validated provider URL could
+    # otherwise redirect to an internal address and bypass the check above.
+    if not is_allowed_ical_host(resp.url):
+        logger.warning("Refused calendar feed that redirected off-allowlist: %s -> %s", ical_url, resp.url)
+        return []
 
     cal = ICalendar.from_ical(resp.content)
     events = []
@@ -340,6 +354,8 @@ class FeedCreateView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountStamp
     def form_invalid(self, form):
         # Simple redirect-with-error rather than a second template — the
         # settings page already re-renders an empty form either way.
+        error = next(iter(form.errors.get("ical_url", [])), "Couldn't add that calendar feed.")
+        messages.error(self.request, error)
         return redirect("calendar_events:feed_settings")
 
 

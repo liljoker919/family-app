@@ -6,7 +6,7 @@ from django.test import Client, TestCase
 
 from core.models import FamilyAccount, FamilyMembership
 
-from .models import ExternalCalendarFeed
+from .models import ExternalCalendarFeed, is_allowed_ical_host
 from .views import _fetch_ical_events, collect_events
 
 User = get_user_model()
@@ -22,12 +22,46 @@ END:VEVENT
 END:VCALENDAR
 """
 
+_GOOGLE_URL = "https://calendar.google.com/calendar/ical/abc123/basic.ics"
+_OUTLOOK_URL = "https://outlook.live.com/owa/calendar/abc123/calendar.ics"
 
-def _mock_response():
+
+def _mock_response(url=_GOOGLE_URL):
     resp = Mock()
     resp.content = _ICS_PAYLOAD
     resp.raise_for_status = Mock()
+    resp.url = url  # final URL post-redirect — checked again in _fetch_ical_events (#355)
     return resp
+
+
+class IsAllowedIcalHostTestCase(TestCase):
+    """#355 — the feed URL is fetched server-side (SSRF shape), so it's
+    restricted to the actual calendar-provider hostnames this feature
+    supports rather than accepting any URL."""
+
+    def test_accepts_google_and_outlook(self):
+        self.assertTrue(is_allowed_ical_host(_GOOGLE_URL))
+        self.assertTrue(is_allowed_ical_host(_OUTLOOK_URL))
+        self.assertTrue(is_allowed_ical_host("https://outlook.office365.com/owa/calendar/x/calendar.ics"))
+
+    def test_rejects_non_provider_host(self):
+        self.assertFalse(is_allowed_ical_host("https://example.com/feed.ics"))
+
+    def test_rejects_internal_and_metadata_hosts(self):
+        self.assertFalse(is_allowed_ical_host("http://169.254.169.254/latest/meta-data/"))
+        self.assertFalse(is_allowed_ical_host("http://localhost/feed.ics"))
+        self.assertFalse(is_allowed_ical_host("http://127.0.0.1/feed.ics"))
+        self.assertFalse(is_allowed_ical_host("http://10.0.0.5/feed.ics"))
+
+    def test_rejects_lookalike_subdomain_trick(self):
+        self.assertFalse(is_allowed_ical_host("https://calendar.google.com.evil.example/feed.ics"))
+
+    def test_rejects_non_https_scheme(self):
+        self.assertFalse(is_allowed_ical_host("http://calendar.google.com/calendar/ical/abc/basic.ics"))
+
+    def test_rejects_malformed_url(self):
+        self.assertFalse(is_allowed_ical_host("not a url"))
+        self.assertFalse(is_allowed_ical_host(""))
 
 
 class FetchIcalEventsTestCase(TestCase):
@@ -36,19 +70,33 @@ class FetchIcalEventsTestCase(TestCase):
 
     @patch("calendar_events.views.requests.get", return_value=_mock_response())
     def test_parses_events_with_provider_prefix_and_color(self, mock_get):
-        events = _fetch_ical_events("https://example.com/feed.ics", "google", None, None)
-        mock_get.assert_called_once_with("https://example.com/feed.ics", timeout=10)
+        events = _fetch_ical_events(_GOOGLE_URL, "google", None, None)
+        mock_get.assert_called_once_with(_GOOGLE_URL, timeout=10)
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["id"], "google-test-event-1")
         self.assertEqual(events[0]["title"], "Test Event")
         self.assertEqual(events[0]["color"], "#10B981")
         self.assertEqual(events[0]["extendedProps"]["type"], "google")
 
-    @patch("calendar_events.views.requests.get", return_value=_mock_response())
+    @patch("calendar_events.views.requests.get", return_value=_mock_response(url=_OUTLOOK_URL))
     def test_outlook_provider_gets_its_own_color(self, mock_get):
-        events = _fetch_ical_events("https://example.com/feed.ics", "outlook", None, None)
+        events = _fetch_ical_events(_OUTLOOK_URL, "outlook", None, None)
         self.assertEqual(events[0]["color"], "#8B5CF6")
         self.assertEqual(events[0]["id"], "outlook-test-event-1")
+
+    def test_disallowed_host_never_reaches_requests_get(self):
+        with patch("calendar_events.views.requests.get") as mock_get:
+            events = _fetch_ical_events("https://example.com/feed.ics", "google", None, None)
+        mock_get.assert_not_called()
+        self.assertEqual(events, [])
+
+    @patch("calendar_events.views.requests.get", return_value=_mock_response(url="https://internal.example/steal"))
+    def test_redirect_off_allowlist_is_rejected_after_fetch(self, mock_get):
+        # ical_url itself passes the pre-fetch check, but the response's
+        # final (post-redirect) URL doesn't — must still be rejected.
+        events = _fetch_ical_events(_GOOGLE_URL, "google", None, None)
+        mock_get.assert_called_once()
+        self.assertEqual(events, [])
 
 
 class CollectEventsExternalFeedTestCase(TestCase):
@@ -69,7 +117,7 @@ class CollectEventsExternalFeedTestCase(TestCase):
         FamilyMembership.objects.create(account=self.account_b, user=self.user_b, role="owner")
 
         ExternalCalendarFeed.objects.create(
-            account=self.account_a, provider="google", ical_url="https://example.com/a.ics",
+            account=self.account_a, provider="google", ical_url=_GOOGLE_URL,
         )
 
     @patch("calendar_events.views.requests.get", return_value=_mock_response())
@@ -104,12 +152,20 @@ class FeedSettingsViewTestCase(TestCase):
     def test_post_creates_feed_scoped_to_own_account(self):
         response = self.client.post(
             "/calendar/settings/add/",
-            {"provider": "outlook", "ical_url": "https://example.com/mine.ics"},
+            {"provider": "outlook", "ical_url": _OUTLOOK_URL},
         )
         self.assertRedirects(response, "/calendar/settings/")
-        feed = ExternalCalendarFeed.objects.get(ical_url="https://example.com/mine.ics")
+        feed = ExternalCalendarFeed.objects.get(ical_url=_OUTLOOK_URL)
         self.assertEqual(feed.account, self.account)
         self.assertEqual(feed.provider, "outlook")
+
+    def test_post_disallowed_host_does_not_create_feed(self):
+        response = self.client.post(
+            "/calendar/settings/add/",
+            {"provider": "google", "ical_url": "https://example.com/feed.ics"},
+        )
+        self.assertRedirects(response, "/calendar/settings/")
+        self.assertFalse(ExternalCalendarFeed.objects.filter(ical_url="https://example.com/feed.ics").exists())
 
     def test_delete_removes_own_feed(self):
         feed = ExternalCalendarFeed.objects.create(
