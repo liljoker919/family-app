@@ -77,3 +77,6 @@ echo "✅  Setup complete. App is running at http://$(curl -sf http://checkip.am
 echo ""
 echo "   Next: create a Django superuser"
 echo "   sudo -u ec2-user DJANGO_SETTINGS_MODULE=family_project.settings.prod $APP_DIR/venv/bin/python $APP_DIR/manage.py createsuperuser"
+echo ""
+echo "   Then: once DNS points at this box, set up TLS — see docs/deploy/tls-certbot.md"
+echo "   (this is a separate manual step; skipping it leaves the site on HTTP only)"
