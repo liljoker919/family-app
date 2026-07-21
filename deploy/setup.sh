@@ -21,8 +21,6 @@ else
     git clone "$REPO_URL" "$APP_DIR"
 fi
 
-# db/ must exist before migrations; create after clone so git doesn't refuse a non-empty dir
-mkdir -p "$APP_DIR/db"
 
 echo "── Setting up Python virtual environment ────────────────────────────────"
 python3.11 -m venv "$APP_DIR/venv"
