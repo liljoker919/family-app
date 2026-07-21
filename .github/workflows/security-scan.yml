@@ -1,0 +1,39 @@
+name: Security Scan
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  security-scan:
+    name: Security Scan (bandit + pip-audit)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies + scanners
+        run: |
+          pip install -r requirements.txt
+          pip install bandit pip-audit
+
+      - name: Run bandit (static analysis)
+        # continue-on-error: initial rollout is report-only (#349) until the
+        # existing findings backlog is triaged/suppressed; then remove this.
+        continue-on-error: true
+        run: bandit -r . -x ./.venv,./staticfiles --severity-level medium
+
+      - name: Run pip-audit (dependency CVEs)
+        continue-on-error: true
+        run: pip-audit -r requirements.txt
