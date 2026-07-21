@@ -193,7 +193,11 @@
   <footer class="border-t border-gray-100 py-10">
     <div class="mx-auto max-w-6xl px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
       <span>&copy; {% now "Y" %} Hey Famly</span>
-      <a href="/accounts/login/" class="hover:text-gray-700">Sign in</a>
+      <div class="flex items-center gap-6">
+        <a href="{% url 'core:privacy_policy' %}" class="hover:text-gray-700">Privacy Policy</a>
+        <a href="{% url 'core:terms_of_service' %}" class="hover:text-gray-700">Terms of Service</a>
+        <a href="/accounts/login/" class="hover:text-gray-700">Sign in</a>
+      </div>
     </div>
   </footer>
 

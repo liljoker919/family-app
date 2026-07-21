@@ -9,8 +9,10 @@ from .views import (
     OnboardingPlanView,
     OnboardingRedirectView,
     OnboardingSignupView,
+    PrivacyPolicyView,
     ProfileView,
     SendInviteView,
+    TermsOfServiceView,
     UpgradeRequiredView,
 )
 
@@ -28,4 +30,6 @@ urlpatterns = [
     path("invite/", InviteMembersView.as_view(), name="invite_members"),
     path("invite/send/", SendInviteView.as_view(), name="send_invite"),
     path("profile/", ProfileView.as_view(), name="profile"),
+    path("privacy/", PrivacyPolicyView.as_view(), name="privacy_policy"),
+    path("terms/", TermsOfServiceView.as_view(), name="terms_of_service"),
 ]

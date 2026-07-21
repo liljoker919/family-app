@@ -1,0 +1,92 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Service — Hey Famly</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-white text-gray-900">
+
+  <header class="border-b border-gray-100">
+    <div class="mx-auto flex max-w-3xl items-center gap-2 px-6 py-5">
+      <img src="{% static 'img/favicon.png' %}" alt="" class="h-7 w-7">
+      <a href="/" class="font-semibold text-lg tracking-tight text-gray-900">Hey Famly</a>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-3xl px-6 py-12">
+    <h1 class="text-3xl font-bold text-gray-900">Terms of Service</h1>
+    <p class="mt-2 text-sm text-gray-500">Last updated: July 20, 2026</p>
+
+    <div class="mt-10 space-y-8 text-gray-700 leading-relaxed">
+
+      <section>
+        <p>These Terms of Service ("Terms") govern your use of Hey Famly, a household organization service operated by Oak City Software Solutions ("we," "us," "our") at heyfamlyapp.com. By creating an account, you agree to these Terms and to our <a href="{% url 'core:privacy_policy' %}" class="text-blue-600 hover:underline">Privacy Policy</a>.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">The service</h2>
+        <p>Hey Famly helps a household organize vehicles, home maintenance, a shared calendar, vacations, recipes, a shopping list, and tasks in one place. Features available to your family account depend on your subscription plan.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Accounts</h2>
+        <p>You must provide accurate information when creating an account and are responsible for keeping your password secure and for all activity under your account. One person creates a family account and can invite other members; the account owner is responsible for the family account's subscription and for the conduct of members they invite.</p>
+        <p class="mt-2">You must be able to form a binding contract to create an account. Hey Famly isn't directed to children under 13 — see our Privacy Policy.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Plans &amp; billing</h2>
+        <p>Hey Famly offers a <strong>Free</strong> plan (Tasks and Shopping List, up to 2 members) and a paid <strong>Family</strong> plan (all modules, unlimited members, calendar sync) billed monthly through our payment processor, Stripe. By subscribing to a paid plan, you authorize us to charge your payment method on a recurring basis until you cancel.</p>
+        <p class="mt-2">To cancel a subscription or change plans, email <a href="mailto:cnickerson@oakcitysoftwaresolutions.com" class="text-blue-600 hover:underline">cnickerson@oakcitysoftwaresolutions.com</a> — self-service subscription management isn't available yet. Cancellation stops future billing; we don't provide refunds for partial billing periods except where required by law.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Acceptable use</h2>
+        <p>Don't use Hey Famly to store or transmit unlawful content, attempt to access another family account's data, interfere with the service's operation, or use the invitation system to send unsolicited invitations to people who haven't asked for one.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Your content</h2>
+        <p>You own the content you and your family members enter into Hey Famly. You grant us a limited license to host, store, and display it back to your family account solely to provide the service. We don't claim ownership of your content and don't use it to train AI/ML models.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Termination</h2>
+        <p>You may stop using Hey Famly at any time. We may suspend or terminate an account that violates these Terms, with notice where practical. Deleting an account and its data is currently handled by emailing us — see our Privacy Policy.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Disclaimer &amp; limitation of liability</h2>
+        <p>Hey Famly is provided "as is," without warranties of any kind. We don't guarantee the service will be uninterrupted or error-free. To the maximum extent permitted by law, our total liability for any claim relating to the service is limited to the amount you paid us in the 12 months before the claim arose.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Changes to these Terms</h2>
+        <p>We may update these Terms from time to time. If we make material changes, we'll update the date above and, where appropriate, notify account owners by email. Continuing to use Hey Famly after a change means you accept the updated Terms.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Governing law</h2>
+        <p>These Terms are governed by the laws of the State of North Carolina, without regard to its conflict-of-laws principles.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Contact</h2>
+        <p>Questions about these Terms? Email <a href="mailto:cnickerson@oakcitysoftwaresolutions.com" class="text-blue-600 hover:underline">cnickerson@oakcitysoftwaresolutions.com</a>.</p>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="border-t border-gray-100 py-8">
+    <div class="mx-auto max-w-3xl px-6 flex items-center justify-between gap-4 text-sm text-gray-500">
+      <span>&copy; {% now "Y" %} Hey Famly</span>
+      <a href="{% url 'core:privacy_policy' %}" class="hover:text-gray-700">Privacy Policy</a>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -1041,3 +1041,45 @@ class LandingPageViewTestCase(TestCase):
         self.client.login(username="landing_user", password="pass12345")
         response = self.client.get("/")
         self.assertRedirects(response, "/dashboard/")
+
+
+class LegalPagesTestCase(TestCase):
+    """#318/#321 — Privacy Policy and Terms of Service, viewable whether
+    logged in or not, linked from the landing page and onboarding's plan
+    step."""
+
+    def test_privacy_policy_reachable_anonymously(self):
+        response = self.client.get("/privacy/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Privacy Policy")
+        self.assertContains(response, "Stripe")
+        self.assertContains(response, "cnickerson@oakcitysoftwaresolutions.com")
+
+    def test_terms_of_service_reachable_anonymously(self):
+        response = self.client.get("/terms/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Terms of Service")
+        self.assertContains(response, "North Carolina")
+
+    def test_legal_pages_reachable_when_authenticated(self):
+        User.objects.create_user(username="legal_user", password="pass12345")
+        self.client.login(username="legal_user", password="pass12345")
+        self.assertEqual(self.client.get("/privacy/").status_code, 200)
+        self.assertEqual(self.client.get("/terms/").status_code, 200)
+
+    def test_landing_page_links_to_both(self):
+        response = self.client.get("/")
+        self.assertContains(response, "/privacy/")
+        self.assertContains(response, "/terms/")
+
+    def test_onboarding_plan_links_to_both(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        user = User.objects.create_user(username="plan_legal_user", password="pass12345")
+        account = FamilyAccount.objects.create(name="Legal Family", slug="legal-family", owner=user)
+        FamilyMembership.objects.create(account=account, user=user, role="owner")
+        self.client.login(username="plan_legal_user", password="pass12345")
+
+        response = self.client.get("/onboarding/plan/")
+        self.assertContains(response, "/privacy/")
+        self.assertContains(response, "/terms/")

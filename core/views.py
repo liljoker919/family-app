@@ -340,6 +340,18 @@ class LandingPageView(TemplateView):
         return super().get(request, *args, **kwargs)
 
 
+class PrivacyPolicyView(TemplateView):
+    """Public legal page (#318/#321) — viewable whether logged in or not."""
+
+    template_name = "core/privacy_policy.html"
+
+
+class TermsOfServiceView(TemplateView):
+    """Public legal page (#318) — viewable whether logged in or not."""
+
+    template_name = "core/terms_of_service.html"
+
+
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "core/dashboard.html"
 

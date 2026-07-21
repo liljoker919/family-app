@@ -1,0 +1,96 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — Hey Famly</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-white text-gray-900">
+
+  <header class="border-b border-gray-100">
+    <div class="mx-auto flex max-w-3xl items-center gap-2 px-6 py-5">
+      <img src="{% static 'img/favicon.png' %}" alt="" class="h-7 w-7">
+      <a href="/" class="font-semibold text-lg tracking-tight text-gray-900">Hey Famly</a>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-3xl px-6 py-12">
+    <h1 class="text-3xl font-bold text-gray-900">Privacy Policy</h1>
+    <p class="mt-2 text-sm text-gray-500">Last updated: July 20, 2026</p>
+
+    <div class="mt-10 space-y-8 text-gray-700 leading-relaxed">
+
+      <section>
+        <p>Hey Famly ("we," "us," "our") is operated by Oak City Software Solutions. This policy explains what information we collect when you use Hey Famly, how we use it, who we share it with, and what choices you have. It applies to heyfamlyapp.com and the Hey Famly application.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Information we collect</h2>
+        <p><strong>Account information.</strong> Name, email address, username, and password (stored as a salted hash — we never store or can see your plain-text password).</p>
+        <p><strong>Family account information.</strong> Your family account's name, subscription tier, and billing status.</p>
+        <p><strong>Content you provide.</strong> The information you or other members of your family account enter to use the service: vehicles and service records, home maintenance projects, calendar events (including any external Google/Outlook calendar feed URLs you choose to connect), vacations and itineraries, recipes and ingredients, shopping lists, and tasks.</p>
+        <p><strong>Payment information.</strong> If you subscribe to a paid plan, our payment processor (Stripe) collects your payment card details directly — we never receive or store your full card number.</p>
+        <p><strong>Technical information.</strong> Standard web server logs (IP address, browser type, pages requested) and error reports (see "Sub-processors" below).</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">How we use your information</h2>
+        <p>We use your information solely to provide and operate the service: to authenticate you, scope your data to your family account (other families can never see it), process subscription payments, send transactional email (invitations, payment notices), and diagnose technical problems. We do not sell your personal information, and we do not use your content to train any AI/ML models.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Who we share information with (sub-processors)</h2>
+        <p>We use a small number of third-party services to run Hey Famly. Each only receives the information it needs to perform its function:</p>
+        <ul class="list-disc pl-6 space-y-1 mt-2">
+          <li><strong>Stripe</strong> — payment processing and subscription billing. Stripe receives your payment details and billing email; we do not.</li>
+          <li><strong>Amazon Web Services (Lightsail, S3)</strong> — application hosting and encrypted database backups.</li>
+          <li><strong>Amazon SES</strong> — delivery of transactional email (account invitations, payment-failure notices).</li>
+          <li><strong>Sentry</strong> — error monitoring, so we can find and fix bugs. Sentry is configured not to collect personally identifiable information.</li>
+        </ul>
+        <p class="mt-2">We do not share your information with data brokers or advertisers, and we do not run advertising on Hey Famly.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Cookies</h2>
+        <p>We use two functional cookies required for the app to work: a session cookie (keeps you signed in) and a CSRF cookie (protects you from cross-site request forgery). We don't use advertising or third-party tracking cookies.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Data retention and deletion</h2>
+        <p>We retain your information for as long as your account is active. If you'd like your account and data deleted, or would like a copy of your data, email us at <a href="mailto:cnickerson@oakcitysoftwaresolutions.com" class="text-blue-600 hover:underline">cnickerson@oakcitysoftwaresolutions.com</a> and we'll handle the request directly — this is currently a manual process rather than a self-service one, and we'll confirm with you once it's complete.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Your rights</h2>
+        <p>Depending on where you live, you may have rights to access, correct, export, or delete your personal information, and to object to certain uses of it. Contact us at the email above to exercise any of these rights — we'll respond in good faith and in a reasonable time.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Children's privacy</h2>
+        <p>Hey Famly is intended for use by adults managing a household. It is not directed to children under 13, and we do not knowingly collect personal information directly from children under 13. A parent or guardian may assign tasks or list a family member by name within their own account.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Changes to this policy</h2>
+        <p>If we make material changes to this policy, we'll update the date above and, where appropriate, notify account owners by email.</p>
+      </section>
+
+      <section>
+        <h2 class="text-lg font-semibold text-gray-900 mb-2">Contact</h2>
+        <p>Questions about this policy? Email <a href="mailto:cnickerson@oakcitysoftwaresolutions.com" class="text-blue-600 hover:underline">cnickerson@oakcitysoftwaresolutions.com</a>.</p>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="border-t border-gray-100 py-8">
+    <div class="mx-auto max-w-3xl px-6 flex items-center justify-between gap-4 text-sm text-gray-500">
+      <span>&copy; {% now "Y" %} Hey Famly</span>
+      <a href="{% url 'core:terms_of_service' %}" class="hover:text-gray-700">Terms of Service</a>
+    </div>
+  </footer>
+
+</body>
+</html>
