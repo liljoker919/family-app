@@ -8,6 +8,11 @@ Group=ec2-user
 WorkingDirectory=/srv/family-app
 Environment="DJANGO_SETTINGS_MODULE=family_project.settings.prod"
 EnvironmentFile=/etc/family-app/env
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/srv/family-app /var/log/family-app
 ExecStart=/srv/family-app/venv/bin/gunicorn \
     --workers 2 \
     --bind 127.0.0.1:8000 \
