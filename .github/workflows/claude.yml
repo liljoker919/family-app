@@ -18,11 +18,19 @@ permissions:
 
 jobs:
   claude:
+    # #342 — this repo is public, and the substring check alone lets any
+    # GitHub account trigger a workflow holding contents:write/issues:write
+    # and the ANTHROPIC_API_KEY secret just by commenting "@claude" anywhere.
+    # Require the commenter/author to actually be OWNER/MEMBER/COLLABORATOR
+    # for every branch keyed off a body/comment substring. The 'assigned'
+    # branch is left as-is — GitHub itself restricts who can assign issues
+    # to triage/write-access collaborators, so it's not open to the public.
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || github.event.action == 'assigned'))
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association)) ||
+      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude') && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)) ||
+      (github.event_name == 'issues' && github.event.action == 'assigned')
     runs-on: ubuntu-latest
     steps:
       - name: Run Claude Code Action
