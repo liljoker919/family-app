@@ -273,8 +273,16 @@ def collect_events(account, start_dt, end_dt):
     for feed in ExternalCalendarFeed.objects.filter(account=account):
         try:
             events.extend(_fetch_ical_events(feed.ical_url, feed.provider, start_dt, end_dt))
-        except Exception:
+        except Exception as exc:
+            # #341 — surfaced on /calendar/settings/, not just Sentry.
             logger.exception("External calendar fetch failed for feed %s", feed.pk)
+            ExternalCalendarFeed.objects.filter(pk=feed.pk).update(
+                last_checked_at=tz.now(), last_error=str(exc)[:500],
+            )
+        else:
+            ExternalCalendarFeed.objects.filter(pk=feed.pk).update(
+                last_checked_at=tz.now(), last_error="",
+            )
 
     return events
 

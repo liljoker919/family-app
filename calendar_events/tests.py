@@ -134,6 +134,31 @@ class CollectEventsExternalFeedTestCase(TestCase):
             collect_events(self.account_b, None, None)
             mock_get.assert_not_called()
 
+    @patch("calendar_events.views.requests.get", return_value=_mock_response())
+    def test_successful_fetch_clears_last_error_and_records_checked_at(self, mock_get):
+        feed = ExternalCalendarFeed.objects.get(account=self.account_a)
+        feed.last_error = "some stale error from before"
+        feed.save(update_fields=["last_error"])
+
+        collect_events(self.account_a, None, None)
+
+        feed.refresh_from_db()
+        self.assertEqual(feed.last_error, "")
+        self.assertIsNotNone(feed.last_checked_at)
+
+    def test_failed_fetch_records_last_error_without_crashing(self):
+        feed = ExternalCalendarFeed.objects.get(account=self.account_a)
+        self.assertEqual(feed.last_error, "")
+        self.assertIsNone(feed.last_checked_at)
+
+        with patch("calendar_events.views.requests.get", side_effect=Exception("HTTPError: 500 Server Error")):
+            events = collect_events(self.account_a, None, None)  # must not raise
+
+        self.assertEqual(events, [])
+        feed.refresh_from_db()
+        self.assertIn("500 Server Error", feed.last_error)
+        self.assertIsNotNone(feed.last_checked_at)
+
 
 class FeedSettingsViewTestCase(TestCase):
     def setUp(self):
@@ -148,6 +173,32 @@ class FeedSettingsViewTestCase(TestCase):
         response = self.client.get("/calendar/settings/")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "No calendar feeds connected yet")
+
+    def test_get_shows_how_to_guide(self):
+        response = self.client.get("/calendar/settings/")
+        self.assertContains(response, "How do I find this?")
+        self.assertContains(response, "Integrate calendar")
+        self.assertContains(response, "Shared calendars")
+
+    def test_shows_failed_sync_indicator(self):
+        from django.utils import timezone as tz  # noqa: PLC0415
+
+        ExternalCalendarFeed.objects.create(
+            account=self.account, provider="google", ical_url=_GOOGLE_URL,
+            last_checked_at=tz.now(), last_error="HTTPError: 500 Server Error",
+        )
+        response = self.client.get("/calendar/settings/")
+        self.assertContains(response, "Last sync failed")
+        self.assertContains(response, "HTTPError: 500 Server Error")
+
+    def test_shows_synced_indicator_when_no_error(self):
+        from django.utils import timezone as tz  # noqa: PLC0415
+
+        ExternalCalendarFeed.objects.create(
+            account=self.account, provider="google", ical_url=_GOOGLE_URL, last_checked_at=tz.now(),
+        )
+        response = self.client.get("/calendar/settings/")
+        self.assertContains(response, "Synced")
 
     def test_post_creates_feed_scoped_to_own_account(self):
         response = self.client.post(

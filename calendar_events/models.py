@@ -41,6 +41,11 @@ class ExternalCalendarFeed(models.Model):
     provider = models.CharField(max_length=10, choices=PROVIDER_CHOICES)
     ical_url = models.URLField(max_length=500)
     created_at = models.DateTimeField(auto_now_add=True)
+    # #341 — the sync itself runs server-side with no request/response the
+    # user ever sees, so this is the only way a failure becomes visible to
+    # them instead of just Sentry.
+    last_checked_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=500, blank=True, default="")
 
     def __str__(self):
         return f"{self.get_provider_display()} feed for {self.account}"
