@@ -57,6 +57,8 @@ _ALL_ENDPOINTS = [
     "/invite/",
     # Profile
     "/profile/",
+    "/profile/export/",
+    "/profile/delete/",
     "/accounts/password_change/",
 ]
 
@@ -1083,3 +1085,134 @@ class LegalPagesTestCase(TestCase):
         response = self.client.get("/onboarding/plan/")
         self.assertContains(response, "/privacy/")
         self.assertContains(response, "/terms/")
+
+
+class DataExportViewTestCase(TestCase):
+    """#319 — account owner downloads a ZIP of CSVs; non-owners can't."""
+
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+        from vehicles.models import Vehicle  # noqa: PLC0415
+
+        self.owner = User.objects.create_user(username="export_owner", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Export Family", slug="export-family", owner=self.owner,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.owner, role="owner")
+
+        self.member = User.objects.create_user(username="export_member", password="pass12345")
+        FamilyMembership.objects.create(account=self.account, user=self.member, role="member")
+
+        Vehicle.objects.create(
+            account=self.account, year=2021, make="Toyota", model="RAV4", vin="1HGCM82633A004998",
+            color="Red", license_plate="ABC123", current_mileage=5000,
+            registration_expiry=date.today() + timedelta(days=365),
+        )
+
+    def test_owner_downloads_zip_containing_their_data(self):
+        import zipfile
+        from io import BytesIO
+
+        self.client.login(username="export_owner", password="pass12345")
+        response = self.client.get("/profile/export/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/zip")
+        self.assertIn("export-family-data-export-", response["Content-Disposition"])
+
+        with zipfile.ZipFile(BytesIO(response.content)) as zf:
+            names = zf.namelist()
+            self.assertIn("vehicles.csv", names)
+            vehicles_csv = zf.read("vehicles.csv").decode("utf-8")
+            self.assertIn("1HGCM82633A004998", vehicles_csv)
+
+    def test_non_owner_member_cannot_export(self):
+        self.client.login(username="export_member", password="pass12345")
+        response = self.client.get("/profile/export/")
+        self.assertRedirects(response, "/profile/")
+
+    def test_user_with_no_account_cannot_export(self):
+        User.objects.create_user(username="export_no_account", password="pass12345")
+        self.client.login(username="export_no_account", password="pass12345")
+        response = self.client.get("/profile/export/")
+        self.assertRedirects(response, "/profile/")
+
+
+class AccountDeleteViewTestCase(TestCase):
+    """#320 — right-to-erasure: owner-only, password-confirmed, immediate
+    hard delete that cascades to every account-scoped model."""
+
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+        from vehicles.models import Vehicle  # noqa: PLC0415
+
+        self.owner = User.objects.create_user(username="delete_owner", password="original-pass-123")
+        self.account = FamilyAccount.objects.create(
+            name="Delete Family", slug="delete-family", owner=self.owner,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.owner, role="owner")
+
+        self.member = User.objects.create_user(username="delete_member", password="pass12345")
+        FamilyMembership.objects.create(account=self.account, user=self.member, role="member")
+
+        self.vehicle = Vehicle.objects.create(
+            account=self.account, year=2019, make="Ford", model="F-150", vin="1HGCM82633A004997",
+            color="Black", license_plate="DEL123", current_mileage=20000,
+            registration_expiry=date.today() + timedelta(days=365),
+        )
+
+    def test_get_confirm_page_as_owner(self):
+        self.client.login(username="delete_owner", password="original-pass-123")
+        response = self.client.get("/profile/delete/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Permanently delete")
+
+    def test_non_owner_member_cannot_reach_confirm_page(self):
+        self.client.login(username="delete_member", password="pass12345")
+        response = self.client.get("/profile/delete/")
+        self.assertRedirects(response, "/profile/")
+
+    def test_wrong_password_does_not_delete(self):
+        from core.models import FamilyAccount  # noqa: PLC0415
+
+        self.client.login(username="delete_owner", password="original-pass-123")
+        response = self.client.post("/profile/delete/", {"password": "totally-wrong"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Incorrect password")
+        self.assertTrue(FamilyAccount.objects.filter(pk=self.account.pk).exists())
+
+    def test_correct_password_deletes_account_and_cascades(self):
+        from unittest.mock import patch  # noqa: PLC0415
+
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+        from vehicles.models import Vehicle  # noqa: PLC0415
+
+        self.client.login(username="delete_owner", password="original-pass-123")
+        with patch("core.views._cancel_active_subscriptions") as mock_cancel:
+            response = self.client.post("/profile/delete/", {"password": "original-pass-123"})
+
+        # account.delete() clears .pk on the in-memory object afterward, so
+        # compare identity via slug/name rather than relying on Model.__eq__
+        # (which is pk-based) against the same object the mock captured.
+        mock_cancel.assert_called_once()
+        self.assertEqual(mock_cancel.call_args.args[0].slug, "delete-family")
+        self.assertRedirects(response, "/")
+        self.assertFalse(FamilyAccount.objects.filter(pk=self.account.pk).exists())
+        self.assertFalse(Vehicle.objects.filter(pk=self.vehicle.pk).exists())
+        self.assertFalse(FamilyMembership.objects.filter(account_id=self.account.pk).exists())
+
+        # The owner and member Users themselves are not deleted — only the
+        # FamilyAccount and its cascading data.
+        self.assertTrue(User.objects.filter(pk=self.owner.pk).exists())
+        self.assertTrue(User.objects.filter(pk=self.member.pk).exists())
+
+    def test_owner_is_logged_out_after_deletion(self):
+        self.client.login(username="delete_owner", password="original-pass-123")
+        self.client.post("/profile/delete/", {"password": "original-pass-123"})
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_cancel_active_subscriptions_noop_without_stripe_configured(self):
+        """No STRIPE_*_SECRET_KEY in test settings — must not raise."""
+        from core.views import _cancel_active_subscriptions  # noqa: PLC0415
+
+        _cancel_active_subscriptions(self.account)

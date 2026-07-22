@@ -2,13 +2,15 @@ import logging
 from datetime import date, datetime, timedelta
 
 from django.conf import settings
-from django.contrib.auth import get_user_model, login
+from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.views import PasswordChangeView as DjangoPasswordChangeView
 from django.contrib import messages
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.generic import TemplateView
@@ -16,7 +18,8 @@ from django_ratelimit.decorators import ratelimit
 from invitations.forms import InviteForm
 from invitations.utils import get_invitation_model
 
-from .forms import InvitedSignupForm, PasswordChangeForm, ProfileForm, SignupForm
+from .data_export import build_export_zip
+from .forms import AccountDeleteConfirmForm, InvitedSignupForm, PasswordChangeForm, ProfileForm, SignupForm
 from .invitations_adapter import user_signed_up
 from .models import FamilyAccount, FamilyMembership
 
@@ -324,6 +327,82 @@ class StyledPasswordChangeView(DjangoPasswordChangeView):
 
     form_class = PasswordChangeForm
     template_name = "registration/password_change_form.html"
+
+
+class DataExportView(LoginRequiredMixin, View):
+    """Right to data portability (#319): account owner downloads a ZIP of
+    CSVs covering every account-scoped model, built synchronously in-request."""
+
+    def get(self, request):
+        account = request.account
+        if account is None or request.user != account.owner:
+            messages.error(request, "Only the account owner can export account data.")
+            return redirect("core:profile")
+
+        zip_bytes = build_export_zip(account)
+        filename = f"{account.slug}-data-export-{timezone.now():%Y%m%d}.zip"
+        response = HttpResponse(zip_bytes, content_type="application/zip")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+
+def _cancel_active_subscriptions(account):
+    """Best-effort Stripe cleanup before deleting an account (#320) — without
+    this, the customer's card would keep being charged, since deleting our
+    local FamilyAccount/Customer rows has no effect on Stripe's side. Mirrors
+    the inert-until-configured pattern used everywhere else Stripe is touched."""
+
+    live_mode = getattr(settings, "STRIPE_LIVE_MODE", False)
+    secret_key = getattr(settings, "STRIPE_LIVE_SECRET_KEY", "") if live_mode else getattr(settings, "STRIPE_TEST_SECRET_KEY", "")
+    if not secret_key:
+        return
+
+    import stripe  # noqa: PLC0415
+    from djstripe.models import Customer  # noqa: PLC0415
+
+    stripe.api_key = secret_key
+    customer = Customer.objects.filter(subscriber=account).first()
+    if customer is None:
+        return
+    for subscription in customer.subscriptions.filter(status__in=["active", "trialing", "past_due"]):
+        subscription.cancel()
+
+
+class AccountDeleteView(LoginRequiredMixin, View):
+    """Right-to-erasure (#320): the account owner permanently deletes their
+    FamilyAccount and all cascading data. Immediate hard delete rather than a
+    soft-delete + grace period — this is a household app, not one where an
+    accidental-deletion recovery pipeline is worth the added complexity; the
+    password re-entry is the safeguard against a stray click."""
+
+    template_name = "core/account_delete_confirm.html"
+
+    def get(self, request):
+        account = request.account
+        if account is None or request.user != account.owner:
+            messages.error(request, "Only the account owner can delete the family account.")
+            return redirect("core:profile")
+        return render(request, self.template_name, {"form": AccountDeleteConfirmForm()})
+
+    def post(self, request):
+        account = request.account
+        if account is None or request.user != account.owner:
+            messages.error(request, "Only the account owner can delete the family account.")
+            return redirect("core:profile")
+
+        form = AccountDeleteConfirmForm(request.POST)
+        if form.is_valid() and not request.user.check_password(form.cleaned_data["password"]):
+            form.add_error("password", "Incorrect password.")
+
+        if form.errors:
+            return render(request, self.template_name, {"form": form})
+
+        _cancel_active_subscriptions(account)
+        account_name = account.name
+        logout(request)
+        account.delete()
+        messages.success(request, f'The "{account_name}" account and all its data have been permanently deleted.')
+        return redirect("core:landing")
 
 
 # ── Public marketing page ────────────────────────────────────────────────

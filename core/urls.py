@@ -1,7 +1,9 @@
 from django.urls import path
 
 from .views import (
+    AccountDeleteView,
     DashboardView,
+    DataExportView,
     InviteMembersView,
     LandingPageView,
     OnboardingCompleteView,
@@ -30,6 +32,8 @@ urlpatterns = [
     path("invite/", InviteMembersView.as_view(), name="invite_members"),
     path("invite/send/", SendInviteView.as_view(), name="send_invite"),
     path("profile/", ProfileView.as_view(), name="profile"),
+    path("profile/export/", DataExportView.as_view(), name="data_export"),
+    path("profile/delete/", AccountDeleteView.as_view(), name="account_delete"),
     path("privacy/", PrivacyPolicyView.as_view(), name="privacy_policy"),
     path("terms/", TermsOfServiceView.as_view(), name="terms_of_service"),
 ]

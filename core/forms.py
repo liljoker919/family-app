@@ -92,6 +92,13 @@ class PasswordChangeForm(DjangoPasswordChangeForm):
             field.widget.attrs["class"] = _INPUT
 
 
+class AccountDeleteConfirmForm(forms.Form):
+    password = forms.CharField(
+        label="Confirm your password",
+        widget=forms.PasswordInput(attrs={"class": _INPUT}),
+    )
+
+
 class InvitedSignupForm(_UsernamePasswordMixin, forms.Form):
     """Step 1 for someone arriving via an invite link — the email is already
     verified/stashed in the session (core/views.py), so it's not a form field
