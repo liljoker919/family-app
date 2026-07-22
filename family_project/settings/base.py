@@ -81,6 +81,11 @@ LOGIN_URL = "/accounts/login/"
 LOGIN_REDIRECT_URL = "/dashboard/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 
+# #359: household app, not a banking app — a week-long absolute timeout
+# balances convenience on personal devices against not staying logged in
+# indefinitely on a shared/borrowed one. (Django default is 2 weeks.)
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7
+
 # dj-stripe: the paying subscriber is a FamilyAccount, not a User — set in base.py
 # (not just prod.py) so every environment's migrations agree on the FK target.
 DJSTRIPE_SUBSCRIBER_MODEL = "core.FamilyAccount"
