@@ -1,5 +1,4 @@
 import logging
-from datetime import date, datetime, timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout
@@ -18,6 +17,7 @@ from django_ratelimit.decorators import ratelimit
 from invitations.forms import InviteForm
 from invitations.utils import get_invitation_model
 
+from .dashboard_data import build_dashboard_context
 from .data_export import build_export_zip
 from .forms import AccountDeleteConfirmForm, InvitedSignupForm, PasswordChangeForm, ProfileForm, SignupForm
 from .invitations_adapter import user_signed_up
@@ -432,52 +432,13 @@ class TermsOfServiceView(TemplateView):
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
+    """Daily command center (#325) — surfaces what's happening today, what
+    needs to be done, and what needs attention, instead of bare module
+    counts. See core/dashboard_data.py for the per-widget queries."""
+
     template_name = "core/dashboard.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update(self._build_summary())
+        context.update(build_dashboard_context(self.request))
         return context
-
-    def _build_summary(self):
-        summary = {
-            "vehicle_count": 0,
-            "next_service_due": None,
-            "property_count": 0,
-            "upcoming_event_count": 0,
-        }
-
-        account = self.request.account
-        if account is None:
-            # account is nullable until a later migration makes it required —
-            # querying account=None below would match legacy/orphaned rows.
-            return summary
-
-        try:
-            from vehicles.models import Vehicle, VehicleService  # noqa: PLC0415
-            summary["vehicle_count"] = Vehicle.objects.filter(account=account).count()
-            summary["next_service_due"] = (
-                VehicleService.objects.filter(vehicle__account=account, date__gte=date.today())
-                .order_by("date")
-                .select_related("vehicle")
-                .first()
-            )
-        except Exception:
-            pass
-
-        try:
-            from property.models import Property  # noqa: PLC0415
-            summary["property_count"] = Property.objects.filter(account=account).count()
-        except Exception:
-            pass
-
-        try:
-            from django.utils import timezone as tz  # noqa: PLC0415
-            from calendar_events.views import collect_events  # noqa: PLC0415
-            start_dt = tz.make_aware(datetime.combine(date.today(), datetime.min.time()))
-            end_dt = start_dt + timedelta(days=7)
-            summary["upcoming_event_count"] = len(collect_events(account, start_dt, end_dt))
-        except Exception:
-            pass
-
-        return summary

@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, UpdateView
 
@@ -81,6 +82,12 @@ def change_status(request, pk):
     is_htmx = request.headers.get("HX-Request") == "true"
     if is_htmx:
         return render(request, "tasks/_board.html", _board_context(request.account))
+
+    # Lets the dashboard's task widget (#325) post here and land back on
+    # /dashboard/ instead of always bouncing to the full task board.
+    next_url = request.POST.get("next")
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
     return redirect("tasks:board")
 
 

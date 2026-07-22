@@ -63,10 +63,11 @@ _ALL_ENDPOINTS = [
 ]
 
 
-class DashboardUpcomingEventCountTest(TestCase):
-    """The dashboard's Calendar tile must count events from every source the
-    calendar page itself displays (manual events, vehicle service, vacations,
-    maintenance projects, family tasks) — not just the CalendarEvent table."""
+class DashboardScheduleTestCase(TestCase):
+    """#325 — the dashboard's Today & Tomorrow widget must aggregate events
+    from every source the calendar page itself displays (manual events,
+    vehicle service, vacations, maintenance projects, family tasks), and
+    only for the next 2 days — not the old bare 7-day count tile."""
 
     def setUp(self):
         from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
@@ -81,16 +82,15 @@ class DashboardUpcomingEventCountTest(TestCase):
     def _in_range(self, days):
         return self.today + timedelta(days=days)
 
-    def test_counts_events_from_every_source_within_next_7_days(self):
+    def test_shows_events_from_every_source_within_today_and_tomorrow(self):
         from calendar_events.models import CalendarEvent  # noqa: PLC0415
         from property.models import MaintenanceProject, Property  # noqa: PLC0415
         from tasks.models import FamilyTask  # noqa: PLC0415
-        from vacations.models import Vacation  # noqa: PLC0415
         from vehicles.models import Vehicle, VehicleService  # noqa: PLC0415
 
         CalendarEvent.objects.create(
             account=self.account, title="Manual Event",
-            start=tz.make_aware(datetime.combine(self._in_range(1), datetime.min.time())),
+            start=tz.make_aware(datetime.combine(self._in_range(0), datetime.min.time())),
             event_type="manual",
         )
 
@@ -100,57 +100,162 @@ class DashboardUpcomingEventCountTest(TestCase):
             registration_expiry=self._in_range(365),
         )
         VehicleService.objects.create(
-            vehicle=vehicle, service_type="oil_change", date=self._in_range(2),
+            vehicle=vehicle, service_type="oil_change", date=self._in_range(1),
             mileage_at_service=30100,
-        )
-
-        Vacation.objects.create(
-            account=self.account, name="Beach Trip", destination="Outer Banks",
-            start_date=self._in_range(3), end_date=self._in_range(4),
         )
 
         prop = Property.objects.create(account=self.account, name="Rental House", address="123 Main St")
         MaintenanceProject.objects.create(
-            prop=prop, title="Fix gutter", due_date=self._in_range(5), status="planned",
+            prop=prop, title="Fix gutter", due_date=self._in_range(1), status="planned",
         )
 
         FamilyTask.objects.create(
-            account=self.account, title="Pack for trip", status="TODO", priority="medium", due_date=self._in_range(6),
+            account=self.account, title="Pack for trip", status="TODO", priority="medium", due_date=self._in_range(0),
         )
 
         response = self.client.get("/dashboard/")
-        self.assertEqual(response.context["upcoming_event_count"], 5)
-        self.assertContains(response, "5 events")
+        events = response.context["schedule_events"]
+        self.assertEqual(len(events), 4)
+        self.assertContains(response, "Manual Event")
+        self.assertContains(response, "Fix gutter")
+        self.assertContains(response, "Pack for trip")
 
-    def test_excludes_events_outside_window_and_completed_or_on_hold_items(self):
+    def test_excludes_events_outside_the_2day_window_and_completed_or_on_hold_items(self):
         from calendar_events.models import CalendarEvent  # noqa: PLC0415
         from property.models import MaintenanceProject, Property  # noqa: PLC0415
         from tasks.models import FamilyTask  # noqa: PLC0415
-        from vacations.models import Vacation  # noqa: PLC0415
 
-        # Outside the 7-day window entirely.
+        # Outside the 2-day window entirely.
         CalendarEvent.objects.create(
             account=self.account, title="Far Future Event",
             start=tz.make_aware(datetime.combine(self._in_range(30), datetime.min.time())),
             event_type="manual",
         )
-        Vacation.objects.create(
-            account=self.account, name="Next Year Trip", destination="Paris",
-            start_date=self._in_range(60), end_date=self._in_range(67),
-        )
 
         # Within the window but excluded due to status.
         prop = Property.objects.create(account=self.account, name="Rental House", address="123 Main St")
         MaintenanceProject.objects.create(
-            prop=prop, title="On hold repair", due_date=self._in_range(2), status="on_hold",
+            prop=prop, title="On hold repair", due_date=self._in_range(1), status="on_hold",
         )
         FamilyTask.objects.create(
-            account=self.account, title="Already done", status="COMPLETED", priority="low", due_date=self._in_range(2),
+            account=self.account, title="Already done", status="COMPLETED", priority="low", due_date=self._in_range(1),
         )
 
         response = self.client.get("/dashboard/")
-        self.assertEqual(response.context["upcoming_event_count"], 0)
-        self.assertContains(response, "0 events")
+        self.assertEqual(response.context["schedule_events"], [])
+        self.assertNotContains(response, "Far Future Event")
+
+
+class DashboardWidgetsTestCase(TestCase):
+    """#325 — Attention Needed, priority tasks, dinner suggestion, shopping
+    list, and vehicle/property health widgets on the redesigned dashboard."""
+
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.user = User.objects.create_user(username="widgets_user", password="testpass")
+        self.account = FamilyAccount.objects.create(name="Widgets Family", slug="widgets-family", owner=self.user)
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
+        self.client.login(username="widgets_user", password="testpass")
+        self.today = date.today()
+
+    def test_attention_banner_flags_overdue_task_expired_vehicle_and_near_maintenance(self):
+        from property.models import MaintenanceProject, Property  # noqa: PLC0415
+        from tasks.models import FamilyTask  # noqa: PLC0415
+        from vehicles.models import Vehicle  # noqa: PLC0415
+
+        overdue_task = FamilyTask.objects.create(
+            account=self.account, title="Overdue Thing", status="TODO", priority="medium",
+            due_date=self.today - timedelta(days=1),
+        )
+        Vehicle.objects.create(
+            account=self.account, year=2018, make="Ford", model="Focus", vin="1HGCM82633A004111",
+            color="White", license_plate="EXP123", current_mileage=40000,
+            registration_expiry=self.today - timedelta(days=5),
+        )
+        prop = Property.objects.create(account=self.account, name="Main House", address="1 Elm St")
+        MaintenanceProject.objects.create(
+            prop=prop, title="Check HVAC", due_date=self.today + timedelta(days=3), status="planned",
+        )
+
+        response = self.client.get("/dashboard/")
+        items = response.context["attention_items"]
+        levels = {item["level"] for item in items}
+        self.assertIn("red", levels)
+        self.assertIn("amber", levels)
+        self.assertContains(response, "Overdue Thing")
+        self.assertContains(response, "Check HVAC")
+        self.assertTrue(FamilyTask.objects.filter(pk=overdue_task.pk).exists())
+
+    def test_attention_banner_absent_when_nothing_qualifies(self):
+        response = self.client.get("/dashboard/")
+        self.assertEqual(response.context["attention_items"], [])
+        self.assertNotContains(response, "Attention Needed")
+
+    def test_dinner_widget_shows_a_recipe_and_empty_state_without_one(self):
+        response = self.client.get("/dashboard/")
+        self.assertIsNone(response.context["dinner_recipe"])
+        self.assertContains(response, "No recipes yet")
+
+        from cookbook.models import Recipe  # noqa: PLC0415
+
+        Recipe.objects.create(account=self.account, title="Tacos", category="DINNER", is_family_favorite=True)
+        response = self.client.get("/dashboard/")
+        self.assertEqual(response.context["dinner_recipe"].title, "Tacos")
+        self.assertContains(response, "Tacos")
+
+    def test_priority_tasks_sorted_urgent_first_then_by_due_date(self):
+        from tasks.models import FamilyTask  # noqa: PLC0415
+
+        low = FamilyTask.objects.create(account=self.account, title="Low one", status="TODO", priority="low")
+        urgent = FamilyTask.objects.create(account=self.account, title="Urgent one", status="TODO", priority="urgent")
+        FamilyTask.objects.create(account=self.account, title="Done one", status="COMPLETED", priority="urgent")
+
+        response = self.client.get("/dashboard/")
+        tasks = response.context["priority_tasks"]
+        self.assertEqual([t.pk for t in tasks], [urgent.pk, low.pk])
+
+    def test_shopping_widget_shows_items(self):
+        from shopping.models import ShoppingItem  # noqa: PLC0415
+
+        ShoppingItem.objects.create(account=self.account, name="Eggs", category="DAIRY")
+        response = self.client.get("/dashboard/")
+        self.assertContains(response, "Eggs")
+
+    def test_vehicle_health_badge_reflects_registration_status(self):
+        from vehicles.models import Vehicle  # noqa: PLC0415
+
+        Vehicle.objects.create(
+            account=self.account, year=2022, make="Toyota", model="Camry", vin="1HGCM82633A004222",
+            color="Black", license_plate="GOOD123", current_mileage=1000,
+            registration_expiry=self.today + timedelta(days=300),
+        )
+        response = self.client.get("/dashboard/")
+        self.assertContains(response, "Good Shape")
+
+    def test_task_checkbox_marks_complete_and_returns_to_dashboard(self):
+        from tasks.models import FamilyTask  # noqa: PLC0415
+
+        task = FamilyTask.objects.create(account=self.account, title="Finish me", status="TODO", priority="medium")
+        response = self.client.post(
+            f"/tasks/{task.pk}/status/",
+            {"status": "COMPLETED", "next": "/dashboard/"},
+        )
+        self.assertRedirects(response, "/dashboard/")
+        task.refresh_from_db()
+        self.assertEqual(task.status, "COMPLETED")
+
+    def test_add_recipe_ingredients_next_param_returns_to_dashboard(self):
+        from cookbook.models import Ingredient, Recipe  # noqa: PLC0415
+
+        recipe = Recipe.objects.create(account=self.account, title="Soup", category="DINNER")
+        Ingredient.objects.create(recipe=recipe, name="Carrot")
+
+        response = self.client.post(
+            f"/shopping/recipe/{recipe.pk}/add/",
+            {"next": "/dashboard/"},
+        )
+        self.assertRedirects(response, "/dashboard/")
 
 
 class AuthGuardTestCase(TestCase):
@@ -381,11 +486,12 @@ class CrossTenantIsolationTestCase(TestCase):
                     f"Expected 404 for GET {url}, got {response.status_code}",
                 )
 
-    def test_dashboard_counts_do_not_include_other_accounts_data(self):
+    def test_dashboard_does_not_include_other_accounts_data(self):
         response = self.client_b.get("/dashboard/")
-        self.assertEqual(response.context["vehicle_count"], 0)
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["property_count"], 0)
-        self.assertEqual(response.context["upcoming_event_count"], 0)
+        for needle in ["Honda", "A's House", "Fix roof", "A's Event", "A's Task"]:
+            self.assertNotContains(response, needle)
 
     def test_calendar_json_excludes_other_accounts_events(self):
         response = self.client_b.get("/calendar/events.json")
@@ -457,12 +563,11 @@ class NoAccountUserTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
-    def test_dashboard_shows_zero_counts(self):
+    def test_dashboard_renders_with_no_leaked_orphaned_data(self):
         response = self.client_no_account.get("/dashboard/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["vehicle_count"], 0)
-        self.assertEqual(response.context["property_count"], 0)
-        self.assertEqual(response.context["upcoming_event_count"], 0)
+        self.assertNotContains(response, "Orphaned Task")
+        self.assertNotContains(response, "Orphaned House")
 
 
 class SubscriptionRequiredMixinTestCase(TestCase):

@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
 from core.mixins import AccountScopedMixin, AccountStampMixin, get_scoped_object_or_404
@@ -85,4 +86,9 @@ def add_recipe_ingredients(request, recipe_pk):
         else:
             messages.info(request, f'All ingredients from "{recipe.title}" are already on your list.')
 
+    # Lets the dashboard's dinner widget (#325) post here and land back on
+    # /dashboard/ instead of always bouncing to the recipe detail page.
+    next_url = request.POST.get("next")
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
     return redirect("cookbook:recipe_detail", pk=recipe_pk)
