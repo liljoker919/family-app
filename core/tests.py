@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.utils import timezone as tz
 
 User = get_user_model()
@@ -1148,6 +1148,22 @@ class LandingPageViewTestCase(TestCase):
         self.client.login(username="landing_user", password="pass12345")
         response = self.client.get("/")
         self.assertRedirects(response, "/dashboard/")
+
+
+class UmamiAnalyticsTestCase(TestCase):
+    """#358 — the landing page's tracking script stays unrendered until
+    UMAMI_WEBSITE_ID is configured (inert-until-configured, same pattern as
+    Stripe checkout)."""
+
+    def test_script_absent_when_not_configured(self):
+        response = self.client.get("/")
+        self.assertNotContains(response, "analytics.heyfamlyapp.com/script.js")
+
+    @override_settings(UMAMI_WEBSITE_ID="test-uuid-1234")
+    def test_script_present_when_configured(self):
+        response = self.client.get("/")
+        self.assertContains(response, "analytics.heyfamlyapp.com/script.js")
+        self.assertContains(response, 'data-website-id="test-uuid-1234"')
 
 
 class LegalPagesTestCase(TestCase):

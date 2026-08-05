@@ -7,6 +7,11 @@
   <title>Hey Famly — One Place for Everything Your Family Runs On</title>
   <meta name="description" content="Hey Famly keeps your vehicles, home maintenance, calendar, vacations, recipes, shopping list, and to-dos in one shared home for your household.">
   <script src="https://cdn.tailwindcss.com"></script>
+  {% if UMAMI_WEBSITE_ID %}
+  <!-- Self-hosted, cookieless analytics (#358) — no consent banner needed:
+       Umami doesn't set cookies or track individuals across sites. -->
+  <script defer src="https://analytics.heyfamlyapp.com/script.js" data-website-id="{{ UMAMI_WEBSITE_ID }}"></script>
+  {% endif %}
 </head>
 <body class="bg-white text-gray-900">
 

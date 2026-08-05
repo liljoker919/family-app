@@ -17,5 +17,22 @@ services:
       timeout: 5s
       retries: 5
 
+  # Self-hosted, cookieless analytics (#358) — shares the postgres service
+  # above (its own `umami` database, created once by hand, see
+  # docs/deploy/umami-analytics.md) rather than standing up a second
+  # Postgres. Bound to localhost only; nginx (deploy/nginx-analytics.conf)
+  # reverse-proxies analytics.heyfamlyapp.com to it.
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${UMAMI_DB_NAME}
+      APP_SECRET: ${UMAMI_APP_SECRET}
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   postgres_data:

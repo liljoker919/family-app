@@ -59,6 +59,12 @@ STRIPE_LIVE_PUBLIC_KEY = os.environ.get("STRIPE_LIVE_PUBLIC_KEY", "")
 # error) until this is set.
 STRIPE_FAMILY_PRICE_ID = os.environ.get("STRIPE_FAMILY_PRICE_ID", "")
 
+# Self-hosted Umami (cookieless analytics, #358) — the "website" entry is
+# created by hand in Umami's own admin UI (see docs/deploy/umami-analytics.md)
+# after the box-side setup, which is where this ID comes from. The landing
+# page's tracking script stays unrendered until it's set.
+UMAMI_WEBSITE_ID = os.environ.get("UMAMI_WEBSITE_ID", "")
+
 # Transactional email via Amazon SES (heyfamlyapp.com verified domain identity).
 EMAIL_BACKEND = "django_ses.SESBackend"
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@heyfamlyapp.com")
