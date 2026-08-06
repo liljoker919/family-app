@@ -21,21 +21,33 @@ Add to `/etc/family-app/env` (see `deploy/env.example`):
 
 ```
 UMAMI_DB_NAME=umami
+UMAMI_DB_USER=umami
+UMAMI_DB_PASSWORD=<openssl rand -hex 24>
 UMAMI_APP_SECRET=<openssl rand -hex 32>
 UMAMI_WEBSITE_ID=
 ```
 
+Use a fresh `openssl rand -hex 24` for `UMAMI_DB_PASSWORD` rather than
+reusing `DB_PASSWORD` — it goes into a `postgresql://` connection-string
+URL, and hex output is guaranteed free of characters (`/`, `@`, `:`) that
+break URL parsing. A `/` in a reused password is exactly what broke this
+the first time it was set up.
+
 Leave `UMAMI_WEBSITE_ID` blank for now — it's generated in step 6, after
 Umami is actually running.
 
-## 3. Create the `umami` database
+## 3. Create the `umami` database and role
 
-Umami needs its own database inside the already-running Postgres container
-— not a second Postgres instance. Find the container name, then create it:
+Umami needs its own database and a dedicated role inside the
+already-running Postgres container — not a second Postgres instance, and
+not the main app's `family_app` role. Find the container name, then create
+both (use the exact same password you put in `UMAMI_DB_PASSWORD` above):
 
 ```bash
 docker ps --filter name=postgres --format '{{.Names}}'
 docker exec -it <postgres-container-name> psql -U family_app -c "CREATE DATABASE umami;"
+docker exec -it <postgres-container-name> psql -U family_app -c "CREATE USER umami WITH PASSWORD '<same-value-as-UMAMI_DB_PASSWORD>';"
+docker exec -it <postgres-container-name> psql -U family_app -c "ALTER DATABASE umami OWNER TO umami;"
 ```
 
 ## 4. Start the Umami container
