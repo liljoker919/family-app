@@ -667,6 +667,28 @@ class StripeWebhookTierTestCase(TestCase):
         self.assertFalse(self.account.is_active)
         self.assertEqual(self.account.tier, self.account.TIER_FREE)
 
+    def test_payment_failed_email_does_not_promise_a_reply_or_self_serve_action(self):
+        """The sender is noreply@ and there's no self-serve payment-method
+        update yet (#357 open) — the email must point to a real contact
+        channel, not "reply to this email" or "update your payment method"
+        with no link to do so."""
+        from unittest.mock import patch  # noqa: PLC0415
+
+        from django.core import mail  # noqa: PLC0415
+
+        from core.stripe_handlers import handle_payment_failed  # noqa: PLC0415
+
+        self.user.email = "webhook_user@example.com"
+        self.user.save(update_fields=["email"])
+
+        with patch("core.stripe_handlers._account_for_stripe_customer", return_value=self.account):
+            handle_payment_failed(sender=None, event=_FakeEvent())
+
+        self.assertEqual(len(mail.outbox), 1)
+        body = mail.outbox[0].body
+        self.assertIn("cnickerson@oakcitysoftwaresolutions.com", body)
+        self.assertNotIn("reply to this email", body)
+
 
 class _FakeEvent:
     """Minimal stand-in for a dj-stripe Event, just enough for
@@ -834,6 +856,18 @@ class OnboardingPlanViewTestCase(TestCase):
         self.assertTrue(self.account.onboarding_complete)
         self.assertEqual(self.account.tier, self.account.TIER_FREE)
 
+    def test_post_free_sends_welcome_email(self):
+        from django.core import mail  # noqa: PLC0415
+
+        self.user.email = "plan_user@example.com"
+        self.user.save(update_fields=["email"])
+
+        self.client.post("/onboarding/plan/", {"plan": "free"})
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, "Welcome to Hey Famly!")
+        self.assertIn(self.account.name, mail.outbox[0].body)
+
     def test_post_family_with_no_price_id_configured_shows_error(self):
         # Test settings never set STRIPE_FAMILY_PRICE_ID — checkout stays inert.
         response = self.client.post("/onboarding/plan/", {"plan": "family"})
@@ -897,6 +931,39 @@ class OnboardingCompleteViewTestCase(TestCase):
         response = self.client.get("/onboarding/complete/", follow=True)
         self.assertContains(response, "now on the Family plan")
         self.assertNotContains(response, "Welcome to Hey Famly!")
+
+    def test_sends_welcome_email_only_for_fresh_completion_not_upgrade(self):
+        from django.core import mail  # noqa: PLC0415
+
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        fresh_user = User.objects.create_user(
+            username="fresh_complete_user", password="pass12345", email="fresh@example.com",
+        )
+        fresh_account = FamilyAccount.objects.create(
+            name="Fresh Family", slug="fresh-family", owner=fresh_user,
+        )
+        FamilyMembership.objects.create(account=fresh_account, user=fresh_user, role="owner")
+        self.client.login(username="fresh_complete_user", password="pass12345")
+        self.client.get("/onboarding/complete/")
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, "Welcome to Hey Famly!")
+
+        mail.outbox.clear()
+        self.client.logout()
+
+        upgrade_user = User.objects.create_user(
+            username="upgrade_complete_user2", password="pass12345", email="upgrade2@example.com",
+        )
+        upgrade_account = FamilyAccount.objects.create(
+            name="Upgrade Family 2", slug="upgrade-family-2b", owner=upgrade_user, onboarding_complete=True,
+        )
+        FamilyMembership.objects.create(account=upgrade_account, user=upgrade_user, role="owner")
+        self.client.login(username="upgrade_complete_user2", password="pass12345")
+        self.client.get("/onboarding/complete/")
+
+        self.assertEqual(len(mail.outbox), 0)
 
 
 class UpgradeToFamilyViewTestCase(TestCase):
@@ -1208,6 +1275,27 @@ class PasswordChangeTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("original-pass-123"))
+
+
+class PasswordResetEmailTestCase(TestCase):
+    """Django's default reset email/subject templates are generic and
+    unbranded ("Password reset on heyfamlyapp.com", "the heyfamlyapp.com
+    team") — templates/registration/password_reset_email.html and
+    password_reset_subject.txt override them to match the app's voice."""
+
+    def test_reset_email_is_branded_not_generic_django_default(self):
+        from django.core import mail  # noqa: PLC0415
+
+        User.objects.create_user(username="reset_user", password="pass12345", email="reset@example.com")
+        self.client.post("/accounts/password_reset/", {"email": "reset@example.com"})
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.subject, "Reset your Hey Famly password")
+        self.assertIn("Hey Famly", sent.body)
+        self.assertIn("/accounts/reset/", sent.body)  # sanity: reset link actually present
+        self.assertNotIn("Thanks for using our site!", sent.body)
+        self.assertNotIn("team", sent.body)
 
 
 class LandingPageViewTestCase(TestCase):

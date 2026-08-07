@@ -65,8 +65,10 @@ def handle_payment_failed(sender, event, **kwargs):
             message=(
                 f"Hi {account.owner.first_name or account.owner.username},\n\n"
                 "We weren't able to process your latest payment for Hey Famly. "
-                "Please update your payment method to avoid losing access to "
-                f"the {account.name} account.\n\n"
+                "To avoid losing access to Family-plan features on "
+                f"the {account.name} account, please contact us at "
+                "cnickerson@oakcitysoftwaresolutions.com and we'll help you "
+                "update your payment method (this address doesn't accept replies).\n\n"
                 "— Hey Famly"
             ),
             from_email=None,

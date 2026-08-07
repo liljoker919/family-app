@@ -6,6 +6,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.views import PasswordChangeView as DjangoPasswordChangeView
 from django.contrib import messages
+from django.core.mail import send_mail
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -268,6 +269,33 @@ def _create_family_checkout_session(request, account):
     return session.url
 
 
+def _send_welcome_email(account):
+    """#378 — fired once, only for a genuinely new account completing
+    onboarding for the first time (never for invited members, who get their
+    own "you've joined" messaging, and never for an existing account
+    upgrading later — see the was_already_onboarded check in
+    OnboardingCompleteView)."""
+    try:
+        send_mail(
+            subject="Welcome to Hey Famly!",
+            message=(
+                f"Hi {account.owner.first_name or account.owner.username},\n\n"
+                f"Your {account.name} account is ready to go.\n\n"
+                "A few good first steps:\n"
+                "- Add your first vehicle or property to start tracking maintenance\n"
+                "- Add a task or two to your family's board\n"
+                "- Invite the rest of your family so everyone's on the same page\n\n"
+                "Jump in: https://heyfamlyapp.com/dashboard/\n\n"
+                "— Hey Famly"
+            ),
+            from_email=None,
+            recipient_list=[account.email],
+        )
+    except Exception:
+        # A transient SES/network failure here must never break onboarding.
+        logger.exception("Failed to send welcome email for account %s", account.pk)
+
+
 class OnboardingPlanView(LoginRequiredMixin, View):
     """Step 3: Free activates immediately; Family redirects to Stripe Checkout."""
 
@@ -290,6 +318,7 @@ class OnboardingPlanView(LoginRequiredMixin, View):
         if plan == "free":
             account.onboarding_complete = True
             account.save(update_fields=["onboarding_complete"])
+            _send_welcome_email(account)
             messages.success(request, f"Welcome to Hey Famly, {account.name}!")
             return redirect("core:dashboard")
 
@@ -323,6 +352,8 @@ class OnboardingCompleteView(LoginRequiredMixin, View):
         if was_already_onboarded:
             messages.success(request, "You're now on the Family plan! Your subscription is being activated.")
         else:
+            if account is not None:
+                _send_welcome_email(account)
             messages.success(request, "Welcome to Hey Famly! Your subscription is being activated.")
         return redirect("core:dashboard")
 
