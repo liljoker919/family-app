@@ -1,0 +1,19 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /accounts/
+Disallow: /onboarding/
+Disallow: /invite/
+Disallow: /profile/
+Disallow: /upgrade/
+Disallow: /dashboard/
+Disallow: /vehicles/
+Disallow: /property/
+Disallow: /calendar/
+Disallow: /vacations/
+Disallow: /cookbook/
+Disallow: /shopping/
+Disallow: /tasks/
+Disallow: /stripe/
+Disallow: /invitations/
+
+Sitemap: https://heyfamlyapp.com/sitemap.xml

@@ -6,6 +6,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hey Famly — One Place for Everything Your Family Runs On</title>
   <meta name="description" content="Hey Famly keeps your vehicles, home maintenance, calendar, vacations, recipes, shopping list, and to-dos in one shared home for your household.">
+  <link rel="canonical" href="https://heyfamlyapp.com/">
+
+  <!-- Open Graph / social share previews (#337) -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://heyfamlyapp.com/">
+  <meta property="og:title" content="Hey Famly — One Place for Everything Your Family Runs On">
+  <meta property="og:description" content="Hey Famly keeps your vehicles, home maintenance, calendar, vacations, recipes, shopping list, and to-dos in one shared home for your household.">
+  <meta property="og:image" content="https://heyfamlyapp.com{% static 'img/logo.jpg' %}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Hey Famly — One Place for Everything Your Family Runs On">
+  <meta name="twitter:description" content="Hey Famly keeps your vehicles, home maintenance, calendar, vacations, recipes, shopping list, and to-dos in one shared home for your household.">
+  <meta name="twitter:image" content="https://heyfamlyapp.com{% static 'img/logo.jpg' %}">
+
+  <!-- Structured data for search indexing (#334) — kept in sync with the
+       real tiers below: core.models.FamilyAccount.TIER_CHOICES only has
+       these two, don't add a third one that doesn't exist in the app. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Hey Famly",
+    "url": "https://heyfamlyapp.com",
+    "operatingSystem": "Web",
+    "applicationCategory": "LifestyleApplication",
+    "description": "Hey Famly is a shared household organizer: a synced family calendar, vehicle maintenance tracking, home repair scheduling, a family task board, recipe and shopping list management, and vacation planning, all in one place.",
+    "offers": [
+      { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "USD" },
+      { "@type": "Offer", "name": "Family", "price": "4.99", "priceCurrency": "USD" }
+    ]
+  }
+  </script>
+
   <script src="https://cdn.tailwindcss.com"></script>
   {% if UMAMI_WEBSITE_ID %}
   <!-- Self-hosted, cookieless analytics (#358) — no consent banner needed:

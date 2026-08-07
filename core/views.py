@@ -431,6 +431,26 @@ class TermsOfServiceView(TemplateView):
     template_name = "core/terms_of_service.html"
 
 
+class RobotsTxtView(TemplateView):
+    """#337 — allows crawling of the public marketing/legal pages, disallows
+    the login-walled app. Plain robots.txt, not django-robots: only three
+    public URLs exist, not worth a DB-backed rule editor for that."""
+
+    template_name = "robots.txt"
+    content_type = "text/plain"
+
+
+class SitemapXmlView(TemplateView):
+    """#337 — hand-rolled rather than django.contrib.sitemaps: that
+    framework's URL/domain resolution depends on django.contrib.sites (a new
+    installed app, a SITE_ID setting, and a Site row to keep in sync with
+    the real domain), which is more moving parts than three static URLs
+    justify."""
+
+    template_name = "sitemap.xml"
+    content_type = "application/xml"
+
+
 class DashboardView(LoginRequiredMixin, TemplateView):
     """Daily command center (#325) — surfaces what's happening today, what
     needs to be done, and what needs attention, instead of bare module

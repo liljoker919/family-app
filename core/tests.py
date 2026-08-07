@@ -1149,6 +1149,45 @@ class LandingPageViewTestCase(TestCase):
         response = self.client.get("/")
         self.assertRedirects(response, "/dashboard/")
 
+    def test_structured_data_reflects_real_tiers_only(self):
+        """#334 — must match core.models.FamilyAccount.TIER_CHOICES exactly;
+        no invented "Premium" tier that doesn't exist in the app."""
+        response = self.client.get("/")
+        self.assertContains(response, "application/ld+json")
+        self.assertContains(response, '"name": "Free"')
+        self.assertContains(response, '"name": "Family"')
+        self.assertContains(response, '"price": "4.99"')
+        self.assertNotContains(response, "Premium")
+        self.assertNotContains(response, "9.99")
+
+    def test_open_graph_tags_present(self):
+        response = self.client.get("/")
+        self.assertContains(response, 'property="og:title"')
+        self.assertContains(response, 'property="og:image"')
+        self.assertContains(response, "https://heyfamlyapp.com/static/img/logo.jpg")
+
+
+class RobotsAndSitemapTestCase(TestCase):
+    """#337 — technical SEO plumbing: robots.txt disallows the login-walled
+    app, sitemap.xml lists only the public URLs that actually exist."""
+
+    def test_robots_txt_allows_public_pages_and_disallows_app(self):
+        response = self.client.get("/robots.txt")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/plain")
+        self.assertContains(response, "Disallow: /dashboard/")
+        self.assertContains(response, "Disallow: /admin/")
+        self.assertContains(response, "Sitemap: https://heyfamlyapp.com/sitemap.xml")
+        self.assertNotContains(response, "Disallow: /$")
+
+    def test_sitemap_xml_lists_only_real_public_urls(self):
+        response = self.client.get("/sitemap.xml")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/xml")
+        self.assertContains(response, "<loc>https://heyfamlyapp.com/</loc>")
+        self.assertContains(response, "<loc>https://heyfamlyapp.com/privacy/</loc>")
+        self.assertContains(response, "<loc>https://heyfamlyapp.com/terms/</loc>")
+
 
 class UmamiAnalyticsTestCase(TestCase):
     """#358 — the landing page's tracking script stays unrendered until

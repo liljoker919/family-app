@@ -13,7 +13,9 @@ from .views import (
     OnboardingSignupView,
     PrivacyPolicyView,
     ProfileView,
+    RobotsTxtView,
     SendInviteView,
+    SitemapXmlView,
     TermsOfServiceView,
     UpgradeRequiredView,
 )
@@ -36,4 +38,6 @@ urlpatterns = [
     path("profile/delete/", AccountDeleteView.as_view(), name="account_delete"),
     path("privacy/", PrivacyPolicyView.as_view(), name="privacy_policy"),
     path("terms/", TermsOfServiceView.as_view(), name="terms_of_service"),
+    path("robots.txt", RobotsTxtView.as_view(), name="robots_txt"),
+    path("sitemap.xml", SitemapXmlView.as_view(), name="sitemap_xml"),
 ]
