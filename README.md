@@ -1,249 +1,96 @@
-# Family App
+# Hey Famly
 
-A comprehensive family management application built with **Astro**, **React**, and **AWS Amplify Gen 2**.
+A shared home for everything a family runs on — vehicles, home maintenance, a calendar, vacations, recipes, a shopping list, and a task board — built with **Django**. Public site: [heyfamlyapp.com](https://heyfamlyapp.com).
 
 ## Features
 
-### 🏖️ Vacations Module
+- **Vehicles** — service history, mileage, and registration-expiration reminders for every car in the household.
+- **Maintenance** — properties with recurring maintenance projects (contractor info, due dates, auto-recurring schedules).
+- **Calendar** — a unified view aggregating manual events, vehicle service dates, maintenance deadlines, vacation windows, and task due dates, plus optional read-only Google/Outlook iCal sync.
+- **Vacations** — itineraries, reservations, and expenses per trip.
+- **Cookbook** — recipes with ingredients and steps; one tap adds a recipe's ingredients to the shopping list.
+- **Tasks** — a Kanban-style board (To Do / In Progress / Done), assignable to family members.
+- **Shopping** — a shared list, auto-categorized by item name.
+- **Dashboard** — a daily command center: what's overdue or needs attention, today & tomorrow's schedule, a dinner suggestion, priority tasks, and vehicle/property health, instead of a static module directory.
 
-- Create and manage family vacations
-- Track dates, transportation (flight/car/boat), and accommodations
-- Add activities to vacations
-- Family members can rate activities (1-5 stars) and leave comments
-- Planners can add trip details; all family members can view and provide feedback
-
-### 🏠 Property Module
-
-- Manage family properties
-- Track income and expenses for each property
-- View financial summaries with total income, expenses, and net income
-- Categorize transactions for better organization
-
-### 🚗 Cars Module
-
-- Maintain a registry of family vehicles
-- Record VIN, mileage, and vehicle details
-- Track service history including:
-  - Service type and description
-  - Mileage at time of service
-  - Cost and service provider
-  - Date of service
-
-### 📅 Calendar
-
-- Integrated FullCalendar view
-- Placeholder for displaying family events and vacation dates
+Multi-tenant: each signup creates a `FamilyAccount`; members join via invite. Free tier covers tasks and shopping; a paid Family tier (Stripe) unlocks every module and unlimited members.
 
 ## Technology Stack
 
-- **Frontend Framework**: Astro with React
-- **Styling**: Tailwind CSS with Royal Blue theme
-- **Backend**: AWS Amplify Gen 2
-- **Authentication**: Amazon Cognito
-- **Database**: AWS AppSync with DynamoDB
-- **Calendar**: FullCalendar
-- **Language**: TypeScript
+- **Backend**: Django 5.2, server-rendered templates (Tailwind via CDN, no frontend build step)
+- **Database**: PostgreSQL in production (Docker container), SQLite for local development
+- **Auth**: Django's built-in session-based auth, plus `django-invitations` for member invites
+- **Billing**: Stripe via `dj-stripe`
+- **Email**: Amazon SES (`django-ses`) for transactional mail
+- **Error tracking**: Sentry
+- **Analytics**: self-hosted [Umami](https://umami.is) (cookieless, no consent banner required)
+- **Hosting**: AWS Lightsail (Amazon Linux 2023) — gunicorn + nginx + Let's Encrypt/Certbot, provisioned with Terraform (`infra/`)
 
 ## Prerequisites
 
-- Node.js 18+ and npm
-- AWS Account
-- AWS Amplify CLI
+- Python 3.11+
+- pip / venv
 
-## Installation
-
-1. Clone the repository:
+## Local Setup
 
 ```bash
 git clone https://github.com/liljoker919/family-app.git
 cd family-app
+
+python -m venv .venv
+.venv/Scripts/activate   # Windows; use `source .venv/bin/activate` on macOS/Linux
+pip install -r requirements.txt
+
+cp deploy/env.example .env   # only needed if you want to exercise Stripe/SES/Sentry locally
+python manage.py migrate --settings=family_project.settings.dev
+python manage.py createsuperuser --settings=family_project.settings.dev
+python manage.py runserver --settings=family_project.settings.dev
 ```
 
-2. Install dependencies:
-
-```bash
-npm install
-```
-
-3. Set up AWS Amplify:
-
-```bash
-npx ampx sandbox
-```
-
-4. Configure environment variables:
-   - Copy `.env.example` to `.env`
-   - Fill in your AWS Amplify configuration values after deployment
-
-5. Start the development server:
-
-```bash
-npm run dev
-```
+The dev settings module uses a local SQLite database and requires no external services to run the core app.
 
 ## Project Structure
 
 ```
 family-app/
-├── amplify/                  # AWS Amplify backend configuration
-│   ├── auth/                 # Cognito authentication setup
-│   ├── data/                 # GraphQL schema and data models
-│   └── backend.ts            # Backend configuration
-├── src/
-│   ├── components/           # React components
-│   │   ├── modules/          # Feature modules (Vacations, Property, Cars, Calendar)
-│   │   ├── AuthPage.tsx      # Authentication page
-│   │   └── Dashboard.tsx     # Main dashboard
-│   ├── layouts/              # Astro layouts
-│   ├── pages/                # Astro pages (routing)
-│   └── amplifyconfiguration.ts  # Amplify client configuration
-├── public/                   # Static assets
-└── tailwind.config.mjs       # Tailwind CSS configuration
+├── core/              # Accounts, FamilyAccount/tenancy, billing, onboarding, dashboard
+├── vehicles/          # Vehicles + service records
+├── property/          # Properties + maintenance projects
+├── calendar_events/   # Manual events, external iCal feed sync, unified calendar aggregation
+├── vacations/         # Vacations, reservations, itinerary, expenses
+├── cookbook/          # Recipes, ingredients, steps
+├── tasks/             # Family task board
+├── shopping/          # Shopping list
+├── family_project/    # Django settings (base/dev/ci/prod) and root URLconf
+├── templates/         # Server-rendered templates, one directory per app
+├── static/            # Static assets (images, logos)
+├── deploy/            # nginx configs, systemd unit, docker-compose (Postgres + Umami), env template
+├── docs/deploy/        # Box-side setup runbooks (TLS, Postgres migration, Umami)
+└── infra/             # Terraform for the Lightsail instance
 ```
 
-## Data Models
-
-### Vacation
-
-- Title, description
-- Start and end dates
-- Transportation type (flight/car/boat)
-- Accommodations
-- Created by user
-
-### Activity
-
-- Belongs to a vacation
-- Name, description
-- Date and location
-- Associated feedback
-
-### Feedback
-
-- Belongs to an activity
-- User rating (1-5 stars)
-- Comments
-- User ID and timestamp
-
-### Property
-
-- Name and address
-- Property type
-
-### Car
-
-- Make, model, year
-- VIN (Vehicle Identification Number)
-- Current mileage
-- Color
-
-### CarService
-
-- Belongs to a car
-- Service type and description
-- Mileage at service
-- Date, cost, and service provider
-
-### Chores
-
-## Authentication
-
-The app uses AWS Cognito for authentication with email-based login. Only authenticated family members can access the application.
-
-## UI Theme
-
-The application features a Royal Blue color scheme throughout the interface:
-
-- Primary color: Royal Blue (#0046a7)
-- Navigation and headers use royal blue styling
-- Consistent color palette for a cohesive user experience
-
-## Automated Testing
-
-All workflows that run on pull requests are **required status checks**. A PR cannot be merged to `main` if any Vitest or Playwright test fails.
-
-### Unit Tests
-
-| Workflow | Trigger | Fails Block Merge |
-|----------|---------|------------------|
-| **Unit Tests** | Every push to `main` and every pull request | Yes |
-
-The unit test workflow runs [Vitest](https://vitest.dev/) on every push to `main` and on every pull request. Test results are uploaded as a GitHub Actions artifact named **`unit-test-results`** and are retained for 30 days.
-
-To access reports:
-
-1. Go to **Actions** → **Unit Tests** → select a run.
-2. Scroll to **Artifacts** and download **`unit-test-results`**.
-
-### Security Regression Suite
-
-| Workflow | Trigger | Fails Block Merge |
-|----------|---------|------------------|
-| **Security Regression Suite** | Every push to `main` and every pull request | Yes |
-
-Runs the full RBAC unit tests and schema static-analysis tests (Vitest) plus the security E2E suite (Playwright) on every PR. All jobs must pass before a PR can be merged.
-
-### Playwright E2E Tests
-
-| Workflow | Trigger | Fails Block Merge |
-|----------|---------|------------------|
-| **Playwright E2E Tests** | Every push to `main` and every pull request | Yes |
-
-Two artifacts are uploaded on every run:
-
-- **`playwright-report`** – Playwright HTML report (open `index.html` after downloading)
-- **`playwright-test-results`** – screenshots, videos, and traces captured on failure
-
-To access reports:
-
-1. Go to **Actions** → **Playwright E2E Tests** → select a run.
-2. Scroll to **Artifacts** and download **`playwright-report`**.
-3. Extract the zip and open `playwright-report/index.html` in your browser.
-
-### Playwright UI Tests (Scheduled)
-
-| Workflow | Trigger | Timezone | Fails Block Merge |
-|----------|---------|----------|------------------|
-| **Playwright UI Tests** | Weekly – Sunday at 11 PM UTC | UTC (= 6 PM US Central / 7 PM US Eastern) | No – scheduled only, does not gate PRs |
-
-The weekly Playwright workflow runs a full browser smoke-test suite every Sunday night. You can also trigger it manually via **workflow_dispatch** from the Actions tab.
-
-> **Deployment Policy:** The Amplify build is gated on the GitHub Actions Required Checks. The build will not start until all required workflows return a success status. See [LAUNCH_CHECKLIST.md](./LAUNCH_CHECKLIST.md) for the full deployment and rollback policy.
-
-## Development
+## Testing
 
 ```bash
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
+python manage.py test --settings=family_project.settings.ci
 ```
+
+Two GitHub Actions workflows gate every push/PR to `main`:
+
+| Workflow | What it does |
+|----------|---------------|
+| **Unit Tests** | Runs the full Django test suite |
+| **Security Scan** | `bandit` (static analysis) + `pip-audit` (dependency CVEs), report-only for now |
+
+Dependabot checks `pip` and GitHub Actions dependencies weekly.
 
 ## Deployment
 
-### Deploy Backend
-
-```bash
-npx ampx sandbox   # For development
-npx ampx deploy    # For production
-```
-
-### Deploy Frontend
-
-The application can be deployed to various hosting platforms:
-
-- AWS Amplify Hosting
-- Vercel
-- Netlify
-- Any static hosting service
+Pushing to `main` runs the test suite, then deploys to the AWS Lightsail box over SSH: pulls the latest code, installs dependencies, runs migrations, collects static files, and restarts gunicorn/nginx (`.github/workflows/deploy.yml`). Infrastructure (the Lightsail instance itself) is provisioned via Terraform in `infra/`; see `docs/deploy/` for one-time box setup steps (TLS, Postgres-in-Docker, self-hosted analytics).
 
 ## License
 
-ISC
+MIT — see [LICENSE](./LICENSE).
 
 ## Author
 

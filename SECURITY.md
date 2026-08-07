@@ -1,69 +1,18 @@
-# Security Summary
+# Security Policy
 
-## Overview
-Security analysis completed for the Family App implementation.
+Hey Famly is a small, actively-maintained project. There's one supported version — whatever's currently deployed from `main`.
 
-## Runtime Security - ✅ PASS
-- **No runtime vulnerabilities detected** in production dependencies
-- All user-facing code is secure
-- Authentication properly implemented with AWS Cognito
-- Authorization rules enforced on all data models
+## Reporting a Vulnerability
 
-## Development Dependencies - ℹ️ INFO
-The following vulnerabilities exist in AWS Amplify backend build tools (dev dependencies only):
+If you find a security issue, please email **cnickerson@oakcitysoftwaresolutions.com** rather than opening a public issue. Include what you found, how to reproduce it, and its potential impact. We'll acknowledge within a few days and let you know once it's fixed.
 
-### Low Severity (14 issues)
-- **@smithy/config-resolver** (<4.4.0): Defense in depth enhancement for region parameter
-- Related AWS SDK packages (client-sso, client-sts, etc.)
-- These affect build-time tools only, not runtime application
+## What's in place
 
-### Moderate Severity (3 issues)
-- **lodash** (4.0.0 - 4.17.21): Prototype Pollution in `_.unset` and `_.omit`
-- Used by AWS Amplify backend constructs during build/deployment
-- Does not affect the running application
+- Tenant isolation enforced at the queryset level across every account-scoped model (see `core/mixins.py`)
+- HTTPS enforced, secure cookies, CSRF protection
+- Rate limiting on login/signup/invite endpoints and at the nginx layer
+- Dependabot (weekly) plus `bandit` and `pip-audit` (every push/PR) for dependency and static-analysis scanning
+- Least-privilege IAM credentials per external service (SES, backups), never shared or reused
+- No advertising or third-party tracking cookies; analytics is self-hosted and cookieless
 
-## Impact Assessment
-✅ **No action required for initial deployment**
-
-These vulnerabilities:
-1. Only exist in development/build dependencies
-2. Do not affect the runtime application or user security
-3. Are in AWS-managed packages (@aws-amplify/backend)
-4. Will be addressed by AWS in future Amplify updates
-
-## Security Features Implemented
-
-### Authentication
-- ✅ Email-based Cognito authentication
-- ✅ Password requirements enforced (8+ chars, mixed case, numbers, special chars)
-- ✅ No guest access allowed
-- ✅ Protected routes requiring authentication
-
-### Authorization
-- ✅ All data models require authentication
-- ✅ User-based access control on all operations
-- ✅ GraphQL API uses userPool authentication mode
-
-### Data Security
-- ✅ Environment variables for sensitive configuration
-- ✅ No hardcoded credentials
-- ✅ Secure AWS Amplify Gen 2 backend
-- ✅ AppSync with DynamoDB for data storage
-
-### Frontend Security
-- ✅ TypeScript strict mode enabled
-- ✅ No eval() or dangerous patterns
-- ✅ Input validation on forms
-- ✅ XSS protection through React's built-in escaping
-
-## Recommendations for Production
-
-1. **Keep dependencies updated**: Run `npm audit fix` regularly
-2. **Monitor AWS Amplify updates**: AWS will patch the backend tool vulnerabilities
-3. **Enable MFA**: Configure Multi-Factor Authentication in Cognito for additional security
-4. **Add rate limiting**: Consider adding API rate limiting for production
-5. **Enable CloudWatch logging**: Monitor authentication and API access
-6. **Regular security audits**: Schedule periodic security reviews
-
-## Conclusion
-The application is **secure for deployment**. All runtime code has zero vulnerabilities. The identified issues are in build-time tools managed by AWS and do not pose a risk to the application or its users.
+This isn't an exhaustive list — see the closed issues under the [Security Hardening milestone](https://github.com/liljoker919/family-app/milestones) for the specific audit and fixes behind it.
