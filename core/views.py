@@ -38,6 +38,30 @@ class UpgradeRequiredView(LoginRequiredMixin, TemplateView):
     template_name = "core/upgrade_required.html"
 
 
+class UpgradeToFamilyView(LoginRequiredMixin, View):
+    """Starts a Family-plan Stripe Checkout for an existing account. The
+    only other place this was ever offered was OnboardingPlanView, which
+    deliberately redirects away once onboarding_complete is True — meaning
+    an account that picked Free at signup previously had no way to ever
+    upgrade later. Linked from the Upgrade Required wall and the profile
+    page."""
+
+    def post(self, request):
+        account = request.account
+        if account is None:
+            messages.error(request, "No active family account found.")
+            return redirect("core:dashboard")
+
+        checkout_url = _create_family_checkout_session(request, account)
+        if checkout_url is None:
+            messages.error(
+                request,
+                "The Family plan isn't available for checkout right now — please try again shortly.",
+            )
+            return redirect("core:upgrade_required")
+        return redirect(checkout_url)
+
+
 # ── Onboarding ────────────────────────────────────────────────────────────
 
 class OnboardingRedirectView(View):
@@ -291,10 +315,15 @@ class OnboardingCompleteView(LoginRequiredMixin, View):
 
     def get(self, request):
         account = request.account
+        was_already_onboarded = account is not None and account.onboarding_complete
         if account is not None and not account.onboarding_complete:
             account.onboarding_complete = True
             account.save(update_fields=["onboarding_complete"])
-        messages.success(request, "Welcome to Hey Famly! Your subscription is being activated.")
+
+        if was_already_onboarded:
+            messages.success(request, "You're now on the Family plan! Your subscription is being activated.")
+        else:
+            messages.success(request, "Welcome to Hey Famly! Your subscription is being activated.")
         return redirect("core:dashboard")
 
 

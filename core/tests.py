@@ -13,6 +13,9 @@ _LOGIN_URL = "/accounts/login/"
 _ALL_ENDPOINTS = [
     # Dashboard
     "/dashboard/",
+    # Upgrade
+    "/upgrade/",
+    "/upgrade/start/",
     # Vehicles
     "/vehicles/",
     "/vehicles/add/",
@@ -878,6 +881,82 @@ class OnboardingCompleteViewTestCase(TestCase):
 
         account.refresh_from_db()
         self.assertTrue(account.onboarding_complete)
+
+    def test_shows_upgrade_message_not_welcome_for_already_onboarded_account(self):
+        """#388 fallout — an existing account upgrading later shouldn't be
+        told "Welcome to Hey Famly!" as if this were their first signup."""
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        user = User.objects.create_user(username="upgrade_complete_user", password="pass12345")
+        account = FamilyAccount.objects.create(
+            name="Upgrade Family", slug="upgrade-family", owner=user, onboarding_complete=True,
+        )
+        FamilyMembership.objects.create(account=account, user=user, role="owner")
+        self.client.login(username="upgrade_complete_user", password="pass12345")
+
+        response = self.client.get("/onboarding/complete/", follow=True)
+        self.assertContains(response, "now on the Family plan")
+        self.assertNotContains(response, "Welcome to Hey Famly!")
+
+
+class UpgradeToFamilyViewTestCase(TestCase):
+    """#388 fallout — before this, an account that picked Free at signup had
+    no way to ever reach Family-plan checkout again: OnboardingPlanView
+    redirects away once onboarding_complete is True, and the Upgrade
+    Required wall had no working upgrade action at all."""
+
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.user = User.objects.create_user(username="upgrade_user", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Upgrade Family", slug="upgrade-family-2", owner=self.user, onboarding_complete=True,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
+        self.client.login(username="upgrade_user", password="pass12345")
+
+    def test_post_with_checkout_configured_redirects_to_stripe(self):
+        from unittest.mock import patch  # noqa: PLC0415
+
+        with patch(
+            "core.views._create_family_checkout_session",
+            return_value="https://checkout.stripe.com/test-session",
+        ):
+            response = self.client.post("/upgrade/start/", follow=False)
+        self.assertRedirects(
+            response, "https://checkout.stripe.com/test-session", fetch_redirect_response=False,
+        )
+
+    def test_post_with_no_price_id_configured_shows_error(self):
+        response = self.client.post("/upgrade/start/")
+        self.assertRedirects(response, "/upgrade/")
+
+    def test_post_with_no_account_redirects_dashboard(self):
+        User.objects.create_user(username="upgrade_acctless", password="pass12345")
+        client = Client()
+        client.login(username="upgrade_acctless", password="pass12345")
+        response = client.post("/upgrade/start/")
+        self.assertRedirects(response, "/dashboard/")
+
+    def test_upgrade_wall_page_has_working_upgrade_button(self):
+        response = self.client.get("/upgrade/")
+        self.assertContains(response, "/upgrade/start/")
+        self.assertContains(response, "Upgrade to Family")
+
+    def test_profile_page_shows_upgrade_button_for_free_tier(self):
+        response = self.client.get("/profile/")
+        self.assertContains(response, "/upgrade/start/")
+        self.assertContains(response, "Upgrade to Family")
+
+    def test_profile_page_shows_family_status_not_upgrade_button(self):
+        from core.models import FamilyAccount  # noqa: PLC0415
+
+        self.account.tier = FamilyAccount.TIER_FAMILY
+        self.account.save(update_fields=["tier"])
+        response = self.client.get("/profile/")
+        self.assertContains(response, "is on the")
+        self.assertContains(response, "Family")
+        self.assertNotContains(response, "/upgrade/start/")
 
 
 class InvitationFlowTestCase(TestCase):

@@ -60,6 +60,26 @@
 
   {% if request.account and request.user == request.account.owner %}
   <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">Plan</h2>
+    {% if request.account.tier == "family" %}
+    <p class="text-sm text-gray-600">
+      {{ request.account.name }} is on the <strong>Family</strong> plan ($4.99/mo) — every module unlocked, unlimited members.
+    </p>
+    {% else %}
+    <p class="text-sm text-gray-600 mb-4">
+      {{ request.account.name }} is on the <strong>Free</strong> plan (Tasks + Shopping List, up to 2 members).
+      Upgrade to Family to unlock vehicles, home maintenance, calendar sync, recipes, and vacations.
+    </p>
+    <form method="post" action="{% url 'core:upgrade_start' %}">
+      {% csrf_token %}
+      <button type="submit" class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+        Upgrade to Family — $4.99/mo
+      </button>
+    </form>
+    {% endif %}
+  </section>
+
+  <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
     <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">Your Data</h2>
     <p class="text-sm text-gray-600 mb-4">
       Download a ZIP of everything stored in {{ request.account.name }} — vehicles, properties,

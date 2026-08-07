@@ -18,6 +18,7 @@ from .views import (
     SitemapXmlView,
     TermsOfServiceView,
     UpgradeRequiredView,
+    UpgradeToFamilyView,
 )
 
 app_name = "core"
@@ -26,6 +27,7 @@ urlpatterns = [
     path("", LandingPageView.as_view(), name="landing"),
     path("dashboard/", DashboardView.as_view(), name="dashboard"),
     path("upgrade/", UpgradeRequiredView.as_view(), name="upgrade_required"),
+    path("upgrade/start/", UpgradeToFamilyView.as_view(), name="upgrade_start"),
     path("onboarding/", OnboardingRedirectView.as_view(), name="onboarding"),
     path("onboarding/signup/", OnboardingSignupView.as_view(), name="onboarding_signup"),
     path("onboarding/invite/", OnboardingInviteView.as_view(), name="onboarding_invite"),

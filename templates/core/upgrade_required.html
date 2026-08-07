@@ -17,6 +17,12 @@
     calendar sync, recipes, and vacations — with unlimited members.
   </p>
   <div class="mt-8 flex items-center justify-center gap-4">
+    <form method="post" action="{% url 'core:upgrade_start' %}">
+      {% csrf_token %}
+      <button type="submit" class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+        Upgrade to Family — $4.99/mo
+      </button>
+    </form>
     <a href="{% url 'core:dashboard' %}" class="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
       Back to dashboard
     </a>
