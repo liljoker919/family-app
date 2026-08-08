@@ -62,6 +62,7 @@ _ALL_ENDPOINTS = [
     "/profile/",
     "/profile/export/",
     "/profile/delete/",
+    "/profile/manage-subscription/",
     "/accounts/password_change/",
 ]
 
@@ -1065,6 +1066,60 @@ class UpgradeToFamilyViewTestCase(TestCase):
         self.assertContains(response, "is on the")
         self.assertContains(response, "Family")
         self.assertNotContains(response, "/upgrade/start/")
+
+
+class ManageSubscriptionViewTestCase(TestCase):
+    """#357 — self-serve cancellation/plan-management via Stripe's hosted
+    Customer Portal, replacing "email us to cancel" as the only option."""
+
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.owner = User.objects.create_user(username="portal_owner", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Portal Family", slug="portal-family", owner=self.owner, tier="family",
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.owner, role="owner")
+
+        self.member = User.objects.create_user(username="portal_member", password="pass12345")
+        FamilyMembership.objects.create(account=self.account, user=self.member, role="member")
+
+    def test_owner_post_with_portal_configured_redirects_to_stripe(self):
+        from unittest.mock import patch  # noqa: PLC0415
+
+        self.client.login(username="portal_owner", password="pass12345")
+        with patch(
+            "core.views._create_billing_portal_session",
+            return_value="https://billing.stripe.com/test-portal-session",
+        ):
+            response = self.client.post("/profile/manage-subscription/", follow=False)
+        self.assertRedirects(
+            response, "https://billing.stripe.com/test-portal-session", fetch_redirect_response=False,
+        )
+
+    def test_owner_post_with_portal_unavailable_shows_error(self):
+        # Test settings never configure Stripe — portal session stays inert.
+        self.client.login(username="portal_owner", password="pass12345")
+        response = self.client.post("/profile/manage-subscription/")
+        self.assertRedirects(response, "/profile/")
+
+    def test_non_owner_member_cannot_manage_subscription(self):
+        self.client.login(username="portal_member", password="pass12345")
+        response = self.client.post("/profile/manage-subscription/")
+        self.assertRedirects(response, "/profile/")
+
+    def test_no_account_redirects_profile(self):
+        User.objects.create_user(username="portal_acctless", password="pass12345")
+        client = Client()
+        client.login(username="portal_acctless", password="pass12345")
+        response = client.post("/profile/manage-subscription/")
+        self.assertRedirects(response, "/profile/")
+
+    def test_family_tier_profile_page_shows_manage_subscription_button(self):
+        self.client.login(username="portal_owner", password="pass12345")
+        response = self.client.get("/profile/")
+        self.assertContains(response, "/profile/manage-subscription/")
+        self.assertContains(response, "Manage Subscription")
 
 
 class InvitationFlowTestCase(TestCase):

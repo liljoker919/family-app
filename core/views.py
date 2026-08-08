@@ -301,6 +301,66 @@ def _send_welcome_email(account):
         logger.exception("Failed to send welcome email for account %s", account.pk)
 
 
+def _create_billing_portal_session(request, account):
+    """Returns a Stripe Billing Portal URL for managing/canceling the
+    account's subscription, or None if unavailable (#357) — same
+    inert-until-configured pattern as _create_family_checkout_session."""
+
+    live_mode = getattr(settings, "STRIPE_LIVE_MODE", False)
+    secret_key = getattr(settings, "STRIPE_LIVE_SECRET_KEY", "") if live_mode else getattr(settings, "STRIPE_TEST_SECRET_KEY", "")
+    if not secret_key:
+        logger.warning("Billing portal session attempted with no Stripe secret key configured")
+        return None
+
+    import stripe  # noqa: PLC0415
+    from djstripe.models import Customer  # noqa: PLC0415
+
+    stripe.api_key = secret_key
+    customer = Customer.objects.filter(subscriber=account).first()
+    if customer is None:
+        logger.warning("Billing portal session attempted for account %s with no Stripe customer", account.pk)
+        return None
+
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=customer.id,
+            return_url=request.build_absolute_uri(reverse("core:profile")),
+        )
+    except stripe.error.StripeError:
+        # Most likely cause: the Customer Portal hasn't been configured in
+        # the Stripe Dashboard yet (Settings -> Billing -> Customer portal)
+        # — required once per Stripe account before this API works at all.
+        logger.exception("Failed to create billing portal session for account %s", account.pk)
+        return None
+    return session.url
+
+
+class ManageSubscriptionView(LoginRequiredMixin, View):
+    """#357 — hands off to Stripe's hosted Customer Portal for cancel/
+    plan-change/payment-method updates, same "let Stripe host the risky
+    part" pattern as Checkout (#307/#308). The existing
+    customer.subscription.deleted webhook handler already flips
+    tier/is_active back to Free — a portal-initiated cancellation looks
+    identical to Stripe as a Checkout-initiated one, no new webhook logic
+    needed."""
+
+    def post(self, request):
+        account = request.account
+        if account is None or request.user != account.owner:
+            messages.error(request, "Only the account owner can manage the subscription.")
+            return redirect("core:profile")
+
+        portal_url = _create_billing_portal_session(request, account)
+        if portal_url is None:
+            messages.error(
+                request,
+                "Subscription management isn't available right now — please try again shortly, or "
+                "contact us at cnickerson@oakcitysoftwaresolutions.com.",
+            )
+            return redirect("core:profile")
+        return redirect(portal_url)
+
+
 class OnboardingPlanView(LoginRequiredMixin, View):
     """Step 3: Free activates immediately; Family redirects to Stripe Checkout."""
 

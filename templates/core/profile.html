@@ -62,9 +62,15 @@
   <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
     <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">Plan</h2>
     {% if request.account.tier == "family" %}
-    <p class="text-sm text-gray-600">
+    <p class="text-sm text-gray-600 mb-4">
       {{ request.account.name }} is on the <strong>Family</strong> plan ($4.99/mo) — every module unlocked, unlimited members.
     </p>
+    <form method="post" action="{% url 'core:manage_subscription' %}">
+      {% csrf_token %}
+      <button type="submit" class="rounded-lg bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200">
+        Manage Subscription
+      </button>
+    </form>
     {% else %}
     <p class="text-sm text-gray-600 mb-4">
       {{ request.account.name }} is on the <strong>Free</strong> plan (Tasks + Shopping List, up to 2 members).
