@@ -2,14 +2,20 @@ from django.contrib import admin
 from django.urls import include, path
 from invitations.views import AcceptInvite
 
-from core.views import RateLimitedLoginView, StyledPasswordChangeView
+from core.views import RateLimitedLoginView, StyledPasswordChangeView, StyledPasswordResetConfirmView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # Rate-limited login and the app-styled password-change form must come
-    # before the auth.urls include so they win the name match.
+    # Rate-limited login, the app-styled password-change form, and the
+    # email-sending reset-confirm view must come before the auth.urls
+    # include so they win the name match.
     path("accounts/login/", RateLimitedLoginView.as_view(), name="login"),
     path("accounts/password_change/", StyledPasswordChangeView.as_view(), name="password_change"),
+    path(
+        "accounts/reset/<uidb64>/<token>/",
+        StyledPasswordResetConfirmView.as_view(),
+        name="password_reset_confirm",
+    ),
     path("accounts/", include("django.contrib.auth.urls")),
     path("stripe/", include("djstripe.urls", namespace="djstripe")),
     # Only the accept-invite endpoint is wired — send-invite/send-json-invite

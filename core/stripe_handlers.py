@@ -18,6 +18,52 @@ def _account_for_stripe_customer(stripe_customer_id):
     return customer.subscriber
 
 
+def _send_subscription_activated_email(account):
+    """#381 — handle_subscription_created previously flipped the tier with no
+    confirmation/receipt sent at all. Same try/except-and-log pattern as
+    handle_payment_failed: a transient SES failure must never break webhook
+    processing or trigger Stripe retries."""
+    try:
+        send_mail(
+            subject="You're on the Hey Famly Family plan!",
+            message=(
+                f"Hi {account.owner.first_name or account.owner.username},\n\n"
+                f"Your {account.name} account is now on the Family plan ($4.99/mo) — "
+                "vehicles, home maintenance, calendar sync, recipes, and vacations "
+                "are all unlocked, with unlimited family members.\n\n"
+                "You can view invoices or manage your subscription anytime from "
+                "your Profile page.\n\n"
+                "— Hey Famly"
+            ),
+            from_email=None,
+            recipient_list=[account.email],
+        )
+    except Exception:
+        logger.exception("Failed to send subscription-activated email for account %s", account.pk)
+
+
+def _send_subscription_canceled_email(account):
+    """#382 — same pattern as handle_payment_failed; must never break webhook
+    processing or trigger Stripe retries."""
+    try:
+        send_mail(
+            subject="Your Hey Famly Family plan has ended",
+            message=(
+                f"Hi {account.owner.first_name or account.owner.username},\n\n"
+                f"Your {account.name} account's Family plan subscription has ended, "
+                "and the account is now back on the Free plan. Vehicles, home "
+                "maintenance, calendar sync, recipes, and vacations are no longer "
+                "accessible, but Tasks and the Shopping List still are.\n\n"
+                "You can resubscribe anytime from your Profile page.\n\n"
+                "— Hey Famly"
+            ),
+            from_email=None,
+            recipient_list=[account.email],
+        )
+    except Exception:
+        logger.exception("Failed to send subscription-canceled email for account %s", account.pk)
+
+
 @djstripe_receiver(["customer.subscription.created"])
 def handle_subscription_created(sender, event, **kwargs):
     stripe_customer_id = event.data.get("object", {}).get("customer")
@@ -33,6 +79,8 @@ def handle_subscription_created(sender, event, **kwargs):
         update_fields.append("tier")
     if update_fields:
         account.save(update_fields=update_fields)
+    if account.email:
+        _send_subscription_activated_email(account)
 
 
 @djstripe_receiver(["customer.subscription.deleted"])
@@ -50,6 +98,8 @@ def handle_subscription_deleted(sender, event, **kwargs):
         update_fields.append("tier")
     if update_fields:
         account.save(update_fields=update_fields)
+    if account.email:
+        _send_subscription_canceled_email(account)
 
 
 @djstripe_receiver(["invoice.payment_failed"])

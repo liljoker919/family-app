@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.views import PasswordChangeView as DjangoPasswordChangeView
+from django.contrib.auth.views import PasswordResetConfirmView as DjangoPasswordResetConfirmView
 from django.contrib import messages
 from django.core.mail import send_mail
 from django.http import HttpResponse
@@ -456,6 +457,28 @@ class ProfileView(LoginRequiredMixin, View):
         return redirect("core:profile")
 
 
+def _send_password_changed_email(user):
+    """#379 — Django's built-in flow only emails on password reset *request*,
+    never after a password is actually changed (via reset or via the normal
+    change-password form). Fired from both, so a compromised account whose
+    password an attacker changes still generates a signal to the real owner."""
+    try:
+        send_mail(
+            subject="Your Hey Famly password was changed",
+            message=(
+                f"Hi {user.first_name or user.username},\n\n"
+                "This confirms your Hey Famly password was just changed.\n\n"
+                "If this wasn't you, contact us immediately at "
+                "cnickerson@oakcitysoftwaresolutions.com so we can help secure your account.\n\n"
+                "— Hey Famly"
+            ),
+            from_email=None,
+            recipient_list=[user.email],
+        )
+    except Exception:
+        logger.exception("Failed to send password-changed email for user %s", user.pk)
+
+
 class StyledPasswordChangeView(DjangoPasswordChangeView):
     """Overrides the plain default from django.contrib.auth.urls with the
     app-styled form/template — wired ahead of that include() in
@@ -463,6 +486,22 @@ class StyledPasswordChangeView(DjangoPasswordChangeView):
 
     form_class = PasswordChangeForm
     template_name = "registration/password_change_form.html"
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        _send_password_changed_email(self.request.user)
+        return response
+
+
+class StyledPasswordResetConfirmView(DjangoPasswordResetConfirmView):
+    """Wired ahead of the auth.urls include in family_project/urls.py so this
+    wins the `password_reset_confirm` URL name — purely to send the #379
+    confirmation email; template/form behavior is otherwise untouched."""
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        _send_password_changed_email(self.user)
+        return response
 
 
 class DataExportView(LoginRequiredMixin, View):
@@ -504,6 +543,29 @@ def _cancel_active_subscriptions(account):
         subscription.cancel()
 
 
+def _send_account_deleted_email(account):
+    """#380 — fired as the last step before the account and its data are
+    actually gone, since account.email/account.name won't exist to read
+    afterward. Best-effort only: a failed send must never block the delete
+    the user explicitly confirmed with their password."""
+    try:
+        send_mail(
+            subject=f'Your "{account.name}" account was deleted',
+            message=(
+                f"This confirms the \"{account.name}\" Hey Famly account and all of its data "
+                f"(vehicles, properties, recipes, tasks, vacations, shopping lists) were "
+                f"permanently deleted on {timezone.now():%B %d, %Y at %I:%M %p %Z}.\n\n"
+                "If you didn't do this, contact us immediately at "
+                "cnickerson@oakcitysoftwaresolutions.com.\n\n"
+                "— Hey Famly"
+            ),
+            from_email=None,
+            recipient_list=[account.email],
+        )
+    except Exception:
+        logger.exception("Failed to send account-deleted email for account %s", account.pk)
+
+
 class AccountDeleteView(LoginRequiredMixin, View):
     """Right-to-erasure (#320): the account owner permanently deletes their
     FamilyAccount and all cascading data. Immediate hard delete rather than a
@@ -535,6 +597,7 @@ class AccountDeleteView(LoginRequiredMixin, View):
 
         _cancel_active_subscriptions(account)
         account_name = account.name
+        _send_account_deleted_email(account)
         logout(request)
         account.delete()
         messages.success(request, f'The "{account_name}" account and all its data have been permanently deleted.')

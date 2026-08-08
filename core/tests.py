@@ -651,6 +651,25 @@ class StripeWebhookTierTestCase(TestCase):
         self.assertTrue(self.account.is_active)
         self.assertEqual(self.account.tier, self.account.TIER_FAMILY)
 
+    def test_subscription_created_sends_activated_email(self):
+        """#381 — previously flipped the tier with no confirmation/receipt at all."""
+        from unittest.mock import patch  # noqa: PLC0415
+
+        from django.core import mail  # noqa: PLC0415
+
+        from core.stripe_handlers import handle_subscription_created  # noqa: PLC0415
+
+        self.user.email = "webhook_user@example.com"
+        self.user.save(update_fields=["email"])
+
+        with patch("core.stripe_handlers._account_for_stripe_customer", return_value=self.account):
+            handle_subscription_created(sender=None, event=_FakeEvent())
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.to, ["webhook_user@example.com"])
+        self.assertIn("Family plan", sent.subject)
+
     def test_subscription_deleted_sets_free_tier_and_inactive(self):
         from unittest.mock import patch  # noqa: PLC0415
 
@@ -667,6 +686,30 @@ class StripeWebhookTierTestCase(TestCase):
         self.account.refresh_from_db()
         self.assertFalse(self.account.is_active)
         self.assertEqual(self.account.tier, self.account.TIER_FREE)
+
+    def test_subscription_deleted_sends_canceled_email(self):
+        """#382 — previously flipped the tier back to Free with no email
+        explaining that Family-tier modules are no longer accessible."""
+        from unittest.mock import patch  # noqa: PLC0415
+
+        from core.models import FamilyAccount  # noqa: PLC0415
+        from django.core import mail  # noqa: PLC0415
+
+        from core.stripe_handlers import handle_subscription_deleted  # noqa: PLC0415
+
+        self.user.email = "webhook_user@example.com"
+        self.user.save(update_fields=["email"])
+        self.account.tier = FamilyAccount.TIER_FAMILY
+        self.account.is_active = True
+        self.account.save(update_fields=["tier", "is_active"])
+
+        with patch("core.stripe_handlers._account_for_stripe_customer", return_value=self.account):
+            handle_subscription_deleted(sender=None, event=_FakeEvent())
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.to, ["webhook_user@example.com"])
+        self.assertIn("ended", sent.subject)
 
     def test_payment_failed_email_does_not_promise_a_reply_or_self_serve_action(self):
         """The sender is noreply@ and there's no self-serve payment-method
@@ -1200,6 +1243,61 @@ class InvitationFlowTestCase(TestCase):
         self.assertContains(response, "already taken")
 
 
+class FamilyJoinNotificationTestCase(TestCase):
+    """#383 — handle_invite_accepted created the FamilyMembership silently;
+    now notifies the account owner that someone actually joined."""
+
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+        from invitations.utils import get_invitation_model  # noqa: PLC0415
+
+        Invitation = get_invitation_model()
+        self.owner = User.objects.create_user(
+            username="notif_owner", password="pass12345", email="owner@example.com",
+        )
+        self.account = FamilyAccount.objects.create(name="Notif Family", slug="notif-family", owner=self.owner)
+        FamilyMembership.objects.create(account=self.account, user=self.owner, role="owner")
+        self.new_member = User.objects.create_user(
+            username="new_member", password="pass12345", email="newmember@example.com", first_name="Alex",
+        )
+        self.invitation = Invitation.create(email="newmember@example.com", inviter=self.owner)
+
+    def test_invite_accepted_notifies_owner(self):
+        from django.core import mail  # noqa: PLC0415
+
+        from core.invitation_handlers import handle_invite_accepted  # noqa: PLC0415
+
+        handle_invite_accepted(sender=None, email="newmember@example.com", invitation=self.invitation)
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.to, ["owner@example.com"])
+        self.assertIn("Alex", sent.subject)
+        self.assertIn("Notif Family", sent.body)
+
+    def test_reprocessing_the_same_accept_does_not_resend(self):
+        from django.core import mail  # noqa: PLC0415
+
+        from core.invitation_handlers import handle_invite_accepted  # noqa: PLC0415
+
+        handle_invite_accepted(sender=None, email="newmember@example.com", invitation=self.invitation)
+        handle_invite_accepted(sender=None, email="newmember@example.com", invitation=self.invitation)
+
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_no_email_sent_when_owner_has_no_email(self):
+        from django.core import mail  # noqa: PLC0415
+
+        from core.invitation_handlers import handle_invite_accepted  # noqa: PLC0415
+
+        self.owner.email = ""
+        self.owner.save(update_fields=["email"])
+
+        handle_invite_accepted(sender=None, email="newmember@example.com", invitation=self.invitation)
+
+        self.assertEqual(len(mail.outbox), 0)
+
+
 class SendInviteViewTestCase(TestCase):
     def setUp(self):
         from django.core.cache import cache  # noqa: PLC0415
@@ -1371,6 +1469,78 @@ class PasswordChangeTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("original-pass-123"))
+
+    def test_successful_change_sends_confirmation_email(self):
+        """#379 — a signal to the real owner if an attacker changes a
+        compromised account's password."""
+        from django.core import mail  # noqa: PLC0415
+
+        self.user.email = "pwd_user@example.com"
+        self.user.save(update_fields=["email"])
+
+        self.client.post(
+            "/accounts/password_change/",
+            {
+                "old_password": "original-pass-123",
+                "new_password1": "a much better new password 456",
+                "new_password2": "a much better new password 456",
+            },
+        )
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.to, ["pwd_user@example.com"])
+        self.assertIn("password was changed", sent.subject)
+
+    def test_wrong_old_password_does_not_send_email(self):
+        from django.core import mail  # noqa: PLC0415
+
+        self.client.post(
+            "/accounts/password_change/",
+            {
+                "old_password": "totally-wrong-password",
+                "new_password1": "a much better new password 456",
+                "new_password2": "a much better new password 456",
+            },
+        )
+        self.assertEqual(len(mail.outbox), 0)
+
+
+class PasswordResetConfirmEmailTestCase(TestCase):
+    """#379 — the reset-confirm side of the same confirmation email, wired
+    via core.views.StyledPasswordResetConfirmView so it wins the
+    `password_reset_confirm` URL name ahead of django.contrib.auth.urls."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="reset_confirm_user", password="original-pass-123", email="reset_confirm@example.com",
+        )
+
+    def test_completing_reset_sends_confirmation_email(self):
+        from django.contrib.auth.tokens import default_token_generator  # noqa: PLC0415
+        from django.core import mail  # noqa: PLC0415
+        from django.utils.encoding import force_bytes  # noqa: PLC0415
+        from django.utils.http import urlsafe_base64_encode  # noqa: PLC0415
+
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        token = default_token_generator.make_token(self.user)
+
+        # First GET exchanges the emailed token for a session-scoped one and
+        # redirects to the .../set-password/ URL, mirroring what a browser
+        # actually does — this also proves our override didn't break that.
+        follow_response = self.client.get(f"/accounts/reset/{uid}/{token}/", follow=True)
+        set_password_url = follow_response.redirect_chain[-1][0]
+
+        self.client.post(
+            set_password_url,
+            {"new_password1": "a much better new password 456", "new_password2": "a much better new password 456"},
+        )
+
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("a much better new password 456"))
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.to, ["reset_confirm@example.com"])
+        self.assertIn("password was changed", sent.subject)
 
 
 class PasswordResetEmailTestCase(TestCase):
@@ -1646,3 +1816,26 @@ class AccountDeleteViewTestCase(TestCase):
         from core.views import _cancel_active_subscriptions  # noqa: PLC0415
 
         _cancel_active_subscriptions(self.account)
+
+    def test_successful_deletion_sends_confirmation_email(self):
+        """#380 — sent before the account/its email are actually gone."""
+        from django.core import mail  # noqa: PLC0415
+
+        self.owner.email = "delete_owner@example.com"
+        self.owner.save(update_fields=["email"])
+
+        self.client.login(username="delete_owner", password="original-pass-123")
+        self.client.post("/profile/delete/", {"password": "original-pass-123"})
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.to, ["delete_owner@example.com"])
+        self.assertIn("Delete Family", sent.subject)
+        self.assertIn("permanently deleted", sent.body)
+
+    def test_wrong_password_does_not_send_email(self):
+        from django.core import mail  # noqa: PLC0415
+
+        self.client.login(username="delete_owner", password="original-pass-123")
+        self.client.post("/profile/delete/", {"password": "totally-wrong"})
+        self.assertEqual(len(mail.outbox), 0)
