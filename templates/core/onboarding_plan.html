@@ -1,53 +1,40 @@
 {% extends "base.html" %}
 
-{% block title %}Pick Your Plan — Hey Famly{% endblock %}
-{% block page_title %}Pick Your Plan{% endblock %}
+{% block title %}Upgrade to Family — Hey Famly{% endblock %}
+{% block page_title %}Upgrade to Family{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto py-8">
-  <h2 class="text-2xl font-bold text-gray-900 text-center">Choose a plan to get started</h2>
-  <p class="mt-2 text-gray-600 text-center">You can change plans anytime from Settings.</p>
+<div class="max-w-lg mx-auto py-8">
 
-  <div class="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2">
-
-    <!-- Free -->
-    <form method="post" class="flex flex-col rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-      {% csrf_token %}
-      <input type="hidden" name="plan" value="free">
-      <h3 class="text-lg font-semibold text-gray-900">Free</h3>
-      <p class="mt-1 text-3xl font-bold text-gray-900">$0<span class="text-base font-normal text-gray-500">/mo</span></p>
-      <ul class="mt-6 space-y-2 text-sm text-gray-600 flex-1">
-        <li>✓ Tasks &amp; Shopping List</li>
-        <li>✓ Up to 2 members</li>
-      </ul>
-      <button type="submit"
-              class="mt-8 w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-        Start Free
-      </button>
-    </form>
-
-    <!-- Family -->
-    <form method="post" class="flex flex-col rounded-2xl border-2 border-blue-600 bg-white p-8 shadow-sm relative">
+  <div class="rounded-2xl border-2 border-blue-600 bg-white p-8 shadow-sm relative">
+    <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
+      Most popular
+    </span>
+    <h2 class="text-lg font-semibold text-gray-900 text-center">Family plan</h2>
+    <p class="mt-1 text-3xl font-bold text-gray-900 text-center">$4.99<span class="text-base font-normal text-gray-500">/mo</span></p>
+    <ul class="mt-6 space-y-2 text-sm text-gray-600">
+      <li>✓ Everything in Free</li>
+      <li>✓ All modules (vehicles, home maintenance, calendar, vacations, recipes)</li>
+      <li>✓ Unlimited members</li>
+      <li>✓ Google/Outlook calendar sync</li>
+    </ul>
+    <form method="post">
       {% csrf_token %}
       <input type="hidden" name="plan" value="family">
-      <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
-        Most popular
-      </span>
-      <h3 class="text-lg font-semibold text-gray-900">Family</h3>
-      <p class="mt-1 text-3xl font-bold text-gray-900">$4.99<span class="text-base font-normal text-gray-500">/mo</span></p>
-      <ul class="mt-6 space-y-2 text-sm text-gray-600 flex-1">
-        <li>✓ Everything in Free</li>
-        <li>✓ All modules (vehicles, home maintenance, calendar, vacations, recipes)</li>
-        <li>✓ Unlimited members</li>
-        <li>✓ Google/Outlook calendar sync</li>
-      </ul>
       <button type="submit"
               class="mt-8 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
-        Start Family
+        Subscribe — $4.99/mo
       </button>
     </form>
-
   </div>
+
+  <form method="post" class="mt-4 text-center">
+    {% csrf_token %}
+    <input type="hidden" name="plan" value="free">
+    <button type="submit" class="text-sm font-semibold text-gray-500 hover:text-gray-700 hover:underline">
+      Skip for now — stay on Free (Tasks &amp; Shopping List, up to 2 members)
+    </button>
+  </form>
 
   <p class="mt-8 text-center text-xs text-gray-500">
     By continuing, you agree to our

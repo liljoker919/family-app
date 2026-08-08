@@ -96,6 +96,11 @@ class OnboardingSignupView(View):
     def get(self, request):
         if request.user.is_authenticated:
             return redirect("core:onboarding")
+        # Carries "Subscribe" intent from the landing page's Family card
+        # (#388 fallout) through signup + the invite step, so OnboardingPlanView
+        # can skip straight to Stripe Checkout instead of asking again.
+        if request.GET.get("plan") == "family":
+            request.session["intended_plan"] = "family"
         invited_email = request.session.get("account_verified_email")
         if invited_email:
             return render(request, self.invited_template_name, {"form": InvitedSignupForm(), "email": invited_email})
@@ -306,6 +311,17 @@ class OnboardingPlanView(LoginRequiredMixin, View):
             return redirect("core:dashboard")
         if request.account.onboarding_complete:
             return redirect("core:dashboard")
+
+        if request.session.get("intended_plan") == "family":
+            del request.session["intended_plan"]
+            checkout_url = _create_family_checkout_session(request, request.account)
+            if checkout_url is not None:
+                return redirect(checkout_url)
+            messages.error(
+                request,
+                "The Family plan isn't available for checkout right now — please try again shortly, or start on Free and upgrade later.",
+            )
+
         return render(request, self.template_name)
 
     def post(self, request):

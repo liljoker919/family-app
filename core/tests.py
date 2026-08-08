@@ -721,6 +721,17 @@ class OnboardingSignupViewTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "family_name")
 
+    def test_get_with_plan_family_stashes_intent_in_session(self):
+        """#388 fallout — carries the landing page's "Subscribe" CTA intent
+        through to OnboardingPlanView, which skips the picker and redirects
+        straight to Stripe Checkout once account creation completes."""
+        self.client.get("/onboarding/signup/?plan=family")
+        self.assertEqual(self.client.session.get("intended_plan"), "family")
+
+    def test_get_without_plan_param_does_not_set_intent(self):
+        self.client.get("/onboarding/signup/")
+        self.assertIsNone(self.client.session.get("intended_plan"))
+
     def test_get_redirects_authenticated_user(self):
         User.objects.create_user(username="already_in", password="pass12345")
         self.client.login(username="already_in", password="pass12345")
@@ -840,14 +851,44 @@ class OnboardingPlanViewTestCase(TestCase):
     def test_get_renders_when_incomplete(self):
         response = self.client.get("/onboarding/plan/")
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Start Free")
-        self.assertContains(response, "Start Family")
+        self.assertContains(response, "Subscribe")
+        self.assertContains(response, "Skip for now")
 
     def test_get_redirects_to_dashboard_when_already_complete(self):
         self.account.onboarding_complete = True
         self.account.save(update_fields=["onboarding_complete"])
         response = self.client.get("/onboarding/plan/")
         self.assertRedirects(response, "/dashboard/")
+
+    def test_get_with_intended_plan_family_skips_picker_and_redirects_to_stripe(self):
+        from unittest.mock import patch  # noqa: PLC0415
+
+        session = self.client.session
+        session["intended_plan"] = "family"
+        session.save()
+
+        with patch(
+            "core.views._create_family_checkout_session",
+            return_value="https://checkout.stripe.com/test-session",
+        ):
+            response = self.client.get("/onboarding/plan/", follow=False)
+
+        self.assertRedirects(
+            response, "https://checkout.stripe.com/test-session", fetch_redirect_response=False,
+        )
+        self.assertNotIn("intended_plan", self.client.session)
+
+    def test_get_with_intended_plan_family_but_checkout_unavailable_falls_back_to_picker(self):
+        # Test settings never set STRIPE_FAMILY_PRICE_ID — checkout stays inert.
+        session = self.client.session
+        session["intended_plan"] = "family"
+        session.save()
+
+        response = self.client.get("/onboarding/plan/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Subscribe")
+        self.assertNotIn("intended_plan", self.client.session)
 
     def test_post_free_marks_complete_and_redirects_dashboard(self):
         response = self.client.post("/onboarding/plan/", {"plan": "free"})
@@ -1309,6 +1350,13 @@ class LandingPageViewTestCase(TestCase):
     def test_start_free_links_to_onboarding_signup(self):
         response = self.client.get("/")
         self.assertContains(response, "/onboarding/signup/")
+
+    def test_family_card_subscribes_directly_not_start_free(self):
+        """#388 fallout — the $4.99 card previously said "Start Free" (a
+        copy-paste leftover) and carried no plan intent through signup."""
+        response = self.client.get("/")
+        self.assertContains(response, "/onboarding/signup/?plan=family")
+        self.assertContains(response, "Subscribe")
 
     def test_authenticated_user_redirected_to_dashboard(self):
         User.objects.create_user(username="landing_user", password="pass12345")
