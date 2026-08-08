@@ -4,7 +4,7 @@ gunicorn>=22.0.0
 whitenoise>=6.7.0
 icalendar
 requests>=2.34.2
-sentry-sdk[django]>=2.0.0
+sentry-sdk[django]>=2.66.1
 django-ratelimit>=4.1.0
 psycopg2-binary>=2.9.12
 dj-stripe==2.11.0
