@@ -32,14 +32,14 @@
 
     <form method="post" action="{% url 'calendar_events:feed_create' %}" class="flex gap-3">
       {% csrf_token %}
-      <select name="provider" class="rounded-lg border border-gray-300 px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+      <select name="provider" class="rounded-lg border border-gray-300 px-3 py-2.5 text-sm shadow-sm focus:border-brand-terracotta focus:outline-none focus:ring-1 focus:ring-brand-terracotta">
         <option value="google">Google Calendar</option>
         <option value="outlook">Outlook</option>
       </select>
       <input type="url" name="ical_url" placeholder="https://calendar.google.com/calendar/ical/..." required
-             class="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+             class="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm shadow-sm focus:border-brand-terracotta focus:outline-none focus:ring-1 focus:ring-brand-terracotta">
       <button type="submit"
-              class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shrink-0">
+              class="rounded-lg bg-brand-terracotta px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-terracotta-hover shrink-0">
         Add
       </button>
     </form>

@@ -25,7 +25,7 @@
     {% if vacation.status == 'confirmed' %}
     <span class="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700">Confirmed</span>
     {% elif vacation.status == 'planning' %}
-    <span class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">Planning</span>
+    <span class="inline-flex items-center rounded-full bg-brand-terracotta/15 px-3 py-1 text-sm font-medium text-brand-terracotta-hover">Planning</span>
     {% else %}
     <span class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-sm font-medium text-gray-600">Completed</span>
     {% endif %}
@@ -107,7 +107,7 @@
       <!-- Type icon/badge -->
       <div class="shrink-0 mt-0.5">
         {% if res.type == 'FLIGHT' %}
-        <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">✈ Flight</span>
+        <span class="inline-flex items-center rounded-full bg-brand-terracotta/15 px-2.5 py-1 text-xs font-medium text-brand-terracotta-hover">✈ Flight</span>
         {% elif res.type == 'HOTEL' %}
         <span class="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-700">🏨 Hotel</span>
         {% elif res.type == 'CAR' %}
@@ -173,7 +173,7 @@
           <td class="px-4 py-3 text-gray-500 whitespace-nowrap">{{ exp.date|date:"M j" }}</td>
           <td class="px-4 py-3">
             {% if exp.category == 'FLIGHT' %}
-            <span class="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">Flight</span>
+            <span class="inline-flex rounded-full bg-brand-terracotta/15 px-2 py-0.5 text-xs font-medium text-brand-terracotta-hover">Flight</span>
             {% elif exp.category == 'HOTEL' %}
             <span class="inline-flex rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">Hotel</span>
             {% elif exp.category == 'FOOD' %}

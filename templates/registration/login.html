@@ -6,6 +6,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign In — Hey Famly</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { navy: '#1A324E', sage: '#698069', terracotta: '#DA6C4A', 'terracotta-hover': '#B85A3E' }
+          }
+        }
+      }
+    }
+  </script>
 </head>
 <body class="h-full bg-slate-900 flex items-center justify-center p-4">
 
@@ -42,7 +53,7 @@
                    autocomplete="username"
                    required
                    autofocus
-                   class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                   class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-terracotta focus:outline-none focus:ring-1 focus:ring-brand-terracotta">
           </div>
 
           <div>
@@ -52,12 +63,12 @@
                    type="password"
                    autocomplete="current-password"
                    required
-                   class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                   class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-terracotta focus:outline-none focus:ring-1 focus:ring-brand-terracotta">
           </div>
         </div>
 
         <button type="submit"
-                class="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
+                class="mt-6 w-full rounded-lg bg-brand-terracotta px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-terracotta-hover focus:outline-none focus:ring-2 focus:ring-brand-terracotta focus:ring-offset-2 transition-colors">
           Sign in
         </button>
       </form>

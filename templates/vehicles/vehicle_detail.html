@@ -91,7 +91,7 @@
     <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
       <h2 class="text-base font-semibold text-gray-900">Service History</h2>
       <a href="{% url 'vehicles:service_create' vehicle.pk %}"
-         class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+         class="inline-flex items-center gap-2 rounded-lg bg-brand-terracotta px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-terracotta-hover transition-colors">
         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
@@ -134,7 +134,7 @@
             <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{{ svc.description|default:"—" }}</td>
             <td class="whitespace-nowrap px-6 py-4 text-right text-sm">
               <a href="{% url 'vehicles:service_update' svc.pk %}"
-                 class="font-medium text-blue-600 hover:text-blue-800">Edit</a>
+                 class="font-medium text-brand-terracotta hover:text-brand-terracotta-hover">Edit</a>
               <span class="mx-2 text-gray-300">|</span>
               <a href="{% url 'vehicles:service_delete' svc.pk %}"
                  class="font-medium text-red-500 hover:text-red-700">Delete</a>
@@ -151,7 +151,7 @@
       </svg>
       <p class="mt-3 text-sm text-gray-500">No service records yet.</p>
       <a href="{% url 'vehicles:service_create' vehicle.pk %}"
-         class="mt-4 text-sm font-medium text-blue-600 hover:text-blue-800">
+         class="mt-4 text-sm font-medium text-brand-terracotta hover:text-brand-terracotta-hover">
         Add the first service record →
       </a>
     </div>

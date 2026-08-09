@@ -40,7 +40,7 @@
     <div class="flex items-center justify-between">
       <p class="text-sm text-gray-500">Projects are sorted by priority then due date.</p>
       <a href="{% url 'property:maintenance_create' property.pk %}"
-         class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+         class="inline-flex items-center gap-2 rounded-lg bg-brand-terracotta px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-terracotta-hover transition-colors">
         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
         </svg>
@@ -77,7 +77,7 @@
               {% elif project.status == "on_hold" %}
               <span class="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">On Hold</span>
               {% else %}
-              <span class="inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-600">Planned</span>
+              <span class="inline-flex rounded-full bg-brand-terracotta/15 px-2 py-0.5 text-xs font-medium text-brand-terracotta">Planned</span>
               {% endif %}
               {% if project.frequency_months %}
               <span class="inline-flex rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-600">↻ every {{ project.frequency_months }}mo</span>
@@ -95,7 +95,7 @@
 
           <!-- Actions -->
           <div class="flex gap-3 shrink-0 text-sm">
-            <a href="{% url 'property:maintenance_update' project.pk %}" class="font-medium text-blue-600 hover:text-blue-800">Edit</a>
+            <a href="{% url 'property:maintenance_update' project.pk %}" class="font-medium text-brand-terracotta hover:text-brand-terracotta-hover">Edit</a>
             <a href="{% url 'property:maintenance_delete' project.pk %}" class="font-medium text-red-500 hover:text-red-700">Delete</a>
           </div>
         </div>
@@ -110,7 +110,7 @@
       <p class="mt-3 text-sm font-medium text-gray-900">No open projects</p>
       <p class="mt-1 text-sm text-gray-500">Track repairs, preventative tasks, and contractor work.</p>
       <a href="{% url 'property:maintenance_create' property.pk %}"
-         class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+         class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand-terracotta px-4 py-2 text-sm font-medium text-white hover:bg-brand-terracotta-hover transition-colors">
         + Add First Project
       </a>
     </div>
@@ -133,7 +133,7 @@
               {% if project.actual_cost %} · ${{ project.actual_cost|floatformat:0 }}{% endif %}
             </p>
           </div>
-          <a href="{% url 'property:maintenance_update' project.pk %}" class="text-xs font-medium text-blue-500 hover:text-blue-700">Edit</a>
+          <a href="{% url 'property:maintenance_update' project.pk %}" class="text-xs font-medium text-brand-terracotta hover:text-brand-terracotta-hover">Edit</a>
         </div>
         {% endfor %}
       </div>

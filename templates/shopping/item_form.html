@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="max-w-md">
-  <a href="{% url 'shopping:list' %}" class="mb-4 inline-block text-sm text-gray-500 hover:text-blue-600">← Shopping List</a>
+  <a href="{% url 'shopping:list' %}" class="mb-4 inline-block text-sm text-gray-500 hover:text-brand-terracotta">← Shopping List</a>
   <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
     <form method="post" novalidate>
       {% csrf_token %}
@@ -26,7 +26,7 @@
       </div>
       <div class="mt-6 flex gap-3">
         <button type="submit"
-                class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+                class="rounded-lg bg-brand-terracotta px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-terracotta-hover transition-colors">
           {% if object %}Save{% else %}Add to List{% endif %}
         </button>
         <a href="{% url 'shopping:list' %}"

@@ -6,7 +6,7 @@
 {% block content %}
 <div class="max-w-2xl">
   <a href="{% url 'property:property_detail' prop.pk %}"
-     class="mb-4 inline-block text-sm text-gray-500 hover:text-blue-600">← {{ prop.name }}</a>
+     class="mb-4 inline-block text-sm text-gray-500 hover:text-brand-terracotta">← {{ prop.name }}</a>
 
   <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
     <form method="post" novalidate>
@@ -131,7 +131,7 @@
 
       <div class="mt-6 flex gap-3">
         <button type="submit"
-                class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
+                class="rounded-lg bg-brand-terracotta px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-terracotta-hover transition-colors">
           {% if object %}Save Changes{% else %}Add Project{% endif %}
         </button>
         <a href="{% url 'property:property_detail' prop.pk %}"

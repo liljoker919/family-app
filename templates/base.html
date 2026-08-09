@@ -12,7 +12,13 @@
       theme: {
         extend: {
           colors: {
-            sidebar: { DEFAULT: '#0f172a', hover: '#1e293b', active: '#1d4ed8' }
+            sidebar: { DEFAULT: '#0f172a', hover: '#1e293b', active: '#DA6C4A' },
+            brand: {
+              navy: '#1A324E',
+              sage: '#698069',
+              terracotta: '#DA6C4A',
+              'terracotta-hover': '#B85A3E'
+            }
           }
         }
       }
@@ -42,7 +48,7 @@
       <a href="{% url 'core:dashboard' %}"
          class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
                 {% if url_name == 'dashboard' %}
-                  bg-blue-600 text-white
+                  bg-brand-terracotta text-white
                 {% else %}
                   text-slate-300 hover:bg-slate-800 hover:text-white
                 {% endif %}">
@@ -56,7 +62,7 @@
       <a href="/vehicles/"
          class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
                 {% if app_name == 'vehicles' %}
-                  bg-blue-600 text-white
+                  bg-brand-terracotta text-white
                 {% else %}
                   text-slate-300 hover:bg-slate-800 hover:text-white
                 {% endif %}">
@@ -70,7 +76,7 @@
       <a href="/property/"
          class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
                 {% if app_name == 'property' %}
-                  bg-blue-600 text-white
+                  bg-brand-terracotta text-white
                 {% else %}
                   text-slate-300 hover:bg-slate-800 hover:text-white
                 {% endif %}">
@@ -84,7 +90,7 @@
       <a href="/vacations/"
          class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
                 {% if app_name == 'vacations' %}
-                  bg-blue-600 text-white
+                  bg-brand-terracotta text-white
                 {% else %}
                   text-slate-300 hover:bg-slate-800 hover:text-white
                 {% endif %}">
@@ -98,7 +104,7 @@
       <a href="/cookbook/"
          class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
                 {% if app_name == 'cookbook' %}
-                  bg-blue-600 text-white
+                  bg-brand-terracotta text-white
                 {% else %}
                   text-slate-300 hover:bg-slate-800 hover:text-white
                 {% endif %}">
@@ -112,7 +118,7 @@
       <a href="/tasks/"
          class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
                 {% if app_name == 'tasks' %}
-                  bg-blue-600 text-white
+                  bg-brand-terracotta text-white
                 {% else %}
                   text-slate-300 hover:bg-slate-800 hover:text-white
                 {% endif %}">
@@ -126,7 +132,7 @@
       <a href="/shopping/"
          class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
                 {% if app_name == 'shopping' %}
-                  bg-blue-600 text-white
+                  bg-brand-terracotta text-white
                 {% else %}
                   text-slate-300 hover:bg-slate-800 hover:text-white
                 {% endif %}">
@@ -140,7 +146,7 @@
       <a href="/calendar/"
          class="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
                 {% if app_name == 'calendar_events' %}
-                  bg-blue-600 text-white
+                  bg-brand-terracotta text-white
                 {% else %}
                   text-slate-300 hover:bg-slate-800 hover:text-white
                 {% endif %}">
@@ -170,7 +176,7 @@
     <!-- User / Logout -->
     <div class="shrink-0 border-t border-slate-700 p-4">
       <div class="flex items-center gap-3">
-        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white select-none">
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-terracotta text-sm font-bold text-white select-none">
           {% if request.user.first_name %}
             {{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}
           {% else %}
@@ -178,7 +184,7 @@
           {% endif %}
         </div>
         <div class="min-w-0 flex-1">
-          <a href="{% url 'core:profile' %}" class="block truncate text-sm font-medium text-white hover:text-blue-300 transition-colors">
+          <a href="{% url 'core:profile' %}" class="block truncate text-sm font-medium text-white hover:text-brand-terracotta transition-colors">
             {% firstof request.user.get_full_name request.user.username %}
           </a>
           <div class="flex items-center gap-2">

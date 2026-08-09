@@ -6,7 +6,7 @@
     <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold
       {% if task.priority == 'urgent' %}bg-red-100 text-red-700
       {% elif task.priority == 'high' %}bg-orange-100 text-orange-700
-      {% elif task.priority == 'medium' %}bg-blue-100 text-blue-700
+      {% elif task.priority == 'medium' %}bg-brand-terracotta/15 text-brand-terracotta-hover
       {% else %}bg-gray-100 text-gray-500{% endif %}">
       {{ task.get_priority_display }}
     </span>
@@ -19,7 +19,7 @@
 
   <!-- Title -->
   <a href="{% url 'tasks:task_detail' task.pk %}"
-     class="block text-sm font-semibold text-gray-900 hover:text-blue-600 leading-snug mb-2">
+     class="block text-sm font-semibold text-gray-900 hover:text-brand-terracotta leading-snug mb-2">
     {{ task.title }}
   </a>
 
@@ -27,7 +27,7 @@
   <div class="flex items-center justify-between text-xs text-gray-400 mb-3">
     <span>
       {% if task.assigned_to %}
-        <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white text-[10px] font-bold mr-1">
+        <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-terracotta text-white text-[10px] font-bold mr-1">
           {{ task.assigned_to.first_name|first|upper }}{{ task.assigned_to.last_name|first|upper }}
         </span>
         {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}
@@ -106,7 +106,7 @@
 
     <!-- Edit/delete always visible -->
     <div class="ml-auto flex gap-3 text-xs">
-      <a href="{% url 'tasks:task_update' task.pk %}" class="font-medium text-blue-500 hover:text-blue-700">Edit</a>
+      <a href="{% url 'tasks:task_update' task.pk %}" class="font-medium text-brand-terracotta hover:text-brand-terracotta-hover">Edit</a>
       <a href="{% url 'tasks:task_delete' task.pk %}" class="font-medium text-red-400 hover:text-red-600">Del</a>
     </div>
   </div>

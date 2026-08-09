@@ -6,6 +6,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Terms of Service — Hey Famly</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { navy: '#1A324E', sage: '#698069', terracotta: '#DA6C4A', 'terracotta-hover': '#B85A3E' }
+          }
+        }
+      }
+    }
+  </script>
 </head>
 <body class="bg-white text-gray-900">
 
@@ -23,7 +34,7 @@
     <div class="mt-10 space-y-8 text-gray-700 leading-relaxed">
 
       <section>
-        <p>These Terms of Service ("Terms") govern your use of Hey Famly, a household organization service operated by Oak City Software Solutions ("we," "us," "our") at heyfamlyapp.com. By creating an account, you agree to these Terms and to our <a href="{% url 'core:privacy_policy' %}" class="text-blue-600 hover:underline">Privacy Policy</a>.</p>
+        <p>These Terms of Service ("Terms") govern your use of Hey Famly, a household organization service operated by Oak City Software Solutions ("we," "us," "our") at heyfamlyapp.com. By creating an account, you agree to these Terms and to our <a href="{% url 'core:privacy_policy' %}" class="text-brand-terracotta hover:underline">Privacy Policy</a>.</p>
       </section>
 
       <section>
@@ -40,7 +51,7 @@
       <section>
         <h2 class="text-lg font-semibold text-gray-900 mb-2">Plans &amp; billing</h2>
         <p>Hey Famly offers a <strong>Free</strong> plan (Tasks and Shopping List, up to 2 members) and a paid <strong>Family</strong> plan (all modules, unlimited members, calendar sync) billed monthly through our payment processor, Stripe. By subscribing to a paid plan, you authorize us to charge your payment method on a recurring basis until you cancel.</p>
-        <p class="mt-2">You can cancel your subscription at any time from your <a href="{% url 'core:profile' %}" class="text-blue-600 hover:underline">Profile</a> page via the "Manage Subscription" button, which opens Stripe's secure billing portal. Cancellation takes effect at the end of your current billing period; we don't provide refunds for partial billing periods except where required by law. If you run into trouble, email <a href="mailto:cnickerson@oakcitysoftwaresolutions.com" class="text-blue-600 hover:underline">cnickerson@oakcitysoftwaresolutions.com</a>.</p>
+        <p class="mt-2">You can cancel your subscription at any time from your <a href="{% url 'core:profile' %}" class="text-brand-terracotta hover:underline">Profile</a> page via the "Manage Subscription" button, which opens Stripe's secure billing portal. Cancellation takes effect at the end of your current billing period; we don't provide refunds for partial billing periods except where required by law. If you run into trouble, email <a href="mailto:cnickerson@oakcitysoftwaresolutions.com" class="text-brand-terracotta hover:underline">cnickerson@oakcitysoftwaresolutions.com</a>.</p>
       </section>
 
       <section>
@@ -75,7 +86,7 @@
 
       <section>
         <h2 class="text-lg font-semibold text-gray-900 mb-2">Contact</h2>
-        <p>Questions about these Terms? Email <a href="mailto:cnickerson@oakcitysoftwaresolutions.com" class="text-blue-600 hover:underline">cnickerson@oakcitysoftwaresolutions.com</a>.</p>
+        <p>Questions about these Terms? Email <a href="mailto:cnickerson@oakcitysoftwaresolutions.com" class="text-brand-terracotta hover:underline">cnickerson@oakcitysoftwaresolutions.com</a>.</p>
       </section>
 
     </div>

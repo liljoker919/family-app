@@ -5,8 +5,8 @@
 
 {% block content %}
 <div class="max-w-xl mx-auto text-center py-16">
-  <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
-    <svg class="h-7 w-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+  <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-terracotta/10">
+    <svg class="h-7 w-7 text-brand-terracotta" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
     </svg>
   </div>
@@ -19,7 +19,7 @@
   <div class="mt-8 flex items-center justify-center gap-4">
     <form method="post" action="{% url 'core:upgrade_start' %}">
       {% csrf_token %}
-      <button type="submit" class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+      <button type="submit" class="rounded-lg bg-brand-terracotta px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-terracotta-hover">
         Upgrade to Family — $4.99/mo
       </button>
     </form>

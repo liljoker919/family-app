@@ -6,8 +6,8 @@
 {% block content %}
 <div class="max-w-lg mx-auto py-8">
 
-  <div class="rounded-2xl border-2 border-blue-600 bg-white p-8 shadow-sm relative">
-    <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
+  <div class="rounded-2xl border-2 border-brand-terracotta bg-white p-8 shadow-sm relative">
+    <span class="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand-terracotta px-3 py-1 text-xs font-semibold text-white">
       Most popular
     </span>
     <h2 class="text-lg font-semibold text-gray-900 text-center">Family plan</h2>
@@ -22,7 +22,7 @@
       {% csrf_token %}
       <input type="hidden" name="plan" value="family">
       <button type="submit"
-              class="mt-8 w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+              class="mt-8 w-full rounded-lg bg-brand-terracotta px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-terracotta-hover">
         Subscribe — $4.99/mo
       </button>
     </form>
@@ -38,9 +38,9 @@
 
   <p class="mt-8 text-center text-xs text-gray-500">
     By continuing, you agree to our
-    <a href="{% url 'core:terms_of_service' %}" class="text-blue-600 hover:underline" target="_blank" rel="noopener">Terms of Service</a>
+    <a href="{% url 'core:terms_of_service' %}" class="text-brand-terracotta hover:underline" target="_blank" rel="noopener">Terms of Service</a>
     and
-    <a href="{% url 'core:privacy_policy' %}" class="text-blue-600 hover:underline" target="_blank" rel="noopener">Privacy Policy</a>.
+    <a href="{% url 'core:privacy_policy' %}" class="text-brand-terracotta hover:underline" target="_blank" rel="noopener">Privacy Policy</a>.
   </p>
 </div>
 {% endblock %}
