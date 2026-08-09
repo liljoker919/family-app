@@ -4,6 +4,7 @@ from .views import (
     AccountDeleteView,
     DashboardView,
     DataExportView,
+    GoogleSiteVerificationView,
     InviteMembersView,
     LandingPageView,
     ManageSubscriptionView,
@@ -50,4 +51,5 @@ urlpatterns = [
     path("terms/", TermsOfServiceView.as_view(), name="terms_of_service"),
     path("robots.txt", RobotsTxtView.as_view(), name="robots_txt"),
     path("sitemap.xml", SitemapXmlView.as_view(), name="sitemap_xml"),
+    path("google6daa5175f98eb867.html", GoogleSiteVerificationView.as_view(), name="google_site_verification"),
 ]

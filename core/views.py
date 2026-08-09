@@ -697,6 +697,16 @@ class SitemapXmlView(TemplateView):
     content_type = "application/xml"
 
 
+class GoogleSiteVerificationView(TemplateView):
+    """Google Search Console's HTML-file verification method — the file
+    must keep serving at this exact path indefinitely, even after
+    verification succeeds, or Search Console re-flags the property as
+    unverified."""
+
+    template_name = "google6daa5175f98eb867.html"
+    content_type = "text/plain"
+
+
 class DashboardView(LoginRequiredMixin, TemplateView):
     """Daily command center (#325) — surfaces what's happening today, what
     needs to be done, and what needs attention, instead of bare module

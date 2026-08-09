@@ -1756,6 +1756,11 @@ class RobotsAndSitemapTestCase(TestCase):
         self.assertContains(response, "<loc>https://heyfamlyapp.com/privacy/</loc>")
         self.assertContains(response, "<loc>https://heyfamlyapp.com/terms/</loc>")
 
+    def test_google_site_verification_file_serves_at_exact_path(self):
+        response = self.client.get("/google6daa5175f98eb867.html")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "google-site-verification: google6daa5175f98eb867.html")
+
 
 class UmamiAnalyticsTestCase(TestCase):
     """#358 — the landing page's tracking script stays unrendered until
