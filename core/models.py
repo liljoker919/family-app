@@ -40,6 +40,24 @@ class FamilyAccount(models.Model):
         return slug
 
 
+class EmailVerification(models.Model):
+    """#377 — created only for the account founder at signup (invited members
+    already prove ownership of their email by clicking the invite link, so
+    they never get a row here). Absence of a row for a user is treated as
+    "verified" everywhere this is checked."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="email_verification",
+    )
+    verified = models.BooleanField(default=False)
+    verified_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.user} ({'verified' if self.verified else 'unverified'})"
+
+
 class FamilyMembership(models.Model):
     ROLE_CHOICES = [("owner", "Owner"), ("member", "Member")]
 

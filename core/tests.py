@@ -64,6 +64,9 @@ _ALL_ENDPOINTS = [
     "/profile/delete/",
     "/profile/manage-subscription/",
     "/accounts/password_change/",
+    # Email verification
+    "/verify-email/",
+    "/verify-email/resend/",
 ]
 
 
@@ -806,6 +809,25 @@ class OnboardingSignupViewTestCase(TestCase):
         dash_response = self.client.get("/onboarding/invite/")
         self.assertEqual(dash_response.status_code, 200)
 
+    def test_post_valid_creates_unverified_email_and_sends_verification_email(self):
+        """#377 — the founder signup path only; invited members prove email
+        ownership by clicking the invite link, so never get a row here."""
+        from django.core import mail  # noqa: PLC0415
+
+        from core.models import EmailVerification  # noqa: PLC0415
+
+        self.client.post("/onboarding/signup/", self.valid_data)
+        user = User.objects.get(username="newfamily")
+
+        verification = EmailVerification.objects.get(user=user)
+        self.assertFalse(verification.verified)
+        self.assertIsNone(verification.verified_at)
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertEqual(sent.to, ["newfamily@example.com"])
+        self.assertIn("/verify-email/", sent.body)
+
     def test_post_duplicate_username_rejected(self):
         User.objects.create_user(username="newfamily", password="whatever123")
         response = self.client.post("/onboarding/signup/", self.valid_data)
@@ -1051,6 +1073,80 @@ class OnboardingCompleteViewTestCase(TestCase):
         self.assertEqual(len(mail.outbox), 0)
 
 
+class EmailVerificationTestCase(TestCase):
+    """#377 — the gate only starts blocking once account.onboarding_complete
+    is True, so it never interrupts the founder signup -> invite -> plan ->
+    complete flow itself."""
+
+    def setUp(self):
+        from core.email_verification import email_verification_token  # noqa: PLC0415
+        from core.models import EmailVerification, FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.token_gen = email_verification_token
+        self.user = User.objects.create_user(
+            username="verify_user", password="pass12345", email="verify@example.com",
+        )
+        self.account = FamilyAccount.objects.create(
+            name="Verify Family", slug="verify-family", owner=self.user, onboarding_complete=True,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
+        self.verification = EmailVerification.objects.create(user=self.user)
+        self.client.login(username="verify_user", password="pass12345")
+        # login() updates last_login in the DB, which the token hash is
+        # derived from — refresh so tokens built from self.user match what
+        # the view will see when it re-fetches the user by pk.
+        self.user.refresh_from_db()
+
+    def _confirm_url(self):
+        from django.utils.encoding import force_bytes  # noqa: PLC0415
+        from django.utils.http import urlsafe_base64_encode  # noqa: PLC0415
+
+        uid = urlsafe_base64_encode(force_bytes(self.user.pk))
+        token = self.token_gen.make_token(self.user)
+        return f"/verify-email/{uid}/{token}/"
+
+    def test_unverified_user_redirected_to_pending_page_from_dashboard(self):
+        response = self.client.get("/dashboard/")
+        self.assertRedirects(response, "/verify-email/")
+
+    def test_unverified_user_can_still_reach_profile_and_pending_page(self):
+        self.assertEqual(self.client.get("/profile/").status_code, 200)
+        self.assertEqual(self.client.get("/verify-email/").status_code, 200)
+
+    def test_onboarding_not_yet_complete_is_never_gated(self):
+        """The gate must not fire mid-onboarding, even though the row is
+        unverified — matches the explicit "allow onboarding, block after"
+        decision."""
+        self.account.onboarding_complete = False
+        self.account.save(update_fields=["onboarding_complete"])
+        response = self.client.get("/dashboard/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_valid_confirm_link_verifies_and_redirects_to_dashboard(self):
+        response = self.client.get(self._confirm_url(), follow=True)
+        self.assertRedirects(response, "/dashboard/")
+        self.verification.refresh_from_db()
+        self.assertTrue(self.verification.verified)
+        self.assertIsNotNone(self.verification.verified_at)
+
+        # Gate no longer applies now that it's verified.
+        self.assertEqual(self.client.get("/dashboard/").status_code, 200)
+
+    def test_tampered_token_does_not_verify(self):
+        bad_url = self._confirm_url()[:-5] + "garbage/"
+        self.client.get(bad_url)
+        self.verification.refresh_from_db()
+        self.assertFalse(self.verification.verified)
+
+    def test_resend_sends_another_email(self):
+        from django.core import mail  # noqa: PLC0415
+
+        response = self.client.post("/verify-email/resend/")
+        self.assertRedirects(response, "/verify-email/")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["verify@example.com"])
+
+
 class UpgradeToFamilyViewTestCase(TestCase):
     """#388 fallout — before this, an account that picked Free at signup had
     no way to ever reach Family-plan checkout again: OnboardingPlanView
@@ -1241,6 +1337,38 @@ class InvitationFlowTestCase(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "already taken")
+
+    def test_invited_signup_does_not_create_email_verification_row(self):
+        """#377 — invited members already proved email ownership by clicking
+        the invite link; they must never be gated behind a second check.
+
+        Goes through the real send-invite -> accept-invite-link flow rather
+        than poking session data directly: Client().session is a detached
+        session store until a real request/response cycle sets the cookie,
+        so a bare assignment + save() never actually reaches the next
+        request (see test_full_invite_accept_signup_flow for the same
+        pattern used correctly)."""
+        from core.models import EmailVerification  # noqa: PLC0415
+        from invitations.utils import get_invitation_model  # noqa: PLC0415
+
+        Invitation = get_invitation_model()
+        self.client.post("/invite/send/", {"email": "noverify@example.com"})
+        invitation = Invitation.objects.get(email="noverify@example.com")
+
+        invitee_client = Client()
+        invitee_client.get(self._accept_invite_url(invitation.key))
+
+        invitee_client.post(
+            "/onboarding/signup/",
+            {"username": "noverify", "password1": "correct horse battery staple", "password2": "correct horse battery staple"},
+        )
+        user = User.objects.get(username="noverify")
+        self.assertFalse(EmailVerification.objects.filter(user=user).exists())
+
+        # And since onboarding is already complete for the account they
+        # joined (set in setUp), they must never be redirected to the gate.
+        dashboard = invitee_client.get("/dashboard/")
+        self.assertEqual(dashboard.status_code, 200)
 
 
 class FamilyJoinNotificationTestCase(TestCase):

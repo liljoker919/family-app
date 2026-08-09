@@ -14,12 +14,15 @@ from .views import (
     OnboardingSignupView,
     PrivacyPolicyView,
     ProfileView,
+    ResendVerificationView,
     RobotsTxtView,
     SendInviteView,
     SitemapXmlView,
     TermsOfServiceView,
     UpgradeRequiredView,
     UpgradeToFamilyView,
+    VerifyEmailConfirmView,
+    VerifyEmailPendingView,
 )
 
 app_name = "core"
@@ -40,6 +43,9 @@ urlpatterns = [
     path("profile/export/", DataExportView.as_view(), name="data_export"),
     path("profile/delete/", AccountDeleteView.as_view(), name="account_delete"),
     path("profile/manage-subscription/", ManageSubscriptionView.as_view(), name="manage_subscription"),
+    path("verify-email/", VerifyEmailPendingView.as_view(), name="verify_email_pending"),
+    path("verify-email/resend/", ResendVerificationView.as_view(), name="resend_verification"),
+    path("verify-email/<uidb64>/<token>/", VerifyEmailConfirmView.as_view(), name="verify_email_confirm"),
     path("privacy/", PrivacyPolicyView.as_view(), name="privacy_policy"),
     path("terms/", TermsOfServiceView.as_view(), name="terms_of_service"),
     path("robots.txt", RobotsTxtView.as_view(), name="robots_txt"),

@@ -13,6 +13,8 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from django.views import View
 from django.views.generic import TemplateView
 from django_ratelimit.decorators import ratelimit
@@ -21,9 +23,10 @@ from invitations.utils import get_invitation_model
 
 from .dashboard_data import build_dashboard_context
 from .data_export import build_export_zip
+from .email_verification import email_verification_token, send_verification_email
 from .forms import AccountDeleteConfirmForm, InvitedSignupForm, PasswordChangeForm, ProfileForm, SignupForm
 from .invitations_adapter import user_signed_up
-from .models import FamilyAccount, FamilyMembership
+from .models import EmailVerification, FamilyAccount, FamilyMembership
 
 Invitation = get_invitation_model()
 
@@ -131,7 +134,15 @@ class OnboardingSignupView(View):
         )
         FamilyMembership.objects.create(account=account, user=user, role="owner")
 
+        # login() must run before the token is generated: Django's token
+        # hash includes last_login, which login() updates via the
+        # user_logged_in signal — generating the token first would bake in
+        # a stale last_login that check_token() would then have never seen.
         login(request, user)
+
+        EmailVerification.objects.create(user=user)
+        send_verification_email(request, user)
+
         return redirect("core:onboarding_invite")
 
     def _post_invited(self, request, invited_email):
@@ -433,6 +444,42 @@ class OnboardingCompleteView(LoginRequiredMixin, View):
                 _send_welcome_email(account)
             messages.success(request, "Welcome to Hey Famly! Your subscription is being activated.")
         return redirect("core:dashboard")
+
+
+# ── Email verification (#377) ────────────────────────────────────────────
+# Gated by core.middleware.EmailVerificationMiddleware, which only starts
+# blocking once request.account.onboarding_complete is True — the founder
+# signup → invite → plan → complete flow itself is never interrupted.
+
+class VerifyEmailPendingView(LoginRequiredMixin, TemplateView):
+    """Landing spot the gate middleware redirects unverified users to."""
+
+    template_name = "core/verify_email_pending.html"
+
+
+class VerifyEmailConfirmView(LoginRequiredMixin, View):
+    def get(self, request, uidb64, token):
+        try:
+            uid = int(force_str(urlsafe_base64_decode(uidb64)))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        if user is None or user != request.user or not email_verification_token.check_token(user, token):
+            messages.error(request, "That verification link is invalid or has expired.")
+            return redirect("core:verify_email_pending")
+
+        EmailVerification.objects.filter(user=user).update(verified=True, verified_at=timezone.now())
+        messages.success(request, "Email verified — you're all set.")
+        return redirect("core:dashboard")
+
+
+class ResendVerificationView(LoginRequiredMixin, View):
+    @method_decorator(ratelimit(key="user", rate="3/m", method="POST", block=True))
+    def post(self, request):
+        send_verification_email(request, request.user)
+        messages.success(request, f"Verification email sent to {request.user.email}.")
+        return redirect("core:verify_email_pending")
 
 
 # ── Profile ───────────────────────────────────────────────────────────────

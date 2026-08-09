@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 
-from .models import FamilyAccount, FamilyMembership
+from .models import EmailVerification, FamilyAccount, FamilyMembership
 
 admin.site.unregister(User)
 
@@ -12,6 +12,13 @@ class FamilyAccountAdmin(admin.ModelAdmin):
     list_display = ["name", "slug", "owner", "is_active", "created_at"]
     list_filter = ["is_active"]
     search_fields = ["name", "slug", "owner__username", "owner__email"]
+
+
+@admin.register(EmailVerification)
+class EmailVerificationAdmin(admin.ModelAdmin):
+    list_display = ["user", "verified", "verified_at"]
+    list_filter = ["verified"]
+    search_fields = ["user__username", "user__email"]
 
 
 @admin.register(FamilyMembership)
