@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Students — Hey Famly{% endblock %}
+{% block page_title %}Students{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'school:student_create' %}"
+   class="inline-flex items-center gap-2 rounded-lg bg-brand-terracotta px-4 py-2 text-sm font-medium text-white hover:bg-brand-terracotta-hover transition-colors">
+  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </svg>
+  Add Student
+</a>
+{% endblock %}
+
+{% block content %}
+{% if students %}
+<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+  {% for student in students %}
+  <div class="flex flex-col rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+    <div class="flex flex-col flex-1 p-6">
+
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="text-base font-semibold text-gray-900 leading-tight">{{ student.name }}</h3>
+          {% if student.grade_level %}<p class="mt-0.5 text-sm text-gray-500">{{ student.grade_level }}</p>{% endif %}
+        </div>
+      </div>
+
+      {% if student.school_name %}
+      <dl class="mt-5 text-sm">
+        <dt class="text-gray-500">School</dt>
+        <dd class="mt-0.5 font-medium text-gray-900">{{ student.school_name }}</dd>
+      </dl>
+      {% endif %}
+
+      <div class="mt-6 flex items-center gap-3 pt-4 border-t border-gray-100">
+        <a href="{% url 'school:student_detail' student.pk %}"
+           class="flex-1 text-center rounded-lg bg-brand-terracotta px-3 py-2 text-sm font-medium text-white hover:bg-brand-terracotta-hover transition-colors">
+          View Details
+        </a>
+        <a href="{% url 'school:student_update' student.pk %}"
+           class="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          Edit
+        </a>
+        <a href="{% url 'school:student_delete' student.pk %}"
+           class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+          Delete
+        </a>
+      </div>
+
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-white py-20 text-center">
+  <svg class="h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
+  </svg>
+  <h3 class="mt-4 text-sm font-semibold text-gray-900">No students yet</h3>
+  <p class="mt-1 text-sm text-gray-500">Add a kid to start tracking their courses and assignments.</p>
+  <a href="{% url 'school:student_create' %}"
+     class="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-terracotta px-4 py-2 text-sm font-medium text-white hover:bg-brand-terracotta-hover transition-colors">
+    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    </svg>
+    Add Student
+  </a>
+</div>
+{% endif %}
+{% endblock %}

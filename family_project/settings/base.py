@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "cookbook",
     "shopping",
     "tasks",
+    "school",
     "djstripe",
     "django_ses",
     "invitations",
