@@ -4,7 +4,7 @@ from django.urls import reverse
 
 from core.models import FamilyAccount, FamilyMembership
 
-from .models import Student
+from .models import Course, Student
 
 User = get_user_model()
 
@@ -93,3 +93,94 @@ class StudentCrudTestCase(TestCase):
         response = self.client.get(reverse("school:student_list"))
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("login"), response.url)
+
+
+class CourseTenantIsolationTestCase(TestCase):
+    """Courses reach their tenant through student__account (a parent FK,
+    like VehicleService->vehicle->account) — must still isolate correctly."""
+
+    def setUp(self):
+        self.user_a = User.objects.create_user(username="course_user_a", password="pass12345")
+        self.account_a = FamilyAccount.objects.create(
+            name="Course Family A", slug="course-family-a", owner=self.user_a, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account_a, user=self.user_a, role="owner")
+        self.student_a = Student.objects.create(account=self.account_a, name="Maya")
+        self.course_a = Course.objects.create(account=self.account_a, student=self.student_a, name="Algebra II")
+
+        self.user_b = User.objects.create_user(username="course_user_b", password="pass12345")
+        self.account_b = FamilyAccount.objects.create(
+            name="Course Family B", slug="course-family-b", owner=self.user_b, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account_b, user=self.user_b, role="owner")
+        self.student_b = Student.objects.create(account=self.account_b, name="Zendaya")
+        self.course_b = Course.objects.create(account=self.account_b, student=self.student_b, name="Biology")
+
+        self.client.login(username="course_user_a", password="pass12345")
+
+    def test_cannot_view_other_accounts_course(self):
+        response = self.client.get(reverse("school:course_detail", kwargs={"pk": self.course_b.pk}))
+        self.assertEqual(response.status_code, 404)
+
+    def test_cannot_create_course_under_other_accounts_student(self):
+        response = self.client.post(
+            reverse("school:course_create", kwargs={"student_pk": self.student_b.pk}),
+            {"name": "Hacked Course", "color": "#8B5CF6", "meeting_days": []},
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_cannot_edit_other_accounts_course(self):
+        response = self.client.post(
+            reverse("school:course_update", kwargs={"pk": self.course_b.pk}),
+            {"name": "Hacked", "color": "#8B5CF6", "meeting_days": []},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.course_b.refresh_from_db()
+        self.assertEqual(self.course_b.name, "Biology")
+
+    def test_cannot_delete_other_accounts_course(self):
+        response = self.client.post(reverse("school:course_delete", kwargs={"pk": self.course_b.pk}))
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Course.objects.filter(pk=self.course_b.pk).exists())
+
+
+class CourseCrudTestCase(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="course_crud_user", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Course Family C", slug="course-family-c", owner=self.user, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
+        self.student = Student.objects.create(account=self.account, name="Charlotte")
+        self.client.login(username="course_crud_user", password="pass12345")
+
+    def test_create_course_stamps_account_and_student(self):
+        response = self.client.post(
+            reverse("school:course_create", kwargs={"student_pk": self.student.pk}),
+            {
+                "name": "AP Chemistry", "color": "#8B5CF6", "instructor": "Ms. Rivera",
+                "room": "204", "meeting_days": ["mon", "wed", "fri"], "term": "Fall 2026",
+            },
+        )
+        course = Course.objects.get(name="AP Chemistry")
+        self.assertRedirects(response, reverse("school:student_detail", kwargs={"pk": self.student.pk}))
+        self.assertEqual(course.account, self.account)
+        self.assertEqual(course.student, self.student)
+        self.assertEqual(course.meeting_days, ["mon", "wed", "fri"])
+
+    def test_update_course(self):
+        course = Course.objects.create(account=self.account, student=self.student, name="AP Chemistry")
+        response = self.client.post(
+            reverse("school:course_update", kwargs={"pk": course.pk}),
+            {"name": "AP Chemistry", "color": "#8B5CF6", "room": "310", "meeting_days": ["tue", "thu"]},
+        )
+        self.assertRedirects(response, reverse("school:course_detail", kwargs={"pk": course.pk}))
+        course.refresh_from_db()
+        self.assertEqual(course.room, "310")
+        self.assertEqual(course.meeting_days, ["tue", "thu"])
+
+    def test_delete_course(self):
+        course = Course.objects.create(account=self.account, student=self.student, name="AP Chemistry")
+        response = self.client.post(reverse("school:course_delete", kwargs={"pk": course.pk}))
+        self.assertRedirects(response, reverse("school:student_detail", kwargs={"pk": self.student.pk}))
+        self.assertFalse(Course.objects.filter(pk=course.pk).exists())

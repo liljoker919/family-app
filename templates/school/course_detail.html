@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.name }} — Hey Famly{% endblock %}
+{% block page_title %}{{ course.name }}{% endblock %}
+
+{% block header_actions %}
+<div class="flex items-center gap-3">
+  <a href="{% url 'school:course_update' course.pk %}"
+     class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+    Edit Course
+  </a>
+  <a href="{% url 'school:course_delete' course.pk %}"
+     class="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+    Delete
+  </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+
+  <a href="{% url 'school:student_detail' course.student.pk %}"
+     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+    Back to {{ course.student }}
+  </a>
+
+  <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+    <div class="h-1.5" style="background-color: {{ course.color }};"></div>
+    <div class="p-6">
+      <h2 class="text-base font-semibold text-gray-900 mb-6">Course Information</h2>
+      <dl class="grid grid-cols-2 gap-x-8 gap-y-5 text-sm sm:grid-cols-3">
+        <div>
+          <dt class="text-gray-500">Student</dt>
+          <dd class="mt-1 font-medium text-gray-900">{{ course.student }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Instructor</dt>
+          <dd class="mt-1 font-medium text-gray-900">{{ course.instructor|default:"—" }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Room</dt>
+          <dd class="mt-1 font-medium text-gray-900">{{ course.room|default:"—" }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Meets</dt>
+          <dd class="mt-1 font-medium text-gray-900">{{ course.meeting_days_display|default:"—" }}</dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Time</dt>
+          <dd class="mt-1 font-medium text-gray-900">
+            {% if course.start_time %}{{ course.start_time }}–{{ course.end_time }}{% else %}—{% endif %}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-gray-500">Term</dt>
+          <dd class="mt-1 font-medium text-gray-900">{{ course.term|default:"—" }}</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+
+  <div class="rounded-xl border-2 border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-500">
+    Assignments will appear here once the Assignment model ships.
+  </div>
+
+</div>
+{% endblock %}
