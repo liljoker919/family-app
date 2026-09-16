@@ -269,6 +269,79 @@ def collect_events(account, start_dt, end_dt):
     except Exception:
         logger.exception("Family tasks calendar fetch failed")
 
+    # ── Course meeting blocks (recurring, expanded day-by-day within the
+    # requested window — no RRULE support anywhere in this codebase yet) ────
+    try:
+        from school.models import Course  # noqa: PLC0415
+
+        # Recurrence has to be expanded against a bounded window; skip
+        # entirely if the caller didn't provide one (nothing to enumerate).
+        if start_dt and end_dt:
+            courses = list(
+                Course.objects.filter(account=account).exclude(meeting_days=[]).select_related("student")
+            )
+            weekday_codes = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+            current = start_dt.date()
+            last = end_dt.date()
+            while current < last:
+                code = weekday_codes[current.weekday()]
+                for course in courses:
+                    if code not in course.meeting_days:
+                        continue
+                    payload = {
+                        "id": f"course-{course.pk}-{current.isoformat()}",
+                        "title": f"📚 {course.name}",
+                        "color": course.color,
+                        "extendedProps": {
+                            "type": "course",
+                            "student": str(course.student),
+                            "instructor": course.instructor,
+                            "room": course.room,
+                        },
+                    }
+                    if course.start_time:
+                        payload["start"] = datetime.combine(current, course.start_time).isoformat()
+                        payload["end"] = datetime.combine(current, course.end_time or course.start_time).isoformat()
+                        payload["allDay"] = False
+                    else:
+                        payload["start"] = current.isoformat()
+                        payload["allDay"] = True
+                    events.append(payload)
+                current += timedelta(days=1)
+    except Exception:
+        logger.exception("Course meeting block calendar fetch failed")
+
+    # ── Assignment due dates ─────────────────────────────────────────────────
+    try:
+        from django.urls import reverse as _school_reverse  # noqa: PLC0415
+
+        from school.models import Assignment  # noqa: PLC0415
+
+        assignment_qs = Assignment.objects.filter(account=account).exclude(status="done").select_related("course")
+        if start_dt:
+            assignment_qs = assignment_qs.filter(due_date__gte=start_dt.date())
+        if end_dt:
+            assignment_qs = assignment_qs.filter(due_date__lt=end_dt.date())
+
+        for assignment in assignment_qs:
+            events.append({
+                "id": f"assignment-{assignment.pk}",
+                "title": f"🎓 {assignment.title}",
+                "start": assignment.due_date.isoformat(),
+                "allDay": True,
+                "color": assignment.course.color,
+                "url": _school_reverse("school:assignment_detail", args=[assignment.pk]),
+                "extendedProps": {
+                    "type": "assignment",
+                    "course": assignment.course.name,
+                    "student": str(assignment.student),
+                    "assignmentType": assignment.get_type_display(),
+                    "status": assignment.get_status_display(),
+                },
+            })
+    except Exception:
+        logger.exception("Assignment calendar fetch failed")
+
     # ── External calendar feeds (Google/Outlook iCal, live proxy) ───────────
     for feed in ExternalCalendarFeed.objects.filter(account=account):
         try:

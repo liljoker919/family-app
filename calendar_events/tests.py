@@ -1,4 +1,4 @@
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 from unittest.mock import Mock, patch
 
 from django.contrib.auth import get_user_model
@@ -243,3 +243,82 @@ class FeedSettingsViewTestCase(TestCase):
         self.account.save(update_fields=["tier"])
         response = self.client.get("/calendar/settings/")
         self.assertRedirects(response, "/upgrade/")
+
+
+class CollectEventsSchoolTestCase(TestCase):
+    """#402 — course meeting blocks and assignment due dates must show up
+    on the calendar as their own sources, same isolated try/except shape
+    as the other five."""
+
+    def setUp(self):
+        from school.models import Assignment, Course, Student  # noqa: PLC0415
+
+        self.user = User.objects.create_user(username="school_cal_user", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="School Cal Family", slug="school-cal-family", owner=self.user, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
+
+        self.student = Student.objects.create(account=self.account, name="Charlotte")
+        self.course = Course.objects.create(
+            account=self.account, student=self.student, name="AP Chemistry",
+            color="#8B5CF6", instructor="Ms. Rivera", room="204",
+        )
+        self.Assignment = Assignment
+
+        # A Monday within the current week, so a 1-day [monday, monday+1)
+        # window reliably lines up with a "mon" meeting day.
+        today = datetime.now(dt_timezone.utc).date()
+        self.monday = today - timedelta(days=today.weekday())
+        self.window_start = datetime.combine(self.monday, datetime.min.time()).replace(tzinfo=dt_timezone.utc)
+        self.window_end = self.window_start + timedelta(days=1)
+
+    def test_course_meeting_block_appears_on_matching_weekday(self):
+        from datetime import time as dt_time  # noqa: PLC0415
+
+        self.course.meeting_days = ["mon"]
+        self.course.start_time = dt_time(9, 0)
+        self.course.end_time = dt_time(9, 50)
+        self.course.save()
+
+        events = collect_events(self.account, self.window_start, self.window_end)
+        course_events = [e for e in events if e["extendedProps"]["type"] == "course"]
+        self.assertEqual(len(course_events), 1)
+        self.assertEqual(course_events[0]["color"], "#8B5CF6")
+        self.assertEqual(course_events[0]["extendedProps"]["room"], "204")
+        self.assertFalse(course_events[0]["allDay"])
+
+    def test_course_meeting_block_absent_on_non_matching_weekday(self):
+        self.course.meeting_days = ["tue"]
+        self.course.save()
+
+        events = collect_events(self.account, self.window_start, self.window_end)
+        self.assertFalse(any(e["extendedProps"]["type"] == "course" for e in events))
+
+    def test_course_meeting_block_skipped_without_a_date_window(self):
+        self.course.meeting_days = ["mon"]
+        self.course.save()
+
+        events = collect_events(self.account, None, None)
+        self.assertFalse(any(e["extendedProps"]["type"] == "course" for e in events))
+
+    def test_assignment_due_date_appears(self):
+        self.Assignment.objects.create(
+            account=self.account, course=self.course, student=self.student,
+            title="Lab Report", due_date=self.monday,
+        )
+
+        events = collect_events(self.account, self.window_start, self.window_end)
+        assignment_events = [e for e in events if e["extendedProps"]["type"] == "assignment"]
+        self.assertEqual(len(assignment_events), 1)
+        self.assertEqual(assignment_events[0]["title"], "🎓 Lab Report")
+        self.assertEqual(assignment_events[0]["color"], "#8B5CF6")
+
+    def test_done_assignment_excluded(self):
+        self.Assignment.objects.create(
+            account=self.account, course=self.course, student=self.student,
+            title="Finished Homework", due_date=self.monday, status="done",
+        )
+
+        events = collect_events(self.account, self.window_start, self.window_end)
+        self.assertFalse(any(e["extendedProps"]["type"] == "assignment" for e in events))

@@ -46,6 +46,10 @@
     <span class="h-2.5 w-2.5 rounded-full bg-violet-500"></span>
     Outlook Calendar
   </div>
+  <div class="flex items-center gap-2">
+    <span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span>
+    School
+  </div>
   <p class="ml-auto text-gray-400">Click a date to add an event &nbsp;·&nbsp; Click an event to view details</p>
 </div>
 
@@ -255,6 +259,36 @@
       if (p.location)    modalBody.innerHTML += row('Location',    esc(p.location));
 
       modalActions.innerHTML = '';
+
+    } else if (p.type === 'course') {
+      /* ── Class meeting block ── */
+      modalBadge.className =
+        'mt-0.5 shrink-0 inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700';
+      modalBadge.textContent = 'Class';
+
+      modalBody.innerHTML += row('Student', esc(p.student));
+      if (p.instructor) modalBody.innerHTML += row('Instructor', esc(p.instructor));
+      if (p.room)       modalBody.innerHTML += row('Room',       esc(p.room));
+
+      modalActions.innerHTML = '';
+
+    } else if (p.type === 'assignment') {
+      /* ── Assignment due date ── */
+      modalBadge.className =
+        'mt-0.5 shrink-0 inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700';
+      modalBadge.textContent = 'Assignment';
+
+      modalBody.innerHTML += row('Course',  esc(p.course));
+      modalBody.innerHTML += row('Student', esc(p.student));
+      modalBody.innerHTML += row('Type',    esc(p.assignmentType));
+      modalBody.innerHTML += row('Status',  esc(p.status));
+
+      modalActions.innerHTML = fcEvent.url
+        ? `<a href="${fcEvent.url}"
+              class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+             View Assignment →
+           </a>`
+        : '';
     }
 
     openModal();
