@@ -56,6 +56,20 @@ _ALL_ENDPOINTS = [
     "/calendar/event/add/",
     "/calendar/event/1/edit/",
     "/calendar/event/1/delete/",
+    # School
+    "/school/students/",
+    "/school/students/add/",
+    "/school/students/1/",
+    "/school/students/1/edit/",
+    "/school/students/1/delete/",
+    "/school/students/1/courses/add/",
+    "/school/courses/1/",
+    "/school/courses/1/edit/",
+    "/school/courses/1/delete/",
+    "/school/courses/1/assignments/add/",
+    "/school/assignments/1/",
+    "/school/assignments/1/edit/",
+    "/school/assignments/1/delete/",
     # Family members / invitations
     "/invite/",
     # Profile
@@ -306,6 +320,7 @@ class AuthenticatedAccessTestCase(TestCase):
         from calendar_events.models import CalendarEvent  # noqa: PLC0415
         from cookbook.models import Recipe  # noqa: PLC0415
         from property.models import Property  # noqa: PLC0415
+        from school.models import Assignment, Course, Student  # noqa: PLC0415
         from shopping.models import ShoppingItem  # noqa: PLC0415
         from tasks.models import FamilyTask  # noqa: PLC0415
         from vacations.models import Vacation  # noqa: PLC0415
@@ -332,6 +347,12 @@ class AuthenticatedAccessTestCase(TestCase):
             account=self.account, title="Smoke Event",
             start=tz.make_aware(datetime.combine(today, datetime.min.time())),
             event_type="manual",
+        )
+        self.student = Student.objects.create(account=self.account, name="Smoke Student")
+        self.course = Course.objects.create(account=self.account, student=self.student, name="Smoke Course")
+        self.assignment = Assignment.objects.create(
+            account=self.account, course=self.course, student=self.student,
+            title="Smoke Assignment", due_date=today,
         )
 
     def _endpoints(self):
@@ -370,6 +391,19 @@ class AuthenticatedAccessTestCase(TestCase):
             "/calendar/event/add/",
             f"/calendar/event/{self.event.pk}/edit/",
             f"/calendar/event/{self.event.pk}/delete/",
+            "/school/students/",
+            "/school/students/add/",
+            f"/school/students/{self.student.pk}/",
+            f"/school/students/{self.student.pk}/edit/",
+            f"/school/students/{self.student.pk}/courses/add/",
+            f"/school/courses/{self.course.pk}/",
+            f"/school/courses/{self.course.pk}/edit/",
+            f"/school/courses/{self.course.pk}/assignments/add/",
+            f"/school/assignments/{self.assignment.pk}/",
+            f"/school/assignments/{self.assignment.pk}/edit/",
+            f"/school/assignments/{self.assignment.pk}/delete/",
+            f"/school/courses/{self.course.pk}/delete/",
+            f"/school/students/{self.student.pk}/delete/",
             "/invite/",
             "/profile/",
             "/accounts/password_change/",
