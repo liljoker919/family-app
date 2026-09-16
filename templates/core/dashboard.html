@@ -141,6 +141,38 @@
         {% endif %}
       </section>
 
+      <!-- Due Soon (School) -->
+      <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">🎓 Due Soon</h2>
+        {% if due_soon_assignments %}
+          {% regroup due_soon_assignments by student as student_groups %}
+          {% for group in student_groups %}
+          <div class="mb-4 last:mb-0">
+            <h3 class="text-xs font-semibold text-gray-400 mb-2">{{ group.grouper }}</h3>
+            <ul class="divide-y divide-gray-100">
+              {% for assignment in group.list %}
+              <li class="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                <span class="h-2 w-2 shrink-0 rounded-full" style="background-color: {{ assignment.course.color }}"></span>
+                <a href="{% url 'school:assignment_detail' assignment.pk %}"
+                   class="min-w-0 flex-1 truncate text-sm text-gray-800 hover:text-brand-terracotta">
+                  {{ assignment.title }}
+                </a>
+                <span class="shrink-0 text-xs text-gray-400">{{ assignment.course.name }}</span>
+                <span class="shrink-0 text-xs {% if assignment.due_date < today %}font-medium text-red-600{% else %}text-gray-400{% endif %}">
+                  {{ assignment.due_date }}
+                </span>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endfor %}
+        {% else %}
+        <p class="text-sm text-gray-400">
+          Nothing due soon. <a href="{% url 'school:student_list' %}" class="text-brand-terracotta hover:underline">Add a student</a>
+        </p>
+        {% endif %}
+      </section>
+
     </div>
 
     <!-- ACTION SIDEBAR -->

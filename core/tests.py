@@ -254,6 +254,43 @@ class DashboardWidgetsTestCase(TestCase):
         response = self.client.get("/dashboard/")
         self.assertContains(response, "Good Shape")
 
+    def test_due_soon_widget_groups_by_student_and_sorts_by_priority_score(self):
+        from school.models import Assignment, Course, Student  # noqa: PLC0415
+
+        maya = Student.objects.create(account=self.account, name="Maya")
+        charlotte = Student.objects.create(account=self.account, name="Charlotte")
+        maya_course = Course.objects.create(account=self.account, student=maya, name="Algebra II")
+        charlotte_course = Course.objects.create(account=self.account, student=charlotte, name="Reading")
+
+        # Same due date, different type — exam must outrank homework within Maya's group.
+        maya_homework = Assignment.objects.create(
+            account=self.account, course=maya_course, student=maya,
+            title="Worksheet", type="homework", due_date=self.today,
+        )
+        maya_exam = Assignment.objects.create(
+            account=self.account, course=maya_course, student=maya,
+            title="Unit Test", type="exam", due_date=self.today,
+        )
+        Assignment.objects.create(
+            account=self.account, course=maya_course, student=maya,
+            title="Finished already", type="homework", due_date=self.today, status="done",
+        )
+        charlotte_reading = Assignment.objects.create(
+            account=self.account, course=charlotte_course, student=charlotte,
+            title="Chapter 3", type="reading", due_date=self.today,
+        )
+
+        response = self.client.get("/dashboard/")
+        assignments = response.context["due_soon_assignments"]
+        self.assertEqual([a.pk for a in assignments], [charlotte_reading.pk, maya_exam.pk, maya_homework.pk])
+        self.assertContains(response, "Unit Test")
+        self.assertNotContains(response, "Finished already")
+
+    def test_due_soon_widget_shows_empty_state_without_assignments(self):
+        response = self.client.get("/dashboard/")
+        self.assertEqual(response.context["due_soon_assignments"], [])
+        self.assertContains(response, "Nothing due soon")
+
     def test_task_checkbox_marks_complete_and_returns_to_dashboard(self):
         from tasks.models import FamilyTask  # noqa: PLC0415
 

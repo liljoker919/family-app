@@ -141,6 +141,31 @@ def _vehicle_health(account):
     return list(Vehicle.objects.filter(account=account))
 
 
+def _due_soon_assignments(account, per_student_limit=5):
+    """Grouped by student (via the template's regroup, hence sorted by
+    student name here) and, within each student, sorted by priority_score
+    rather than raw due_date — the whole point of that score is to weigh
+    exam/project urgency and estimated effort ahead of a plain date sort
+    (#403)."""
+    from school.models import Assignment  # noqa: PLC0415
+
+    assignments = list(
+        Assignment.objects.filter(account=account).exclude(status="done").select_related("course", "student")
+    )
+
+    by_student = {}
+    for assignment in assignments:
+        by_student.setdefault(assignment.student_id, []).append(assignment)
+
+    result = []
+    for items in by_student.values():
+        items.sort(key=lambda a: a.priority_score)
+        result.extend(items[:per_student_limit])
+
+    result.sort(key=lambda a: (a.student.name, a.priority_score))
+    return result
+
+
 def _next_maintenance(account):
     from property.models import MaintenanceProject  # noqa: PLC0415
 
@@ -166,6 +191,7 @@ def build_dashboard_context(request):
         "schedule_events": _schedule_events(account),
         "dinner_recipe": _dinner_suggestion(account),
         "priority_tasks": _priority_tasks(account),
+        "due_soon_assignments": _due_soon_assignments(account),
         "shopping_items": _shopping_items(account),
         "vehicles": _vehicle_health(account),
         "property_count": account.properties.count(),
