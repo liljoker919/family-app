@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if form.instance.pk %}Edit {{ form.instance.title }} — Hey Famly{% else %}Add Assignment — Hey Famly{% endif %}
+{% endblock %}
+{% block page_title %}
+  {% if form.instance.pk %}Edit Assignment{% else %}Add Assignment{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+
+  <a href="{% if form.instance.pk %}{% url 'school:assignment_detail' form.instance.pk %}{% else %}{% url 'school:course_detail' course.pk %}{% endif %}"
+     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
+    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+    Back to {{ course.name }}
+  </a>
+
+  <div class="rounded-xl border border-gray-200 bg-white shadow-sm">
+    <div class="px-6 py-4 border-b border-gray-100">
+      <h2 class="text-base font-semibold text-gray-900">
+        {% if form.instance.pk %}Edit Assignment{% else %}Add Assignment{% endif %}
+      </h2>
+      <p class="mt-1 text-sm text-gray-500">{{ course.name }} — {{ course.student }}</p>
+    </div>
+
+    <form method="post" class="p-6 space-y-5">
+      {% csrf_token %}
+
+      <!-- Title -->
+      <div>
+        <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-700">
+          Title <span class="text-red-500">*</span>
+        </label>
+        {{ form.title }}
+        {% if form.title.errors %}<p class="mt-1 text-xs text-red-600">{{ form.title.errors.0 }}</p>{% endif %}
+      </div>
+
+      <!-- Type / Status -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label for="{{ form.type.id_for_label }}" class="block text-sm font-medium text-gray-700">
+            Type
+          </label>
+          {{ form.type }}
+        </div>
+        <div>
+          <label for="{{ form.status.id_for_label }}" class="block text-sm font-medium text-gray-700">
+            Status
+          </label>
+          {{ form.status }}
+        </div>
+      </div>
+
+      <!-- Due date / Due time -->
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label for="{{ form.due_date.id_for_label }}" class="block text-sm font-medium text-gray-700">
+            Due Date <span class="text-red-500">*</span>
+          </label>
+          {{ form.due_date }}
+          {% if form.due_date.errors %}<p class="mt-1 text-xs text-red-600">{{ form.due_date.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+          <label for="{{ form.due_time.id_for_label }}" class="block text-sm font-medium text-gray-700">
+            Due Time
+          </label>
+          {{ form.due_time }}
+        </div>
+      </div>
+
+      <!-- Estimated minutes -->
+      <div>
+        <label for="{{ form.estimated_minutes.id_for_label }}" class="block text-sm font-medium text-gray-700">
+          Estimated Minutes
+        </label>
+        {{ form.estimated_minutes }}
+      </div>
+
+      <!-- Description -->
+      <div>
+        <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">
+          Description
+        </label>
+        {{ form.description }}
+      </div>
+
+      {% if form.non_field_errors %}
+      <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Actions -->
+      <div class="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+        <a href="{% if form.instance.pk %}{% url 'school:assignment_detail' form.instance.pk %}{% else %}{% url 'school:course_detail' course.pk %}{% endif %}"
+           class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+          Cancel
+        </a>
+        <button type="submit"
+                class="rounded-lg bg-brand-terracotta px-4 py-2 text-sm font-medium text-white hover:bg-brand-terracotta-hover transition-colors">
+          {% if form.instance.pk %}Save Changes{% else %}Add Assignment{% endif %}
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+{% endblock %}

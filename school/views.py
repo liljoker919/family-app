@@ -4,8 +4,8 @@ from django.views.generic import CreateView, DeleteView, DetailView, ListView, U
 
 from core.mixins import AccountScopedMixin, AccountStampMixin, SubscriptionRequiredMixin, get_scoped_object_or_404
 
-from .forms import CourseForm, StudentForm
-from .models import Course, Student
+from .forms import AssignmentForm, CourseForm, StudentForm
+from .models import Assignment, Course, Student
 
 
 class StudentListView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, ListView):
@@ -89,3 +89,54 @@ class CourseDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountSco
 
     def get_success_url(self):
         return reverse_lazy("school:student_detail", kwargs={"pk": self.object.student.pk})
+
+
+class AssignmentDetailView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, DetailView):
+    model = Assignment
+    template_name = "school/assignment_detail.html"
+
+
+class AssignmentCreateView(LoginRequiredMixin, SubscriptionRequiredMixin, CreateView):
+    model = Assignment
+    form_class = AssignmentForm
+    template_name = "school/assignment_form.html"
+
+    def _get_course(self):
+        return get_scoped_object_or_404(Course, self.request.account, pk=self.kwargs["course_pk"])
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["course"] = self._get_course()
+        return context
+
+    def form_valid(self, form):
+        course = self._get_course()
+        form.instance.course = course
+        form.instance.student = course.student
+        form.instance.account = self.request.account
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy("school:course_detail", kwargs={"pk": self.kwargs["course_pk"]})
+
+
+class AssignmentUpdateView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, UpdateView):
+    model = Assignment
+    form_class = AssignmentForm
+    template_name = "school/assignment_form.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["course"] = self.object.course
+        return context
+
+    def get_success_url(self):
+        return reverse_lazy("school:assignment_detail", kwargs={"pk": self.object.pk})
+
+
+class AssignmentDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, DeleteView):
+    model = Assignment
+    template_name = "school/assignment_confirm_delete.html"
+
+    def get_success_url(self):
+        return reverse_lazy("school:course_detail", kwargs={"pk": self.object.course.pk})

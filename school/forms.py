@@ -1,13 +1,19 @@
 from django import forms
 
-from .models import Course, Student
+from .models import Assignment, Course, Student
 
 _INPUT = (
     "mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm "
     "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
 )
-_CHECKBOX_ROW = "flex flex-wrap gap-4 mt-2"
-_CHECKBOX_LABEL = "flex items-center gap-1.5 text-sm text-gray-700"
+_SELECT = (
+    "mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm "
+    "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+)
+_TEXTAREA = (
+    "mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm "
+    "focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+)
 
 
 class StudentForm(forms.ModelForm):
@@ -48,3 +54,21 @@ class CourseForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if self.instance.pk:
             self.fields["meeting_days"].initial = self.instance.meeting_days
+
+
+class AssignmentForm(forms.ModelForm):
+    class Meta:
+        model = Assignment
+        fields = [
+            "title", "description", "type", "status",
+            "due_date", "due_time", "estimated_minutes",
+        ]
+        widgets = {
+            "title": forms.TextInput(attrs={"class": _INPUT, "placeholder": "e.g. Chapter 5 Problem Set"}),
+            "description": forms.Textarea(attrs={"class": _TEXTAREA, "rows": 3, "placeholder": "Additional notes…"}),
+            "type": forms.Select(attrs={"class": _SELECT}),
+            "status": forms.Select(attrs={"class": _SELECT}),
+            "due_date": forms.DateInput(attrs={"class": _INPUT, "type": "date"}),
+            "due_time": forms.TimeInput(attrs={"class": _INPUT, "type": "time"}),
+            "estimated_minutes": forms.NumberInput(attrs={"class": _INPUT, "min": 0, "placeholder": "e.g. 30"}),
+        }
