@@ -243,11 +243,107 @@ pattern (see Vehicles entry, `templates/base.html:61-73`).
 - Syllabus import (photo/PDF → OCR → auto-create course + assignments)
 - `GradeItem` model + grade tracker per course
 
-**Phase 4**
+**Phase 4** — superseded by "Kid Login & Self-Service Agenda" below (pulled
+forward on 2026-09-16; Phase 1 alone left every assignment parent-entered,
+which doesn't match the actual requirement).
 - Per-student "school dashboard" view
-- Kid login/accounts — its own project touching `FamilyMembership` and
-  `TenantMiddleware`, not a School-module task. Not started until Phase 1-3
-  prove the parent-managed version is worth expanding.
+
+---
+
+## Kid Login & Self-Service Agenda (elevated from Phase 4, 2026-09-16)
+
+Phase 1 shipped with kids as data-only `Student` records — no login, parent
+enters everything. That doesn't match the real requirement: **a kid needs to
+open the app themselves, see their week, add their own assignments/tests,
+and check things off as they finish them.** This section replaces the old
+"Phase 4: kid login" bullet with an actual design, tracked as its own
+milestone (separate from Phase 1's, since it touches core auth/tenancy, not
+just the `school` app).
+
+### Decision: real login, restricted role, read-only calendar
+
+Two shapes were considered: a full account with its own username/password
+vs. a lightweight shared-device PIN unlocking a kid-mode view inside a
+parent's session. **Real login was chosen** — a kid needs to reach their
+agenda independently, from their own device/browser, not only on a shared
+family device someone else already unlocked. Calendar access (read-only) is
+included so a kid can see family context (vacations, other events) around
+their own due dates, not just an isolated assignment list.
+
+### Data model changes
+
+```python
+# core/models.py
+class FamilyMembership(models.Model):
+    ROLE_CHOICES = [("owner", "Owner"), ("member", "Member"), ("student", "Student")]
+    ...
+
+# school/models.py
+class Student(models.Model):
+    ...
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="student_profile",
+    )
+```
+
+A kid's `User` gets a `FamilyMembership` row with `role="student"` — this is
+enough for `TenantMiddleware` to resolve `request.account` with **no changes
+to that middleware at all** (it only ever looked up *a* membership, never
+checked role). All the new work is in restricting what a `student`-role user
+can reach and see once `request.account` is set.
+
+### Access control
+
+Two new pieces in `core/mixins.py`, both keyed off the logged-in user's
+`FamilyMembership.role`:
+
+1. **A path allowlist** (middleware, alongside `TenantMiddleware` and
+   `EmailVerificationMiddleware`) — a `student`-role user can only reach
+   their own agenda, the school assignment views, the calendar (GET only),
+   and logout. Every other path (`/vehicles/`, `/property/`, `/tasks/`,
+   `/shopping/`, `/cookbook/`, `/vacations/`, `/profile/`, `/invite/`,
+   `/admin/`, other students' school pages) redirects to their agenda.
+2. **A queryset-scoping mixin** for the `Student`/`Course`/`Assignment`
+   views themselves — a `student`-role user's queries are further filtered
+   down to *their own* `Student` record (via `request.user.student_profile`)
+   on top of the existing `AccountScopedMixin` account filter, so a kid can
+   never see a sibling's courses or grades. `Student`/`Course`
+   create/update/delete stay parent-only even for the owning kid's own
+   record — a kid manages assignments, not their own enrollment.
+
+Calendar: `EventCreateView`/`EventUpdateView`/`EventDeleteView` reject
+`student`-role users server-side, not just hide the buttons in the template.
+Worth revisiting whether `VehicleService.cost` should be redacted from the
+event feed for this role — it's financial detail exposed today via the
+existing "Vehicle Maintenance" event modal, deliberately not addressed here.
+
+### Parent-facing "Give access" flow
+
+A kid doesn't have their own email the way an invited adult does, so this
+can't reuse `django-invitations` as-is. A button on the student detail page
+(owner/member only) lets the parent set a username + password directly for
+that `Student`, creating the `User` + `FamilyMembership(role="student")` in
+one step and linking `Student.user`. Must **not** create an
+`EmailVerification` row — mirror how invited members already skip that path
+(#377) so `EmailVerificationMiddleware` never blocks a kid's login. A
+"Revoke access" action removes the login without deleting the `Student`
+record or their assignment history.
+
+### Kid-facing UI
+
+- **Login redirect**: `LOGIN_REDIRECT_URL` is currently a fixed
+  `/dashboard/` for everyone — a `student`-role user needs to land on their
+  agenda instead, not the parent dashboard.
+- **Minimal sidebar**: `templates/base.html`'s nav shows only "My Agenda"
+  and "Calendar" (+ logout) for a `student`-role user, same
+  `{% if %}`-per-entry pattern already in use, just gated on role instead of
+  `app_name`.
+- **"My Agenda"**: new view — this week's assignments across the kid's own
+  courses, sorted by `priority_score`, with an inline status checkbox
+  (`not_started` → `in_progress` → `done`, likely htmx like
+  `tasks:change_status` already does) and a quick "add assignment" form
+  whose course dropdown is limited to the kid's own courses.
 
 ---
 
@@ -260,4 +356,4 @@ migration, no nullable-FK/backfill dance needed since there's no legacy data).
 
 ---
 
-*Last updated: 2026-09-15*
+*Last updated: 2026-09-16*
