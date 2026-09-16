@@ -245,6 +245,38 @@ class FeedSettingsViewTestCase(TestCase):
         self.assertRedirects(response, "/upgrade/")
 
 
+class CollectEventsVehicleServiceCostTestCase(TestCase):
+    """Cost is financial detail that shouldn't ride along on the calendar
+    feed for any viewer — it stays on the vehicle's own service history
+    page. Server-side omission, not just a UI hide, so it's never in the
+    JSON payload regardless of who's asking."""
+
+    def setUp(self):
+        from vehicles.models import Vehicle, VehicleService  # noqa: PLC0415
+
+        self.user = User.objects.create_user(username="cost_user", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Cost Family", slug="cost-family", owner=self.user, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
+
+        vehicle = Vehicle.objects.create(
+            account=self.account, year=2020, make="Honda", model="CR-V", vin="1HGCM82633A004888",
+            color="Blue", license_plate="COST123", current_mileage=20000,
+            registration_expiry=datetime(2027, 1, 1).date(),
+        )
+        VehicleService.objects.create(
+            vehicle=vehicle, service_type="oil_change", date=datetime(2026, 6, 1).date(),
+            mileage_at_service=20100, cost="89.99",
+        )
+
+    def test_cost_absent_from_vehicle_service_event_payload(self):
+        events = collect_events(self.account, None, None)
+        car_events = [e for e in events if e["extendedProps"]["type"] == "car"]
+        self.assertEqual(len(car_events), 1)
+        self.assertNotIn("cost", car_events[0]["extendedProps"])
+
+
 class CollectEventsSchoolTestCase(TestCase):
     """#402 — course meeting blocks and assignment due dates must show up
     on the calendar as their own sources, same isolated try/except shape

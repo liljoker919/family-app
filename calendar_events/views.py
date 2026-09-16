@@ -170,7 +170,6 @@ def collect_events(account, start_dt, end_dt):
                     "serviceType": svc.get_service_type_display(),
                     "mileage": svc.mileage_at_service,
                     "provider": svc.provider or None,
-                    "cost": str(svc.cost) if svc.cost else None,
                 },
             })
     except Exception:

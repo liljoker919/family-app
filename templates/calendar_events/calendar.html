@@ -209,7 +209,6 @@
       modalBody.innerHTML += row('Service',  esc(p.serviceType));
       if (p.provider) modalBody.innerHTML += row('Provider', esc(p.provider));
       modalBody.innerHTML += row('Mileage',  Number(p.mileage).toLocaleString() + ' mi');
-      if (p.cost)    modalBody.innerHTML += row('Cost', '$' + parseFloat(p.cost).toFixed(2));
 
       modalActions.innerHTML = `
         <a href="${vehicleDetailUrl(p.vehiclePk)}"
