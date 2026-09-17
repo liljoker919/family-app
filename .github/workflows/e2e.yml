@@ -1,0 +1,86 @@
+name: E2E Tests
+
+# Real browser E2E suite (e2e/, Playwright via pytest) — replaces the dead
+# JS-based playwright.yml removed in #332. Slower and, until proven stable,
+# more flake-prone than the unit test suite, so this runs on a schedule
+# rather than on every push/PR (#376). Same weekly cadence as the old
+# workflow.
+#
+# Once this has run cleanly for a couple of weeks: move at least the
+# signup/onboarding suite (#373) to `on: pull_request` as a required check,
+# keeping the full module sweep (#374) and the Stripe Checkout path (#375)
+# on this schedule to keep PR CI fast.
+on:
+  schedule:
+    - cron: "0 23 * * 0"
+  workflow_dispatch:
+
+jobs:
+  e2e-tests:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Install Playwright browsers
+        run: playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        id: run-e2e
+        # continue-on-error: initial rollout is report-only (same pattern as
+        # #349's bandit/pip-audit) until this has run clean for a while, then
+        # this flag comes off and the signup/onboarding path (#373) moves to
+        # `on: pull_request` as a required check.
+        continue-on-error: true
+        run: >
+          python -m pytest e2e/
+          --tracing=retain-on-failure
+          --screenshot=only-on-failure
+          --video=retain-on-failure
+          --output=test-results
+          --html=e2e-report/report.html
+          --self-contained-html
+        env:
+          STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+          STRIPE_TEST_PUBLIC_KEY: ${{ secrets.STRIPE_TEST_PUBLIC_KEY }}
+          STRIPE_FAMILY_PRICE_ID: ${{ secrets.STRIPE_FAMILY_PRICE_ID }}
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: e2e-report/
+          retention-days: 30
+
+      - name: Upload traces/screenshots/videos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: test-results/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.run-e2e.outcome }}" = "success" ]; then
+            echo "✅ All E2E tests passed." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some E2E tests failed. Download the **e2e-report** artifact for the HTML report and **e2e-test-results** for screenshots/videos/traces." >> $GITHUB_STEP_SUMMARY
+          fi
