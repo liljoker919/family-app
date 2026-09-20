@@ -1,0 +1,66 @@
+name: BrowserStack Weekly Smoke Test
+
+on:
+  schedule:
+    # 08:00 UTC every Monday.
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+jobs:
+  browserstack-smoke:
+    name: Smoke test heyfamlyapp.com on BrowserStack
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Set build name
+        id: build-name
+        run: echo "name=heyfamly-weekly-$(date -u +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: Run BrowserStack smoke suite
+        id: run-tests
+        env:
+          BASE_URL: https://heyfamlyapp.com
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_BUILD_NAME: ${{ steps.build-name.outputs.name }}
+          E2E_TEST_USERNAME: ${{ secrets.E2E_TEST_USERNAME }}
+          E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+        run: pytest e2e/browserstack_smoke/ -v
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## BrowserStack Smoke Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "Build: ${{ steps.build-name.outputs.name }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.run-tests.outcome }}" = "success" ]; then
+            echo "✅ All smoke tests passed. See BrowserStack Automate for full session details." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Some smoke tests failed. See the job log and BrowserStack Automate for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Notify Slack on failure
+        if: failure() && steps.run-tests.outcome == 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "No SLACK_WEBHOOK_URL secret configured — skipping notification."
+            exit 0
+          fi
+          curl -sS -X POST -H "Content-Type: application/json" \
+            -d "{\"text\": \"⚠️ BrowserStack weekly smoke test failed for heyfamlyapp.com — build ${{ steps.build-name.outputs.name }}. See ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}" \
+            "$SLACK_WEBHOOK_URL"
