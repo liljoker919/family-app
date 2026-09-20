@@ -12,6 +12,10 @@ BROWSERSTACK_BUILD_NAME = os.environ.get(
     "BROWSERSTACK_BUILD_NAME",
     f"heyfamly-weekly-{datetime.date.today().isoformat()}",
 )
+# Matches the existing "Family App" project in BrowserStack Automate
+# (automate.browserstack.com/projects/Family+App) so weekly builds group
+# under it instead of creating a new project implicitly.
+BROWSERSTACK_PROJECT_ID = os.environ.get("BROWSERSTACK_PROJECT_ID", "Family App")
 
 E2E_TEST_USERNAME = os.environ.get("E2E_TEST_USERNAME")
 E2E_TEST_PASSWORD = os.environ.get("E2E_TEST_PASSWORD")
@@ -30,7 +34,7 @@ def _cdp_url(caps):
     payload = {
         **caps,
         "build": BROWSERSTACK_BUILD_NAME,
-        "project": "heyfamlyapp.com",
+        "project": BROWSERSTACK_PROJECT_ID,
         "browserstack.username": BROWSERSTACK_USERNAME,
         "browserstack.accessKey": BROWSERSTACK_ACCESS_KEY,
     }

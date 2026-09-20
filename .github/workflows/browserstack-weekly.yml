@@ -36,6 +36,7 @@ jobs:
           BASE_URL: https://heyfamlyapp.com
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          BROWSERSTACK_PROJECT_ID: ${{ secrets.BROWSERSTACK_PROJECT_ID }}
           BROWSERSTACK_BUILD_NAME: ${{ steps.build-name.outputs.name }}
           E2E_TEST_USERNAME: ${{ secrets.E2E_TEST_USERNAME }}
           E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
