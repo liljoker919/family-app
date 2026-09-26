@@ -1,5 +1,8 @@
-# Dev/CI-only dependencies for the Playwright E2E suite (e2e/) — kept out of
-# requirements.txt so a production install never pulls in a browser engine.
+# Dev/CI-only dependencies — kept out of requirements.txt so a production
+# install never pulls in a browser engine. Shared by two independent
+# Playwright suites: e2e/ (local pytest-django + live_server suite, #372)
+# and e2e/browserstack_smoke/ (weekly live-production smoke suite via
+# BrowserStack, #412).
 # Install alongside requirements.txt: pip install -r requirements.txt -r requirements-dev.txt
 -r requirements.txt
 
