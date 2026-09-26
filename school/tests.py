@@ -250,6 +250,39 @@ class StudentAccessControlTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
 
 
+class StudentNavTestCase(TestCase):
+    """#406 — a student-role user's sidebar shows only My Agenda + Calendar
+    (+ Sign out), never the full parent nav or a Profile link."""
+
+    def setUp(self):
+        self.parent = User.objects.create_user(username="parent406", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Family 406", slug="family-406", owner=self.parent, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.parent, role="owner")
+        self.kid_user = User.objects.create_user(username="kid406", password="pass12345")
+        Student.objects.create(account=self.account, name="Sam", user=self.kid_user)
+        FamilyMembership.objects.create(account=self.account, user=self.kid_user, role="student")
+
+    def test_student_sees_minimal_nav(self):
+        self.client.login(username="kid406", password="pass12345")
+        response = self.client.get(reverse("school:my_agenda"))
+        self.assertContains(response, "My Agenda")
+        self.assertContains(response, "Calendar")
+        self.assertNotContains(response, ">Dashboard<")
+        self.assertNotContains(response, ">Vehicles<")
+        self.assertNotContains(response, ">Tasks<")
+        self.assertNotContains(response, ">Shopping<")
+        self.assertNotContains(response, ">Profile<")
+
+    def test_parent_sees_full_nav(self):
+        self.client.login(username="parent406", password="pass12345")
+        response = self.client.get(reverse("core:dashboard"))
+        self.assertContains(response, ">Vehicles<")
+        self.assertContains(response, ">Tasks<")
+        self.assertContains(response, ">Profile<")
+
+
 class CourseTenantIsolationTestCase(TestCase):
     """Courses reach their tenant through student__account (a parent FK,
     like VehicleService->vehicle->account) — must still isolate correctly."""
