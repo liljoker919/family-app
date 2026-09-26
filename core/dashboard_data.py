@@ -111,14 +111,19 @@ def _schedule_events(account):
 
 
 def _dinner_suggestion(account):
-    """A random family-favorite recipe (falling back to any recipe) — not
-    meal planning by date, see the #325 follow-up ticket (#370) for that."""
-    from cookbook.models import Recipe  # noqa: PLC0415
+    """Today's actually-planned dinner (#370's MealPlan) if one exists,
+    falling back to a random family-favorite recipe (or any recipe) exactly
+    like before meal planning existed. Returns (recipe, is_planned)."""
+    from cookbook.models import MealPlan, Recipe  # noqa: PLC0415
+
+    plan = MealPlan.objects.filter(account=account, date=date.today(), meal_type="dinner").select_related("recipe").first()
+    if plan is not None:
+        return plan.recipe, True
 
     recipe = Recipe.objects.filter(account=account, is_family_favorite=True).order_by("?").first()
     if recipe is None:
         recipe = Recipe.objects.filter(account=account).order_by("?").first()
-    return recipe
+    return recipe, False
 
 
 def _priority_tasks(account, limit=5):
@@ -186,10 +191,12 @@ def build_dashboard_context(request):
     if account is None:
         return context
 
+    dinner_recipe, dinner_is_planned = _dinner_suggestion(account)
     context.update({
         "attention_items": _attention_items(account),
         "schedule_events": _schedule_events(account),
-        "dinner_recipe": _dinner_suggestion(account),
+        "dinner_recipe": dinner_recipe,
+        "dinner_is_planned": dinner_is_planned,
         "priority_tasks": _priority_tasks(account),
         "due_soon_assignments": _due_soon_assignments(account),
         "shopping_items": _shopping_items(account),

@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
@@ -92,3 +92,20 @@ def add_recipe_ingredients(request, recipe_pk):
     if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
         return redirect(next_url)
     return redirect("cookbook:recipe_detail", pk=recipe_pk)
+
+
+@login_required
+def quick_add_item(request):
+    """#370 — the dashboard's "type item, press Enter" quick-add box. Only
+    needs a name; everything else defaults the same way ShoppingItemForm's
+    optional fields do."""
+    from core.dashboard_data import _shopping_items  # noqa: PLC0415
+
+    if request.method == "POST" and request.account:
+        name = request.POST.get("name", "").strip()
+        if name:
+            ShoppingItem.objects.create(account=request.account, name=name, category=_guess_category(name))
+
+    if request.headers.get("HX-Request") == "true":
+        return render(request, "core/_shopping_items.html", {"shopping_items": _shopping_items(request.account)})
+    return redirect("core:dashboard")

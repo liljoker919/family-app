@@ -81,6 +81,13 @@ def change_status(request, pk):
 
     is_htmx = request.headers.get("HX-Request") == "true"
     if is_htmx:
+        if request.POST.get("partial") == "dashboard":
+            from core.dashboard_data import _priority_tasks  # noqa: PLC0415
+
+            return render(
+                request, "core/_priority_tasks.html",
+                {"priority_tasks": _priority_tasks(request.account), "today": date.today()},
+            )
         return render(request, "tasks/_board.html", _board_context(request.account))
 
     # Lets the dashboard's task widget (#325) post here and land back on

@@ -53,6 +53,18 @@ class ChangeStatusTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "tasks/_board.html")
 
+    def test_htmx_dashboard_partial_returns_priority_tasks_template(self):
+        """#370 — the dashboard's checkbox posts with partial=dashboard
+        instead of always getting the full board back."""
+        response = self.client.post(
+            reverse("tasks:change_status", kwargs={"pk": self.task.pk}),
+            {"status": "COMPLETED", "partial": "dashboard"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "core/_priority_tasks.html")
+        self.assertNotContains(response, self.task.title)  # now COMPLETED, excluded from priority_tasks
+
     def test_regular_post_redirects_to_board(self):
         response = self._post("IN_PROGRESS")
         self.assertRedirects(response, reverse("tasks:board"))

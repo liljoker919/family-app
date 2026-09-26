@@ -182,3 +182,44 @@ class ShoppingItemCRUDTest(TestCase):
         )
         self.assertRedirects(response, reverse("shopping:list"))
         self.assertFalse(ShoppingItem.objects.filter(pk=self.item.pk).exists())
+
+
+class QuickAddItemTest(TestCase):
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.user = User.objects.create_user(username="quickadder", password="pass")
+        self.account = FamilyAccount.objects.create(name="Quick Family", slug="quick-family", owner=self.user)
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
+        self.client = Client()
+        self.client.login(username="quickadder", password="pass")
+
+    def test_htmx_request_creates_item_and_returns_partial(self):
+        response = self.client.post(
+            reverse("shopping:quick_add"),
+            {"name": "Bananas"},
+            HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "core/_shopping_items.html")
+        self.assertTrue(ShoppingItem.objects.filter(account=self.account, name="Bananas").exists())
+        self.assertContains(response, "Bananas")
+
+    def test_category_is_guessed(self):
+        self.client.post(reverse("shopping:quick_add"), {"name": "chicken breast"}, HTTP_HX_REQUEST="true")
+        self.assertEqual(ShoppingItem.objects.get(name="chicken breast").category, "MEAT")
+
+    def test_blank_name_creates_no_item(self):
+        self.client.post(reverse("shopping:quick_add"), {"name": "  "}, HTTP_HX_REQUEST="true")
+        self.assertEqual(ShoppingItem.objects.count(), 0)
+
+    def test_non_htmx_request_redirects_to_dashboard(self):
+        response = self.client.post(reverse("shopping:quick_add"), {"name": "Bread"})
+        self.assertRedirects(response, reverse("core:dashboard"))
+        self.assertTrue(ShoppingItem.objects.filter(name="Bread").exists())
+
+    def test_unauthenticated_redirects_to_login(self):
+        self.client.logout()
+        response = self.client.post(reverse("shopping:quick_add"), {"name": "Bread"})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
