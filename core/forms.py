@@ -82,6 +82,20 @@ class ProfileForm(forms.ModelForm):
         return email
 
 
+class WeeklyDigestForm(forms.ModelForm):
+    """Single-checkbox account-level preference (#384) — owner-only, no
+    dedicated preferences page needed for v1."""
+
+    class Meta:
+        from core.models import FamilyAccount  # noqa: PLC0415
+
+        model = FamilyAccount
+        fields = ["email_weekly_digest"]
+        widgets = {
+            "email_weekly_digest": forms.CheckboxInput(attrs={"class": "rounded border-gray-300"}),
+        }
+
+
 class PasswordChangeForm(DjangoPasswordChangeForm):
     """Django's PasswordChangeForm has no CSS hooks — style it to match
     every other form in the app instead of leaving it bare."""
