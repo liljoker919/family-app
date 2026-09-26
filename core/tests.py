@@ -648,6 +648,69 @@ class NoAccountUserTestCase(TestCase):
         self.assertNotContains(response, "Orphaned House")
 
 
+class TenantMiddlewareLazyAccountTestCase(TestCase):
+    """#331 — request.account is a SimpleLazyObject so the FamilyMembership
+    query only runs when something actually touches it. `is None`/`is not
+    None` can't be used against it (Python's `is` is identity, which a proxy
+    can never satisfy for a value it merely wraps) — every guard in the
+    codebase was converted to truthiness instead. This asserts both: the
+    proxy is falsy in exactly the cases the old eager `None` was, and the
+    query genuinely doesn't run until request.account is accessed."""
+
+    def setUp(self):
+        from django.test import RequestFactory  # noqa: PLC0415
+
+        from core.middleware import TenantMiddleware  # noqa: PLC0415
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.factory = RequestFactory()
+        self.middleware = TenantMiddleware(get_response=lambda request: request)
+
+        self.member_user = User.objects.create_user(username="mw_member", password="pass")
+        self.account = FamilyAccount.objects.create(
+            name="MW Family", slug=FamilyAccount.generate_unique_slug("mw family"), owner=self.member_user
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.member_user, role="owner")
+
+        self.no_membership_user = User.objects.create_user(username="mw_no_membership", password="pass")
+
+    def _process(self, user):
+        request = self.factory.get("/")
+        request.user = user
+        return self.middleware(request)
+
+    def test_authenticated_with_membership_resolves_truthy_and_correct(self):
+        request = self._process(self.member_user)
+        self.assertTrue(request.account)
+        self.assertEqual(request.account, self.account)
+
+    def test_authenticated_without_membership_resolves_falsy(self):
+        request = self._process(self.no_membership_user)
+        self.assertFalse(request.account)
+        # `is None` never returns True for a proxy — that's the exact
+        # footgun this middleware has to avoid triggering elsewhere.
+        self.assertIsNotNone(request.account)
+        self.assertEqual(request.account, None)
+
+    def test_anonymous_resolves_falsy_without_querying(self):
+        from django.contrib.auth.models import AnonymousUser  # noqa: PLC0415
+
+        request = self._process(AnonymousUser())
+        with self.assertNumQueries(0):
+            self.assertFalse(request.account)
+
+    def test_membership_query_is_deferred_until_accessed(self):
+        request = self.factory.get("/")
+        request.user = self.member_user
+        request = self.middleware(request)
+        # The membership lookup must not have run yet just from middleware
+        # dispatch — only the first real access to request.account triggers it.
+        with self.assertNumQueries(1):
+            _ = request.account.name
+        with self.assertNumQueries(0):
+            _ = request.account.name
+
+
 class SubscriptionRequiredMixinTestCase(TestCase):
     """Free-tier accounts must be redirected off Family-tier-only modules
     (vehicles/property/calendar/vacations/cookbook, #308) to the upgrade
