@@ -1,0 +1,6 @@
+-r requirements.txt
+
+# BrowserStack weekly production smoke suite (e2e/browserstack_smoke/, #412).
+playwright
+pytest
+pytest-playwright
