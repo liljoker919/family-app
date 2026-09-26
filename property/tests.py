@@ -1,13 +1,22 @@
 from datetime import date
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 
+from core.models import FamilyAccount
 from property.models import MaintenanceProject, Property
+
+User = get_user_model()
 
 
 class MaintenanceRecurrenceTest(TestCase):
     def setUp(self):
+        owner = User.objects.create_user(username="maint_owner", password="pass")
+        account = FamilyAccount.objects.create(
+            name="Maintenance Test Family", slug=FamilyAccount.generate_unique_slug("maintenance test family"), owner=owner
+        )
         self.prop = Property.objects.create(
+            account=account,
             name="Test House",
             address="123 Main St",
             property_type="single_family",

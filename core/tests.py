@@ -581,8 +581,19 @@ class CrossTenantIsolationTestCase(TestCase):
 
 class NoAccountUserTestCase(TestCase):
     """An authenticated user with no FamilyMembership at all (request.account
-    is None) must never see account-less/legacy rows just because both sides
-    of an `account=None` filter happen to match — see #327/#328/#329/#330.
+    is None) must never see another family's data just because both sides of
+    a naive `account=request.account` filter happen to match — see
+    #327/#328/#329/#330.
+
+    Originally exercised this with genuinely account-less/legacy rows (a
+    `account=None` row matching a no-membership user's own `account=None`).
+    Migration C (#301) made `account` required at the schema level, so that
+    exact scenario is now structurally impossible — no row can exist without
+    an account at all. The rows here belong to a real, unrelated
+    `other_account` instead: the protection this test guards (a no-account
+    user must never see data that isn't theirs) is the same one, just
+    exercised against another tenant's data rather than a now-impossible
+    accountless row.
 
     property/vehicles are Family-tier-gated (#308): SubscriptionRequiredMixin
     now intercepts account=None requests before AccountScopedMixin/
@@ -594,6 +605,7 @@ class NoAccountUserTestCase(TestCase):
     """
 
     def setUp(self):
+        from core.models import FamilyAccount  # noqa: PLC0415
         from property.models import Property  # noqa: PLC0415
         from tasks.models import FamilyTask  # noqa: PLC0415
 
@@ -601,10 +613,19 @@ class NoAccountUserTestCase(TestCase):
         self.client_no_account = Client()
         self.client_no_account.login(username="no_account", password="pass")
 
-        # Orphaned/legacy rows with no account — must never surface to a
-        # user whose own request.account also resolves to None.
-        self.orphaned_property = Property.objects.create(name="Orphaned House", address="0 Nowhere Ave")
-        self.orphaned_task = FamilyTask.objects.create(title="Orphaned Task", status="TODO", priority="medium")
+        other_owner = User.objects.create_user(username="other_family_owner", password="pass")
+        self.other_account = FamilyAccount.objects.create(
+            name="Other Family", slug=FamilyAccount.generate_unique_slug("other family"), owner=other_owner
+        )
+
+        # Another tenant's rows — must never surface to a user whose own
+        # request.account resolves to None.
+        self.orphaned_property = Property.objects.create(
+            account=self.other_account, name="Orphaned House", address="0 Nowhere Ave"
+        )
+        self.orphaned_task = FamilyTask.objects.create(
+            account=self.other_account, title="Orphaned Task", status="TODO", priority="medium"
+        )
 
     def test_gated_list_view_redirects_to_upgrade(self):
         response = self.client_no_account.get("/property/")
