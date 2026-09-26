@@ -16,7 +16,7 @@ class SubscriptionRequiredMixin:
 
     def dispatch(self, request, *args, **kwargs):
         account = request.account
-        if account is None or account.tier != FamilyAccount.TIER_FAMILY:
+        if not account or account.tier != FamilyAccount.TIER_FAMILY:
             return redirect("core:upgrade_required")
         return super().dispatch(request, *args, **kwargs)
 
@@ -33,7 +33,7 @@ class AccountScopedMixin:
 
     def get_queryset(self):
         qs = super().get_queryset()
-        if self.request.account is None:
+        if not self.request.account:
             # account is nullable until a later migration makes it required —
             # filtering by account=None here would match legacy/orphaned rows
             # instead of correctly showing nothing.
@@ -45,7 +45,7 @@ class AccountStampMixin:
     """Stamps request.account onto new objects in CreateView.form_valid()."""
 
     def form_valid(self, form):
-        if self.request.account is None:
+        if not self.request.account:
             raise PermissionDenied("No active family account found.")
         form.instance.account = self.request.account
         return super().form_valid(form)
@@ -59,6 +59,6 @@ def get_scoped_object_or_404(model, account, **kwargs):
     get_object_or_404(Model, pk=..., account=self.request.account), which
     would match legacy/orphaned rows if account is None.
     """
-    if account is None:
+    if not account:
         raise Http404
     return get_object_or_404(model, account=account, **kwargs)

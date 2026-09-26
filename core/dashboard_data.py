@@ -183,7 +183,7 @@ def build_dashboard_context(request):
     account = request.account
     context = {"greeting": _greeting(request.user), "today": date.today()}
 
-    if account is None:
+    if not account:
         return context
 
     context.update({

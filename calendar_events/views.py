@@ -108,7 +108,7 @@ class CalendarView(LoginRequiredMixin, SubscriptionRequiredMixin, TemplateView):
 
 
 def collect_events(account, start_dt, end_dt):
-    if account is None:
+    if not account:
         # account is nullable until a later migration makes it required —
         # filtering by account=None below would match legacy/orphaned rows.
         return []
@@ -370,7 +370,7 @@ def calendar_json_view(request):
         return dt
 
     account = request.account
-    if account is None or account.tier != account.TIER_FAMILY:
+    if not account or account.tier != account.TIER_FAMILY:
         return JsonResponse({"error": "Family plan required"}, status=403)
 
     start_dt = _parse(request.GET.get("start", ""))

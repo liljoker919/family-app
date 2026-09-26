@@ -15,7 +15,7 @@ from .models import FamilyTask, TaskComment, _PRIORITY_ORDER
 
 
 def _board_context(account):
-    if account is None:
+    if not account:
         base_qs = FamilyTask.objects.none()
     else:
         base_qs = FamilyTask.objects.filter(account=account).select_related("assigned_to").prefetch_related("comments")
