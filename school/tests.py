@@ -146,6 +146,110 @@ class StudentCrudTestCase(TestCase):
         self.assertIn(reverse("login"), response.url)
 
 
+class StudentAccessControlTestCase(TestCase):
+    """#405 — a student-role user is confined to their own agenda, the
+    school assignment views, and the calendar; everything else redirects to
+    their agenda, and a sibling's data is never reachable even via a direct
+    URL to an assignment view they are otherwise allowed to use."""
+
+    def setUp(self):
+        self.parent = User.objects.create_user(username="parent405", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Family 405", slug="family-405", owner=self.parent, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.parent, role="owner")
+
+        self.kid_user = User.objects.create_user(username="kid405", password="pass12345")
+        self.student = Student.objects.create(account=self.account, name="Amir", user=self.kid_user)
+        FamilyMembership.objects.create(account=self.account, user=self.kid_user, role="student")
+        self.course = Course.objects.create(account=self.account, student=self.student, name="Algebra II")
+        self.assignment = Assignment.objects.create(
+            account=self.account, course=self.course, student=self.student,
+            title="Problem Set 1", due_date=date.today(),
+        )
+
+        self.sibling = Student.objects.create(account=self.account, name="Priya")
+        self.sibling_course = Course.objects.create(account=self.account, student=self.sibling, name="Biology")
+        self.sibling_assignment = Assignment.objects.create(
+            account=self.account, course=self.sibling_course, student=self.sibling,
+            title="Lab Report", due_date=date.today(),
+        )
+
+        self.client.login(username="kid405", password="pass12345")
+
+    def test_agenda_is_reachable(self):
+        response = self.client.get(reverse("school:my_agenda"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_own_assignment_detail_is_reachable(self):
+        response = self.client.get(reverse("school:assignment_detail", kwargs={"pk": self.assignment.pk}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_calendar_get_is_reachable(self):
+        response = self.client.get(reverse("calendar_events:calendar"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_student_list_redirects_to_agenda(self):
+        response = self.client.get(reverse("school:student_list"))
+        self.assertRedirects(response, reverse("school:my_agenda"))
+
+    def test_course_detail_redirects_to_agenda(self):
+        response = self.client.get(reverse("school:course_detail", kwargs={"pk": self.course.pk}))
+        self.assertRedirects(response, reverse("school:my_agenda"))
+
+    def test_other_apps_redirect_to_agenda(self):
+        for url_name in ("tasks:board", "shopping:list", "vehicles:vehicle_list", "core:profile", "core:dashboard"):
+            with self.subTest(url_name=url_name):
+                response = self.client.get(reverse(url_name))
+                self.assertRedirects(response, reverse("school:my_agenda"))
+
+    def test_admin_redirects_to_agenda(self):
+        response = self.client.get("/admin/")
+        self.assertRedirects(response, reverse("school:my_agenda"))
+
+    def test_calendar_event_create_redirects_to_agenda(self):
+        response = self.client.get(reverse("calendar_events:event_create"))
+        self.assertRedirects(response, reverse("school:my_agenda"))
+
+    def test_cannot_view_siblings_assignment(self):
+        response = self.client.get(reverse("school:assignment_detail", kwargs={"pk": self.sibling_assignment.pk}))
+        self.assertEqual(response.status_code, 404)
+
+    def test_cannot_edit_siblings_assignment(self):
+        response = self.client.post(
+            reverse("school:assignment_update", kwargs={"pk": self.sibling_assignment.pk}),
+            {"title": "Hacked", "type": "homework", "status": "not_started", "due_date": date.today()},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.sibling_assignment.refresh_from_db()
+        self.assertEqual(self.sibling_assignment.title, "Lab Report")
+
+    def test_cannot_delete_siblings_assignment(self):
+        response = self.client.post(reverse("school:assignment_delete", kwargs={"pk": self.sibling_assignment.pk}))
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Assignment.objects.filter(pk=self.sibling_assignment.pk).exists())
+
+    def test_cannot_create_assignment_under_siblings_course(self):
+        response = self.client.post(
+            reverse("school:assignment_create", kwargs={"course_pk": self.sibling_course.pk}),
+            {"title": "Hacked", "type": "homework", "status": "not_started", "due_date": date.today()},
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_can_create_assignment_under_own_course(self):
+        response = self.client.post(
+            reverse("school:assignment_create", kwargs={"course_pk": self.course.pk}),
+            {"title": "New Homework", "type": "homework", "status": "not_started", "due_date": date.today()},
+        )
+        self.assertTrue(Assignment.objects.filter(title="New Homework", student=self.student).exists())
+
+    def test_owner_role_is_unaffected(self):
+        self.client.logout()
+        self.client.login(username="parent405", password="pass12345")
+        response = self.client.get(reverse("school:student_list"))
+        self.assertEqual(response.status_code, 200)
+
+
 class CourseTenantIsolationTestCase(TestCase):
     """Courses reach their tenant through student__account (a parent FK,
     like VehicleService->vehicle->account) — must still isolate correctly."""

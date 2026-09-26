@@ -1,8 +1,15 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import Http404
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
-from core.mixins import AccountScopedMixin, AccountStampMixin, SubscriptionRequiredMixin, get_scoped_object_or_404
+from core.mixins import (
+    AccountScopedMixin,
+    AccountStampMixin,
+    StudentOwnScopedMixin,
+    SubscriptionRequiredMixin,
+    get_scoped_object_or_404,
+)
 
 from .forms import AssignmentForm, CourseForm, StudentForm
 from .models import Assignment, Course, Student
@@ -91,7 +98,9 @@ class CourseDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountSco
         return reverse_lazy("school:student_detail", kwargs={"pk": self.object.student.pk})
 
 
-class AssignmentDetailView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, DetailView):
+class AssignmentDetailView(
+    LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, StudentOwnScopedMixin, DetailView
+):
     model = Assignment
     template_name = "school/assignment_detail.html"
 
@@ -102,7 +111,14 @@ class AssignmentCreateView(LoginRequiredMixin, SubscriptionRequiredMixin, Create
     template_name = "school/assignment_form.html"
 
     def _get_course(self):
-        return get_scoped_object_or_404(Course, self.request.account, pk=self.kwargs["course_pk"])
+        course = get_scoped_object_or_404(Course, self.request.account, pk=self.kwargs["course_pk"])
+        # #410 — self-service: a student-role user may only add assignments
+        # to their own courses, never a sibling's.
+        if getattr(self.request, "membership_role", None) == "student":
+            own_student = getattr(self.request.user, "student_profile", None)
+            if own_student is None or course.student_id != own_student.id:
+                raise Http404
+        return course
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -120,7 +136,9 @@ class AssignmentCreateView(LoginRequiredMixin, SubscriptionRequiredMixin, Create
         return reverse_lazy("school:course_detail", kwargs={"pk": self.kwargs["course_pk"]})
 
 
-class AssignmentUpdateView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, UpdateView):
+class AssignmentUpdateView(
+    LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, StudentOwnScopedMixin, UpdateView
+):
     model = Assignment
     form_class = AssignmentForm
     template_name = "school/assignment_form.html"
@@ -134,9 +152,16 @@ class AssignmentUpdateView(LoginRequiredMixin, SubscriptionRequiredMixin, Accoun
         return reverse_lazy("school:assignment_detail", kwargs={"pk": self.object.pk})
 
 
-class AssignmentDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, DeleteView):
+class AssignmentDeleteView(
+    LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, StudentOwnScopedMixin, DeleteView
+):
     model = Assignment
     template_name = "school/assignment_confirm_delete.html"
 
     def get_success_url(self):
+        # A student-role user can't reach course_detail (StudentAccessMiddleware),
+        # so send them back to their own agenda instead of bouncing through
+        # a redirect they'd immediately get redirected away from again.
+        if getattr(self.request, "membership_role", None) == "student":
+            return reverse_lazy("school:my_agenda")
         return reverse_lazy("school:course_detail", kwargs={"pk": self.object.course.pk})
