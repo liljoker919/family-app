@@ -1,6 +1,13 @@
+# Dev/CI-only dependencies — kept out of requirements.txt so a production
+# install never pulls in a browser engine. Shared by two independent
+# Playwright suites: e2e/ (local pytest-django + live_server suite, #372)
+# and e2e/browserstack_smoke/ (weekly live-production smoke suite via
+# BrowserStack, #412).
+# Install alongside requirements.txt: pip install -r requirements.txt -r requirements-dev.txt
 -r requirements.txt
 
-# BrowserStack weekly production smoke suite (e2e/browserstack_smoke/, #412).
-playwright
-pytest
-pytest-playwright
+playwright>=1.47.0
+pytest>=8.3.0
+pytest-django>=4.9.0
+pytest-playwright>=0.5.2
+pytest-html>=4.1.1
