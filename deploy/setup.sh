@@ -70,6 +70,11 @@ chmod +x "$APP_DIR/deploy/backup-db.sh"
 cp "$APP_DIR/deploy/family-app-backup.cron" /etc/cron.d/family-app-backup
 chmod 644 /etc/cron.d/family-app-backup
 
+echo "── Installing weekly digest email cron job ───────────────────────────────"
+chmod +x "$APP_DIR/deploy/send-weekly-digest.sh"
+cp "$APP_DIR/deploy/family-app-digest.cron" /etc/cron.d/family-app-digest
+chmod 644 /etc/cron.d/family-app-digest
+
 echo ""
 echo "✅  Setup complete. App is running at http://$(curl -sf http://checkip.amazonaws.com || echo '<your-ip>')"
 echo ""

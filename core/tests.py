@@ -1332,6 +1332,104 @@ class ManageSubscriptionViewTestCase(TestCase):
         self.assertContains(response, "Manage Subscription")
 
 
+class WeeklyDigestToggleViewTestCase(TestCase):
+    """#384 — owner-only single-checkbox account preference."""
+
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.owner = User.objects.create_user(username="digest_owner", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Digest Family", slug="digest-family", owner=self.owner,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.owner, role="owner")
+
+        self.member = User.objects.create_user(username="digest_member", password="pass12345")
+        FamilyMembership.objects.create(account=self.account, user=self.member, role="member")
+
+    def test_defaults_to_enabled(self):
+        self.assertTrue(self.account.email_weekly_digest)
+
+    def test_owner_can_disable(self):
+        self.client.login(username="digest_owner", password="pass12345")
+        response = self.client.post("/profile/weekly-digest/", {})
+        self.assertRedirects(response, "/profile/")
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.email_weekly_digest)
+
+    def test_owner_can_re_enable(self):
+        self.account.email_weekly_digest = False
+        self.account.save(update_fields=["email_weekly_digest"])
+        self.client.login(username="digest_owner", password="pass12345")
+        response = self.client.post("/profile/weekly-digest/", {"email_weekly_digest": "on"})
+        self.assertRedirects(response, "/profile/")
+        self.account.refresh_from_db()
+        self.assertTrue(self.account.email_weekly_digest)
+
+    def test_non_owner_member_cannot_toggle(self):
+        self.client.login(username="digest_member", password="pass12345")
+        response = self.client.post("/profile/weekly-digest/", {})
+        self.assertRedirects(response, "/profile/")
+        self.account.refresh_from_db()
+        self.assertTrue(self.account.email_weekly_digest)
+
+    def test_profile_page_shows_digest_checkbox_for_owner_only(self):
+        self.client.login(username="digest_owner", password="pass12345")
+        self.assertContains(self.client.get("/profile/"), "weekly digest")
+
+        client = Client()
+        client.login(username="digest_member", password="pass12345")
+        self.assertNotContains(client.get("/profile/"), "weekly digest")
+
+
+class SendWeeklyDigestCommandTestCase(TestCase):
+    """#384 — the send_weekly_digest management command itself."""
+
+    def setUp(self):
+        from core.models import FamilyAccount  # noqa: PLC0415
+        from tasks.models import FamilyTask  # noqa: PLC0415
+
+        self.owner_with_items = User.objects.create_user(
+            username="digest_cmd_owner1", password="pass", email="owner1@example.com"
+        )
+        self.account_with_items = FamilyAccount.objects.create(
+            name="Has Attention Items", slug="has-attention-items", owner=self.owner_with_items,
+        )
+        FamilyTask.objects.create(
+            account=self.account_with_items, title="Overdue thing", status="TODO", priority="urgent",
+        )
+
+        self.owner_no_items = User.objects.create_user(
+            username="digest_cmd_owner2", password="pass", email="owner2@example.com"
+        )
+        self.account_no_items = FamilyAccount.objects.create(
+            name="Nothing To Report", slug="nothing-to-report", owner=self.owner_no_items,
+        )
+
+        self.owner_opted_out = User.objects.create_user(
+            username="digest_cmd_owner3", password="pass", email="owner3@example.com"
+        )
+        self.account_opted_out = FamilyAccount.objects.create(
+            name="Opted Out", slug="opted-out", owner=self.owner_opted_out, email_weekly_digest=False,
+        )
+        FamilyTask.objects.create(
+            account=self.account_opted_out, title="Also overdue", status="TODO", priority="urgent",
+        )
+
+    def test_sends_only_to_accounts_with_items_and_digest_enabled(self):
+        from django.core import mail  # noqa: PLC0415
+        from django.core.management import call_command  # noqa: PLC0415
+
+        call_command("send_weekly_digest")
+
+        recipients = [msg.to[0] for msg in mail.outbox]
+        self.assertIn("owner1@example.com", recipients)
+        self.assertNotIn("owner2@example.com", recipients)
+        self.assertNotIn("owner3@example.com", recipients)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Overdue thing", mail.outbox[0].body)
+
+
 class InvitationFlowTestCase(TestCase):
     """End-to-end: owner sends an invite, invitee clicks the link, signs up,
     and lands as a 'member' FamilyMembership on the owner's account (#310).

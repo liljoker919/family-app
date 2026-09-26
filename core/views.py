@@ -24,7 +24,14 @@ from invitations.utils import get_invitation_model
 from .dashboard_data import build_dashboard_context
 from .data_export import build_export_zip
 from .email_verification import email_verification_token, send_verification_email
-from .forms import AccountDeleteConfirmForm, InvitedSignupForm, PasswordChangeForm, ProfileForm, SignupForm
+from .forms import (
+    AccountDeleteConfirmForm,
+    InvitedSignupForm,
+    PasswordChangeForm,
+    ProfileForm,
+    SignupForm,
+    WeeklyDigestForm,
+)
 from .invitations_adapter import user_signed_up
 from .models import EmailVerification, FamilyAccount, FamilyMembership
 
@@ -373,6 +380,23 @@ class ManageSubscriptionView(LoginRequiredMixin, View):
         return redirect(portal_url)
 
 
+class WeeklyDigestToggleView(LoginRequiredMixin, View):
+    """#384 — owner-only single-checkbox account preference; no dedicated
+    preferences page needed for v1."""
+
+    def post(self, request):
+        account = request.account
+        if account is None or request.user != account.owner:
+            messages.error(request, "Only the account owner can manage this setting.")
+            return redirect("core:profile")
+
+        form = WeeklyDigestForm(request.POST, instance=account)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Weekly digest preference updated.")
+        return redirect("core:profile")
+
+
 class OnboardingPlanView(LoginRequiredMixin, View):
     """Step 3: Free activates immediately; Family redirects to Stripe Checkout."""
 
@@ -493,7 +517,10 @@ class ProfileView(LoginRequiredMixin, View):
     template_name = "core/profile.html"
 
     def get(self, request):
-        return render(request, self.template_name, {"form": ProfileForm(instance=request.user)})
+        context = {"form": ProfileForm(instance=request.user)}
+        if request.account is not None and request.user == request.account.owner:
+            context["digest_form"] = WeeklyDigestForm(instance=request.account)
+        return render(request, self.template_name, context)
 
     def post(self, request):
         form = ProfileForm(request.POST, instance=request.user)
