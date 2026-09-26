@@ -82,6 +82,14 @@ class ProfileForm(forms.ModelForm):
         return email
 
 
+class AvatarForm(forms.ModelForm):
+    class Meta:
+        from core.models import UserProfile  # noqa: PLC0415
+
+        model = UserProfile
+        fields = ["avatar"]
+
+
 class PasswordChangeForm(DjangoPasswordChangeForm):
     """Django's PasswordChangeForm has no CSS hooks — style it to match
     every other form in the app instead of leaving it bare."""

@@ -35,9 +35,25 @@ DATABASES = {
     }
 }
 
+# User-uploaded media (avatars, #313): local disk on the Lightsail box by
+# default, matching how the box already works today — no S3 bucket exists
+# yet. Set AWS_STORAGE_BUCKET_NAME (+ AWS_S3_ACCESS_KEY_ID/SECRET_ACCESS_KEY,
+# a dedicated least-privilege IAM user, same pattern as AWS_SES_* above) to
+# switch to S3 with zero code changes.
+AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "")
+if AWS_STORAGE_BUCKET_NAME:
+    AWS_S3_ACCESS_KEY_ID = os.environ.get("AWS_S3_ACCESS_KEY_ID", "")
+    AWS_S3_SECRET_ACCESS_KEY = os.environ.get("AWS_S3_SECRET_ACCESS_KEY", "")
+    AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "us-east-1")
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False
+    DEFAULT_STORAGE_BACKEND = "storages.backends.s3.S3Storage"
+else:
+    DEFAULT_STORAGE_BACKEND = "django.core.files.storage.FileSystemStorage"
+
 STORAGES = {
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": DEFAULT_STORAGE_BACKEND,
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",

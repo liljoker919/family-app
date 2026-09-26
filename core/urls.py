@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     AccountDeleteView,
+    AvatarUploadView,
     DashboardView,
     DataExportView,
     GoogleSiteVerificationView,
@@ -41,6 +42,7 @@ urlpatterns = [
     path("invite/", InviteMembersView.as_view(), name="invite_members"),
     path("invite/send/", SendInviteView.as_view(), name="send_invite"),
     path("profile/", ProfileView.as_view(), name="profile"),
+    path("profile/avatar/", AvatarUploadView.as_view(), name="avatar_upload"),
     path("profile/export/", DataExportView.as_view(), name="data_export"),
     path("profile/delete/", AccountDeleteView.as_view(), name="account_delete"),
     path("profile/manage-subscription/", ManageSubscriptionView.as_view(), name="manage_subscription"),
