@@ -59,7 +59,7 @@ class EmailVerification(models.Model):
 
 
 class FamilyMembership(models.Model):
-    ROLE_CHOICES = [("owner", "Owner"), ("member", "Member")]
+    ROLE_CHOICES = [("owner", "Owner"), ("member", "Member"), ("student", "Student")]
 
     account = models.ForeignKey(FamilyAccount, on_delete=models.CASCADE, related_name="memberships")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="memberships")

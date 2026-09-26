@@ -11,6 +11,55 @@ from .models import Assignment, Course, Student
 User = get_user_model()
 
 
+class StudentUserLinkTestCase(TestCase):
+    """#404 — the role/model prerequisite for kid login. Migration-only:
+    linking a Student to a User and giving that User a student-role
+    membership shouldn't change any existing behavior."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="parent", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Family", slug="family-404", owner=self.user, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.user, role="owner")
+
+    def test_student_role_is_a_valid_membership_choice(self):
+        self.assertIn(("student", "Student"), FamilyMembership.ROLE_CHOICES)
+
+    def test_student_can_be_linked_to_a_user(self):
+        kid_user = User.objects.create_user(username="kid", password="pass12345")
+        student = Student.objects.create(account=self.account, name="Maya", user=kid_user)
+        self.assertEqual(kid_user.student_profile, student)
+
+    def test_student_user_is_optional(self):
+        student = Student.objects.create(account=self.account, name="Maya")
+        self.assertIsNone(student.user)
+
+    def test_student_role_membership_resolves_request_account(self):
+        """The ticket's own claim: TenantMiddleware needs zero changes for a
+        student-role membership to resolve request.account, since it never
+        checked role in the first place. (StudentAccessMiddleware, added in
+        #405, redirects this request elsewhere — but that's a routing
+        decision on top of a correctly-resolved account, not evidence the
+        account failed to resolve; see StudentAccessControlTestCase.)"""
+        kid_user = User.objects.create_user(username="kid2", password="pass12345")
+        Student.objects.create(account=self.account, name="Zoe", user=kid_user)
+        FamilyMembership.objects.create(account=self.account, user=kid_user, role="student")
+        self.client.login(username="kid2", password="pass12345")
+        response = self.client.get(reverse("school:my_agenda"))
+        self.assertEqual(response.status_code, 200)
+
+    def test_deleting_linked_user_nulls_student_user_without_deleting_student(self):
+        """Confirms SET_NULL — the mechanism #407's "Revoke access" relies on
+        to remove a login without touching the Student record."""
+        kid_user = User.objects.create_user(username="kid3", password="pass12345")
+        student = Student.objects.create(account=self.account, name="Ren", user=kid_user)
+        kid_user.delete()
+        student.refresh_from_db()
+        self.assertIsNone(student.user)
+        self.assertTrue(Student.objects.filter(pk=student.pk).exists())
+
+
 class StudentTenantIsolationTestCase(TestCase):
     """Students must be scoped per-account, like every other module —
     User A must never see or edit User B's students."""
