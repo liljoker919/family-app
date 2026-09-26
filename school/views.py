@@ -1,6 +1,13 @@
+from datetime import date, timedelta
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
+from django.utils.timezone import localdate
+from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
 from core.mixins import (
@@ -165,3 +172,77 @@ class AssignmentDeleteView(
         if getattr(self.request, "membership_role", None) == "student":
             return reverse_lazy("school:my_agenda")
         return reverse_lazy("school:course_detail", kwargs={"pk": self.object.course.pk})
+
+
+# ── Kid login: "My Agenda" (#409) ────────────────────────────────────────────
+
+def _own_student_or_404(request):
+    student = getattr(request.user, "student_profile", None)
+    if student is None:
+        raise Http404("No linked student profile.")
+    return student
+
+
+def _week_assignments(student):
+    """This week's assignments across the kid's own courses, sorted by
+    priority_score rather than raw due_date — same rationale as the
+    dashboard's per-student widget (#403)."""
+    start = localdate() - timedelta(days=localdate().weekday())
+    end = start + timedelta(days=6)
+    assignments = list(
+        Assignment.objects.filter(student=student, due_date__gte=start, due_date__lte=end).select_related("course")
+    )
+    assignments.sort(key=lambda a: a.priority_score)
+    return assignments
+
+
+class MyAgendaView(LoginRequiredMixin, SubscriptionRequiredMixin, View):
+    template_name = "school/my_agenda.html"
+
+    def get(self, request):
+        student = _own_student_or_404(request)
+        return render(request, self.template_name, {
+            "student": student,
+            "assignments": _week_assignments(student),
+            "courses": student.courses.all(),
+            "today": date.today(),
+        })
+
+    def post(self, request):
+        """Quick-add: title + due date + a course dropdown limited to the
+        kid's own courses (#409/#410) — the full AssignmentCreateView isn't
+        reachable here since it lives under a course's own URL and a
+        student can't browse to /school/courses/<pk>/, only reach it
+        directly for a course that's already theirs."""
+        student = _own_student_or_404(request)
+        title = request.POST.get("title", "").strip()
+        due_date = request.POST.get("due_date")
+        course = get_object_or_404(Course, pk=request.POST.get("course"), student=student)
+        if title and due_date:
+            Assignment.objects.create(
+                account=request.account, course=course, student=student, title=title, due_date=due_date,
+            )
+            messages.success(request, "Assignment added.")
+        return redirect("school:my_agenda")
+
+
+@login_required
+def agenda_change_status(request, pk):
+    """Inline not_started -> in_progress -> done checkbox on My Agenda,
+    same htmx partial-swap pattern as tasks:change_status."""
+    student = _own_student_or_404(request)
+    assignment = get_object_or_404(Assignment, pk=pk, student=student)
+
+    if request.method == "POST":
+        new_status = request.POST.get("status")
+        valid = {s for s, _ in Assignment.STATUS_CHOICES}
+        if new_status in valid:
+            assignment.status = new_status
+            assignment.save(update_fields=["status"])
+
+    if request.headers.get("HX-Request") == "true":
+        return render(
+            request, "school/_agenda_assignments.html",
+            {"assignments": _week_assignments(student), "today": date.today()},
+        )
+    return redirect("school:my_agenda")

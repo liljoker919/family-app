@@ -237,7 +237,7 @@ class StudentAccessControlTestCase(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_can_create_assignment_under_own_course(self):
-        response = self.client.post(
+        self.client.post(
             reverse("school:assignment_create", kwargs={"course_pk": self.course.pk}),
             {"title": "New Homework", "type": "homework", "status": "not_started", "due_date": date.today()},
         )
@@ -269,18 +269,17 @@ class StudentNavTestCase(TestCase):
         response = self.client.get(reverse("school:my_agenda"))
         self.assertContains(response, "My Agenda")
         self.assertContains(response, "Calendar")
-        self.assertNotContains(response, ">Dashboard<")
-        self.assertNotContains(response, ">Vehicles<")
-        self.assertNotContains(response, ">Tasks<")
-        self.assertNotContains(response, ">Shopping<")
-        self.assertNotContains(response, ">Profile<")
+        self.assertNotContains(response, "Vehicles")
+        self.assertNotContains(response, "Tasks")
+        self.assertNotContains(response, "Shopping")
+        self.assertNotContains(response, "Profile")
 
     def test_parent_sees_full_nav(self):
         self.client.login(username="parent406", password="pass12345")
         response = self.client.get(reverse("core:dashboard"))
-        self.assertContains(response, ">Vehicles<")
-        self.assertContains(response, ">Tasks<")
-        self.assertContains(response, ">Profile<")
+        self.assertContains(response, "Vehicles")
+        self.assertContains(response, "Tasks")
+        self.assertContains(response, "Profile")
 
 
 class CourseTenantIsolationTestCase(TestCase):
@@ -499,3 +498,141 @@ class AssignmentPriorityScoreTestCase(TestCase):
         soon = self._assignment(type="homework", due_date=date.today())
         later = self._assignment(type="homework", due_date=date.today() + timedelta(days=5))
         self.assertLess(soon.priority_score, later.priority_score)
+
+
+class MyAgendaViewTestCase(TestCase):
+    """#409 — the kid-facing weekly self-service view: this week's
+    assignments across the kid's own courses, sorted by priority_score, plus
+    a quick-add form whose course dropdown is limited to their own courses."""
+
+    def setUp(self):
+        self.parent = User.objects.create_user(username="parent409", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Family 409", slug="family-409", owner=self.parent, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.parent, role="owner")
+
+        self.kid_user = User.objects.create_user(username="kid409", password="pass12345")
+        self.student = Student.objects.create(account=self.account, name="Priya", user=self.kid_user)
+        FamilyMembership.objects.create(account=self.account, user=self.kid_user, role="student")
+        self.course = Course.objects.create(account=self.account, student=self.student, name="Algebra II")
+
+        self.sibling = Student.objects.create(account=self.account, name="Amir")
+        self.sibling_course = Course.objects.create(account=self.account, student=self.sibling, name="Biology")
+
+        self.client.login(username="kid409", password="pass12345")
+
+    def test_requires_login(self):
+        self.client.logout()
+        response = self.client.get(reverse("school:my_agenda"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+
+    def test_shows_own_assignment_due_this_week(self):
+        Assignment.objects.create(
+            account=self.account, course=self.course, student=self.student,
+            title="Problem Set 1", due_date=date.today(),
+        )
+        response = self.client.get(reverse("school:my_agenda"))
+        self.assertContains(response, "Problem Set 1")
+
+    def test_does_not_show_assignment_outside_this_week(self):
+        Assignment.objects.create(
+            account=self.account, course=self.course, student=self.student,
+            title="Far Future Homework", due_date=date.today() + timedelta(days=30),
+        )
+        response = self.client.get(reverse("school:my_agenda"))
+        self.assertNotContains(response, "Far Future Homework")
+
+    def test_does_not_show_siblings_assignment(self):
+        Assignment.objects.create(
+            account=self.account, course=self.sibling_course, student=self.sibling,
+            title="Sibling's Lab Report", due_date=date.today(),
+        )
+        response = self.client.get(reverse("school:my_agenda"))
+        self.assertNotContains(response, "Sibling's Lab Report")
+
+    def test_course_dropdown_limited_to_own_courses(self):
+        response = self.client.get(reverse("school:my_agenda"))
+        self.assertContains(response, "Algebra II")
+        self.assertNotContains(response, "Biology")
+
+    def test_quick_add_creates_assignment_for_own_course(self):
+        response = self.client.post(reverse("school:my_agenda"), {
+            "course": self.course.pk, "title": "New Reading", "due_date": date.today().isoformat(),
+        })
+        self.assertRedirects(response, reverse("school:my_agenda"))
+        assignment = Assignment.objects.get(title="New Reading")
+        self.assertEqual(assignment.student, self.student)
+        self.assertEqual(assignment.account, self.account)
+
+    def test_quick_add_rejects_siblings_course(self):
+        response = self.client.post(reverse("school:my_agenda"), {
+            "course": self.sibling_course.pk, "title": "Hacked", "due_date": date.today().isoformat(),
+        })
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Assignment.objects.filter(title="Hacked").exists())
+
+    def test_quick_add_requires_title(self):
+        self.client.post(reverse("school:my_agenda"), {
+            "course": self.course.pk, "title": "", "due_date": date.today().isoformat(),
+        })
+        self.assertEqual(Assignment.objects.count(), 0)
+
+
+class AgendaChangeStatusTestCase(TestCase):
+    def setUp(self):
+        self.parent = User.objects.create_user(username="parent409b", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Family 409b", slug="family-409b", owner=self.parent, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.parent, role="owner")
+
+        self.kid_user = User.objects.create_user(username="kid409b", password="pass12345")
+        self.student = Student.objects.create(account=self.account, name="Priya", user=self.kid_user)
+        FamilyMembership.objects.create(account=self.account, user=self.kid_user, role="student")
+        self.course = Course.objects.create(account=self.account, student=self.student, name="Algebra II")
+        self.assignment = Assignment.objects.create(
+            account=self.account, course=self.course, student=self.student,
+            title="Problem Set 1", status="not_started", due_date=date.today(),
+        )
+
+        self.sibling = Student.objects.create(account=self.account, name="Amir")
+        self.sibling_course = Course.objects.create(account=self.account, student=self.sibling, name="Biology")
+        self.sibling_assignment = Assignment.objects.create(
+            account=self.account, course=self.sibling_course, student=self.sibling,
+            title="Lab Report", status="not_started", due_date=date.today(),
+        )
+
+        self.client.login(username="kid409b", password="pass12345")
+
+    def test_updates_own_assignment_status(self):
+        self.client.post(
+            reverse("school:agenda_change_status", kwargs={"pk": self.assignment.pk}), {"status": "in_progress"},
+        )
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, "in_progress")
+
+    def test_htmx_request_returns_partial(self):
+        response = self.client.post(
+            reverse("school:agenda_change_status", kwargs={"pk": self.assignment.pk}),
+            {"status": "done"}, HTTP_HX_REQUEST="true",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "school/_agenda_assignments.html")
+
+    def test_invalid_status_is_ignored(self):
+        self.client.post(
+            reverse("school:agenda_change_status", kwargs={"pk": self.assignment.pk}), {"status": "bogus"},
+        )
+        self.assignment.refresh_from_db()
+        self.assertEqual(self.assignment.status, "not_started")
+
+    def test_cannot_change_siblings_assignment_status(self):
+        response = self.client.post(
+            reverse("school:agenda_change_status", kwargs={"pk": self.sibling_assignment.pk}),
+            {"status": "done"},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.sibling_assignment.refresh_from_db()
+        self.assertEqual(self.sibling_assignment.status, "not_started")

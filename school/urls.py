@@ -18,4 +18,6 @@ urlpatterns = [
     path("assignments/<int:pk>/", views.AssignmentDetailView.as_view(), name="assignment_detail"),
     path("assignments/<int:pk>/edit/", views.AssignmentUpdateView.as_view(), name="assignment_update"),
     path("assignments/<int:pk>/delete/", views.AssignmentDeleteView.as_view(), name="assignment_delete"),
+    path("agenda/", views.MyAgendaView.as_view(), name="my_agenda"),
+    path("agenda/assignments/<int:pk>/status/", views.agenda_change_status, name="agenda_change_status"),
 ]
