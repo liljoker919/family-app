@@ -8,8 +8,6 @@ class Vehicle(models.Model):
     account = models.ForeignKey(
         "core.FamilyAccount",
         on_delete=models.CASCADE,
-        null=True,
-        blank=True,
         related_name="vehicles",
     )
     year = models.PositiveSmallIntegerField()
