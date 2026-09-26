@@ -1635,6 +1635,52 @@ class ProfileViewTestCase(TestCase):
         self.assertRedirects(response, "/profile/")
 
 
+class AvatarUploadViewTestCase(TestCase):
+    """#313 — first media upload feature in the app."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="avatar_user", password="pass12345")
+        self.client.login(username="avatar_user", password="pass12345")
+
+    def _tiny_gif(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile  # noqa: PLC0415
+
+        # Smallest possible valid GIF (1x1 transparent pixel).
+        content = (
+            b"GIF87a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\x00\x00\x00!\xf9\x04\x01\x00"
+            b"\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+        )
+        return SimpleUploadedFile("avatar.gif", content, content_type="image/gif")
+
+    def test_profile_get_creates_profile_and_shows_no_photo_placeholder(self):
+        from core.models import UserProfile  # noqa: PLC0415
+
+        response = self.client.get("/profile/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "No photo")
+        self.assertTrue(UserProfile.objects.filter(user=self.user).exists())
+
+    def test_upload_sets_avatar_and_redirects(self):
+        from core.models import UserProfile  # noqa: PLC0415
+
+        response = self.client.post("/profile/avatar/", {"avatar": self._tiny_gif()})
+        self.assertRedirects(response, "/profile/")
+        profile = UserProfile.objects.get(user=self.user)
+        self.assertTrue(profile.avatar)
+
+        response = self.client.get("/profile/")
+        self.assertNotContains(response, "No photo")
+
+    def test_upload_does_not_affect_other_users(self):
+        from core.models import UserProfile  # noqa: PLC0415
+
+        other_user = User.objects.create_user(username="avatar_other", password="pass12345")
+        self.client.post("/profile/avatar/", {"avatar": self._tiny_gif()})
+
+        other_profile, _ = UserProfile.objects.get_or_create(user=other_user)
+        self.assertFalse(other_profile.avatar)
+
+
 class PasswordChangeTestCase(TestCase):
     """Wired via core.views.StyledPasswordChangeView (#312) — styled
     override of Django's built-in PasswordChangeView."""

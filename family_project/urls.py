@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from invitations.views import AcceptInvite
@@ -36,3 +38,9 @@ urlpatterns = [
     path("tasks/", include("tasks.urls", namespace="tasks")),
     path("school/", include("school.urls", namespace="school")),
 ]
+
+if settings.DEBUG:
+    # Local-disk media (avatars, #313) has no webserver in front of it in
+    # dev/CI — production serves it via S3 once configured, or needs the
+    # webserver pointed at MEDIA_ROOT if still on local storage.
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

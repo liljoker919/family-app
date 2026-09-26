@@ -78,6 +78,12 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 
+# User-uploaded media (currently just profile avatars, #313). No S3 bucket
+# exists yet — local disk by default everywhere; prod.py switches to S3 the
+# moment AWS_STORAGE_BUCKET_NAME is set, no code changes needed.
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "/accounts/login/"
