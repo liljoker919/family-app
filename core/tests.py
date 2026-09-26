@@ -223,7 +223,22 @@ class DashboardWidgetsTestCase(TestCase):
         Recipe.objects.create(account=self.account, title="Tacos", category="DINNER", is_family_favorite=True)
         response = self.client.get("/dashboard/")
         self.assertEqual(response.context["dinner_recipe"].title, "Tacos")
+        self.assertFalse(response.context["dinner_is_planned"])
         self.assertContains(response, "Tacos")
+        self.assertContains(response, "Suggested for tonight")
+
+    def test_dinner_widget_shows_planned_meal_over_random_favorite(self):
+        from cookbook.models import MealPlan, Recipe  # noqa: PLC0415
+
+        Recipe.objects.create(account=self.account, title="Random Favorite", category="DINNER", is_family_favorite=True)
+        planned = Recipe.objects.create(account=self.account, title="Planned Lasagna", category="DINNER")
+        MealPlan.objects.create(account=self.account, date=self.today, recipe=planned, meal_type="dinner")
+
+        response = self.client.get("/dashboard/")
+        self.assertEqual(response.context["dinner_recipe"], planned)
+        self.assertTrue(response.context["dinner_is_planned"])
+        self.assertContains(response, "Planned Lasagna")
+        self.assertContains(response, "Tonight's planned dinner")
 
     def test_priority_tasks_sorted_urgent_first_then_by_due_date(self):
         from tasks.models import FamilyTask  # noqa: PLC0415

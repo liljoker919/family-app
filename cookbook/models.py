@@ -83,3 +83,31 @@ class RecipeStep(models.Model):
 
     def __str__(self):
         return f"Step {self.step_number} — {self.recipe}"
+
+
+class MealPlan(models.Model):
+    """#370 — assigns a Recipe to a specific date, so the dashboard's "What's
+    for Dinner" widget can show what's actually planned instead of a random
+    suggestion. New code (not subject to Migration C's #301 backfill path),
+    so `account` is required from the start, unlike the other modules'
+    account FKs."""
+
+    MEAL_TYPE_CHOICES = [
+        ("breakfast", "Breakfast"),
+        ("lunch", "Lunch"),
+        ("dinner", "Dinner"),
+    ]
+
+    account = models.ForeignKey("core.FamilyAccount", on_delete=models.CASCADE, related_name="meal_plans")
+    date = models.DateField()
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name="meal_plans")
+    meal_type = models.CharField(max_length=20, choices=MEAL_TYPE_CHOICES, default="dinner")
+
+    class Meta:
+        ordering = ["date"]
+        constraints = [
+            models.UniqueConstraint(fields=["account", "date", "meal_type"], name="unique_account_date_meal_type"),
+        ]
+
+    def __str__(self):
+        return f"{self.get_meal_type_display()} on {self.date}: {self.recipe}"

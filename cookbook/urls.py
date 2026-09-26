@@ -18,4 +18,6 @@ urlpatterns = [
     path("<int:recipe_pk>/steps/add/", views.StepCreateView.as_view(), name="step_create"),
     path("step/<int:pk>/edit/", views.StepUpdateView.as_view(), name="step_update"),
     path("step/<int:pk>/delete/", views.StepDeleteView.as_view(), name="step_delete"),
+    # Meal planning
+    path("meal-plan/", views.MealPlanView.as_view(), name="meal_plan"),
 ]
