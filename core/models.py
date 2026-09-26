@@ -18,6 +18,10 @@ class FamilyAccount(models.Model):
     is_active = models.BooleanField(default=True)
     tier = models.CharField(max_length=10, choices=TIER_CHOICES, default=TIER_FREE)
     onboarding_complete = models.BooleanField(default=False)
+    email_weekly_digest = models.BooleanField(
+        default=True,
+        help_text="Send the account owner a weekly email summarizing overdue tasks and upcoming maintenance (#384).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
