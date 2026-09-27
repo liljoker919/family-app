@@ -24,7 +24,15 @@ from invitations.utils import get_invitation_model
 from .dashboard_data import build_dashboard_context
 from .data_export import build_export_zip
 from .email_verification import email_verification_token, send_verification_email
-from .forms import AccountDeleteConfirmForm, AvatarForm, InvitedSignupForm, PasswordChangeForm, ProfileForm, SignupForm
+from .forms import (
+    AccountDeleteConfirmForm,
+    AvatarForm,
+    InvitedSignupForm,
+    PasswordChangeForm,
+    ProfileForm,
+    SignupForm,
+    WeeklyDigestForm,
+)
 from .invitations_adapter import user_signed_up
 from .models import EmailVerification, FamilyAccount, FamilyMembership
 
@@ -53,7 +61,7 @@ class UpgradeToFamilyView(LoginRequiredMixin, View):
 
     def post(self, request):
         account = request.account
-        if account is None:
+        if not account:
             messages.error(request, "No active family account found.")
             return redirect("core:dashboard")
 
@@ -76,7 +84,7 @@ class OnboardingRedirectView(View):
         if not request.user.is_authenticated:
             return redirect("core:onboarding_signup")
         account = request.account
-        if account is None or account.onboarding_complete:
+        if not account or account.onboarding_complete:
             return redirect("core:dashboard")
         return redirect("core:onboarding_invite")
 
@@ -179,7 +187,7 @@ class OnboardingInviteView(LoginRequiredMixin, TemplateView):
     template_name = "core/onboarding_invite.html"
 
     def get(self, request, *args, **kwargs):
-        if request.account is None:
+        if not request.account:
             return redirect("core:dashboard")
         if request.account.onboarding_complete:
             return redirect("core:dashboard")
@@ -207,7 +215,7 @@ class SendInviteView(LoginRequiredMixin, View):
             "core:onboarding_invite" if account and not account.onboarding_complete else "core:invite_members"
         )
 
-        if account is None:
+        if not account:
             messages.error(request, "No active family account found.")
             return redirect(redirect_to)
 
@@ -245,7 +253,7 @@ class InviteMembersView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         account = self.request.account
-        if account is not None:
+        if account:
             context["members"] = FamilyMembership.objects.filter(account=account).select_related("user")
             context["pending_invites"] = _pending_invites_for(account)
         else:
@@ -358,7 +366,7 @@ class ManageSubscriptionView(LoginRequiredMixin, View):
 
     def post(self, request):
         account = request.account
-        if account is None or request.user != account.owner:
+        if not account or request.user != account.owner:
             messages.error(request, "Only the account owner can manage the subscription.")
             return redirect("core:profile")
 
@@ -373,13 +381,30 @@ class ManageSubscriptionView(LoginRequiredMixin, View):
         return redirect(portal_url)
 
 
+class WeeklyDigestToggleView(LoginRequiredMixin, View):
+    """#384 — owner-only single-checkbox account preference; no dedicated
+    preferences page needed for v1."""
+
+    def post(self, request):
+        account = request.account
+        if not account or request.user != account.owner:
+            messages.error(request, "Only the account owner can manage this setting.")
+            return redirect("core:profile")
+
+        form = WeeklyDigestForm(request.POST, instance=account)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Weekly digest preference updated.")
+        return redirect("core:profile")
+
+
 class OnboardingPlanView(LoginRequiredMixin, View):
     """Step 3: Free activates immediately; Family redirects to Stripe Checkout."""
 
     template_name = "core/onboarding_plan.html"
 
     def get(self, request):
-        if request.account is None:
+        if not request.account:
             return redirect("core:dashboard")
         if request.account.onboarding_complete:
             return redirect("core:dashboard")
@@ -398,7 +423,7 @@ class OnboardingPlanView(LoginRequiredMixin, View):
 
     def post(self, request):
         account = request.account
-        if account is None:
+        if not account:
             return redirect("core:dashboard")
 
         plan = request.POST.get("plan")
@@ -432,15 +457,15 @@ class OnboardingCompleteView(LoginRequiredMixin, View):
 
     def get(self, request):
         account = request.account
-        was_already_onboarded = account is not None and account.onboarding_complete
-        if account is not None and not account.onboarding_complete:
+        was_already_onboarded = bool(account) and account.onboarding_complete
+        if account and not account.onboarding_complete:
             account.onboarding_complete = True
             account.save(update_fields=["onboarding_complete"])
 
         if was_already_onboarded:
             messages.success(request, "You're now on the Family plan! Your subscription is being activated.")
         else:
-            if account is not None:
+            if account:
                 _send_welcome_email(account)
             messages.success(request, "Welcome to Hey Famly! Your subscription is being activated.")
         return redirect("core:dashboard")
@@ -501,6 +526,8 @@ class ProfileView(LoginRequiredMixin, View):
             "avatar_form": AvatarForm(instance=profile),
             "avatar": profile.avatar,
         }
+        if request.account and request.user == request.account.owner:
+            context["digest_form"] = WeeklyDigestForm(instance=request.account)
         return render(request, self.template_name, context)
 
     def post(self, request):
@@ -582,7 +609,7 @@ class DataExportView(LoginRequiredMixin, View):
 
     def get(self, request):
         account = request.account
-        if account is None or request.user != account.owner:
+        if not account or request.user != account.owner:
             messages.error(request, "Only the account owner can export account data.")
             return redirect("core:profile")
 
@@ -649,14 +676,14 @@ class AccountDeleteView(LoginRequiredMixin, View):
 
     def get(self, request):
         account = request.account
-        if account is None or request.user != account.owner:
+        if not account or request.user != account.owner:
             messages.error(request, "Only the account owner can delete the family account.")
             return redirect("core:profile")
         return render(request, self.template_name, {"form": AccountDeleteConfirmForm()})
 
     def post(self, request):
         account = request.account
-        if account is None or request.user != account.owner:
+        if not account or request.user != account.owner:
             messages.error(request, "Only the account owner can delete the family account.")
             return redirect("core:profile")
 

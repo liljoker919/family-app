@@ -1,0 +1,26 @@
+<div id="shopping-items">
+  <form method="post" action="{% url 'shopping:quick_add' %}"
+        hx-post="{% url 'shopping:quick_add' %}"
+        hx-target="#shopping-items"
+        hx-swap="outerHTML"
+        class="mb-3">
+    {% csrf_token %}
+    <input type="text" name="name" placeholder="Add an item and press Enter" autocomplete="off"
+           class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+  </form>
+  {% if shopping_items %}
+  <ul class="mb-3 space-y-2">
+    {% for item in shopping_items %}
+    <li class="flex items-center justify-between text-sm">
+      <span class="truncate text-gray-700">{{ item }}</span>
+      <a href="{% url 'shopping:item_delete' item.pk %}" class="ml-2 shrink-0 text-xs text-gray-400 hover:text-red-600">
+        Got it
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="mb-3 text-sm text-gray-400">Your list is empty.</p>
+  {% endif %}
+  <a href="{% url 'shopping:list' %}" class="text-xs font-semibold text-brand-terracotta hover:underline">View full list →</a>
+</div>

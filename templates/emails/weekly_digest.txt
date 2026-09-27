@@ -1,0 +1,12 @@
+Hi {{ owner_name }},
+
+Here's what needs attention for {{ account_name }} this week:
+{% for item in attention_items %}
+- [{{ item.level|upper }}] {{ item.text }}
+  {{ item.url }}
+{% endfor %}
+See everything on your dashboard: {{ dashboard_url }}
+
+You're getting this because weekly digest emails are on for {{ account_name }}. You can turn them off any time from your profile page: {{ profile_url }}
+
+— Hey Famly
