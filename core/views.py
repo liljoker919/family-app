@@ -386,7 +386,7 @@ class WeeklyDigestToggleView(LoginRequiredMixin, View):
 
     def post(self, request):
         account = request.account
-        if account is None or request.user != account.owner:
+        if not account or request.user != account.owner:
             messages.error(request, "Only the account owner can manage this setting.")
             return redirect("core:profile")
 
@@ -518,7 +518,7 @@ class ProfileView(LoginRequiredMixin, View):
 
     def get(self, request):
         context = {"form": ProfileForm(instance=request.user)}
-        if request.account is not None and request.user == request.account.owner:
+        if request.account and request.user == request.account.owner:
             context["digest_form"] = WeeklyDigestForm(instance=request.account)
         return render(request, self.template_name, context)
 
