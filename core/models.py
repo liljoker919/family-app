@@ -18,6 +18,10 @@ class FamilyAccount(models.Model):
     is_active = models.BooleanField(default=True)
     tier = models.CharField(max_length=10, choices=TIER_CHOICES, default=TIER_FREE)
     onboarding_complete = models.BooleanField(default=False)
+    email_weekly_digest = models.BooleanField(
+        default=True,
+        help_text="Send the account owner a weekly email summarizing overdue tasks and upcoming maintenance (#384).",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -73,3 +77,21 @@ class FamilyMembership(models.Model):
 
     def __str__(self):
         return f"{self.user} — {self.account} ({self.role})"
+
+
+class UserProfile(models.Model):
+    """#313 — a companion model rather than a custom User model: the stock
+    auth.User can't take new fields directly, and this app has never needed
+    a custom user model for anything else. Absence of a row (or a row with
+    no avatar) is the normal/default state — every user has one implicitly,
+    just with a placeholder shown in the UI."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile",
+    )
+    avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.user}'s profile"

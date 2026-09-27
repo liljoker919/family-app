@@ -1,6 +1,12 @@
+import tempfile
+
 from .base import *  # noqa: F401, F403
 
 DEBUG = False
+
+# Uploaded test files (avatars, #313) go to a throwaway temp dir instead of
+# the real media/ directory.
+MEDIA_ROOT = tempfile.mkdtemp(prefix="family-app-ci-media-")
 SECRET_KEY = "django-insecure-ci-test-key-not-for-production"
 ALLOWED_HOSTS = ["*"]
 

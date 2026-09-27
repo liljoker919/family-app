@@ -1,11 +1,17 @@
+from datetime import timedelta
+
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
+from django.utils.timezone import localdate
+from django.views import View
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView
 
 from core.mixins import AccountScopedMixin, AccountStampMixin, SubscriptionRequiredMixin, get_scoped_object_or_404
 
 from .forms import IngredientForm, RecipeForm, RecipeStepForm
-from .models import Ingredient, Recipe, RecipeStep
+from .models import Ingredient, MealPlan, Recipe, RecipeStep
 
 
 class RecipeListView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, ListView):
@@ -158,3 +164,50 @@ class StepDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScope
 
     def get_success_url(self):
         return reverse_lazy("cookbook:recipe_detail", kwargs={"pk": self.object.recipe.pk})
+
+
+# ── Meal planning (#370) ────────────────────────────────────────────────────
+
+class MealPlanView(LoginRequiredMixin, SubscriptionRequiredMixin, View):
+    """Simple weekly dinner planner — one recipe per day, current week only.
+    Recipe/breakfast/lunch aren't exposed in the UI; the model supports them
+    for later, but the "What's for Dinner" widget this feeds only ever
+    needed dinner."""
+
+    template_name = "cookbook/meal_plan.html"
+
+    def _week_days(self):
+        start = localdate() - timedelta(days=localdate().weekday())  # Monday
+        return [start + timedelta(days=i) for i in range(7)]
+
+    def _context(self):
+        account = self.request.account
+        days = self._week_days()
+        planned = {
+            mp.date: mp.recipe_id
+            for mp in MealPlan.objects.filter(account=account, meal_type="dinner", date__in=days)
+        }
+        return {
+            "days": [{"date": d, "recipe_id": planned.get(d)} for d in days],
+            "recipes": Recipe.objects.filter(account=account),
+        }
+
+    def get(self, request):
+        return render(request, self.template_name, self._context())
+
+    def post(self, request):
+        account = request.account
+        date_str = request.POST.get("date")
+        recipe_id = request.POST.get("recipe")
+
+        if date_str and date_str in {d.isoformat() for d in self._week_days()}:
+            if recipe_id:
+                recipe = get_scoped_object_or_404(Recipe, account, pk=recipe_id)
+                MealPlan.objects.update_or_create(
+                    account=account, date=date_str, meal_type="dinner", defaults={"recipe": recipe},
+                )
+            else:
+                MealPlan.objects.filter(account=account, date=date_str, meal_type="dinner").delete()
+            messages.success(request, "Meal plan updated.")
+
+        return redirect("cookbook:meal_plan")

@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     AccountDeleteView,
+    AvatarUploadView,
     DashboardView,
     DataExportView,
     GoogleSiteVerificationView,
@@ -24,6 +25,7 @@ from .views import (
     UpgradeToFamilyView,
     VerifyEmailConfirmView,
     VerifyEmailPendingView,
+    WeeklyDigestToggleView,
 )
 
 app_name = "core"
@@ -41,9 +43,11 @@ urlpatterns = [
     path("invite/", InviteMembersView.as_view(), name="invite_members"),
     path("invite/send/", SendInviteView.as_view(), name="send_invite"),
     path("profile/", ProfileView.as_view(), name="profile"),
+    path("profile/avatar/", AvatarUploadView.as_view(), name="avatar_upload"),
     path("profile/export/", DataExportView.as_view(), name="data_export"),
     path("profile/delete/", AccountDeleteView.as_view(), name="account_delete"),
     path("profile/manage-subscription/", ManageSubscriptionView.as_view(), name="manage_subscription"),
+    path("profile/weekly-digest/", WeeklyDigestToggleView.as_view(), name="weekly_digest_toggle"),
     path("verify-email/", VerifyEmailPendingView.as_view(), name="verify_email_pending"),
     path("verify-email/resend/", ResendVerificationView.as_view(), name="resend_verification"),
     path("verify-email/<uidb64>/<token>/", VerifyEmailConfirmView.as_view(), name="verify_email_confirm"),

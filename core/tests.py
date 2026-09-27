@@ -223,7 +223,22 @@ class DashboardWidgetsTestCase(TestCase):
         Recipe.objects.create(account=self.account, title="Tacos", category="DINNER", is_family_favorite=True)
         response = self.client.get("/dashboard/")
         self.assertEqual(response.context["dinner_recipe"].title, "Tacos")
+        self.assertFalse(response.context["dinner_is_planned"])
         self.assertContains(response, "Tacos")
+        self.assertContains(response, "Suggested for tonight")
+
+    def test_dinner_widget_shows_planned_meal_over_random_favorite(self):
+        from cookbook.models import MealPlan, Recipe  # noqa: PLC0415
+
+        Recipe.objects.create(account=self.account, title="Random Favorite", category="DINNER", is_family_favorite=True)
+        planned = Recipe.objects.create(account=self.account, title="Planned Lasagna", category="DINNER")
+        MealPlan.objects.create(account=self.account, date=self.today, recipe=planned, meal_type="dinner")
+
+        response = self.client.get("/dashboard/")
+        self.assertEqual(response.context["dinner_recipe"], planned)
+        self.assertTrue(response.context["dinner_is_planned"])
+        self.assertContains(response, "Planned Lasagna")
+        self.assertContains(response, "Tonight's planned dinner")
 
     def test_priority_tasks_sorted_urgent_first_then_by_due_date(self):
         from tasks.models import FamilyTask  # noqa: PLC0415
@@ -581,8 +596,19 @@ class CrossTenantIsolationTestCase(TestCase):
 
 class NoAccountUserTestCase(TestCase):
     """An authenticated user with no FamilyMembership at all (request.account
-    is None) must never see account-less/legacy rows just because both sides
-    of an `account=None` filter happen to match — see #327/#328/#329/#330.
+    is None) must never see another family's data just because both sides of
+    a naive `account=request.account` filter happen to match — see
+    #327/#328/#329/#330.
+
+    Originally exercised this with genuinely account-less/legacy rows (a
+    `account=None` row matching a no-membership user's own `account=None`).
+    Migration C (#301) made `account` required at the schema level, so that
+    exact scenario is now structurally impossible — no row can exist without
+    an account at all. The rows here belong to a real, unrelated
+    `other_account` instead: the protection this test guards (a no-account
+    user must never see data that isn't theirs) is the same one, just
+    exercised against another tenant's data rather than a now-impossible
+    accountless row.
 
     property/vehicles are Family-tier-gated (#308): SubscriptionRequiredMixin
     now intercepts account=None requests before AccountScopedMixin/
@@ -594,6 +620,7 @@ class NoAccountUserTestCase(TestCase):
     """
 
     def setUp(self):
+        from core.models import FamilyAccount  # noqa: PLC0415
         from property.models import Property  # noqa: PLC0415
         from tasks.models import FamilyTask  # noqa: PLC0415
 
@@ -601,10 +628,19 @@ class NoAccountUserTestCase(TestCase):
         self.client_no_account = Client()
         self.client_no_account.login(username="no_account", password="pass")
 
-        # Orphaned/legacy rows with no account — must never surface to a
-        # user whose own request.account also resolves to None.
-        self.orphaned_property = Property.objects.create(name="Orphaned House", address="0 Nowhere Ave")
-        self.orphaned_task = FamilyTask.objects.create(title="Orphaned Task", status="TODO", priority="medium")
+        other_owner = User.objects.create_user(username="other_family_owner", password="pass")
+        self.other_account = FamilyAccount.objects.create(
+            name="Other Family", slug=FamilyAccount.generate_unique_slug("other family"), owner=other_owner
+        )
+
+        # Another tenant's rows — must never surface to a user whose own
+        # request.account resolves to None.
+        self.orphaned_property = Property.objects.create(
+            account=self.other_account, name="Orphaned House", address="0 Nowhere Ave"
+        )
+        self.orphaned_task = FamilyTask.objects.create(
+            account=self.other_account, title="Orphaned Task", status="TODO", priority="medium"
+        )
 
     def test_gated_list_view_redirects_to_upgrade(self):
         response = self.client_no_account.get("/property/")
@@ -646,6 +682,69 @@ class NoAccountUserTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Orphaned Task")
         self.assertNotContains(response, "Orphaned House")
+
+
+class TenantMiddlewareLazyAccountTestCase(TestCase):
+    """#331 — request.account is a SimpleLazyObject so the FamilyMembership
+    query only runs when something actually touches it. `is None`/`is not
+    None` can't be used against it (Python's `is` is identity, which a proxy
+    can never satisfy for a value it merely wraps) — every guard in the
+    codebase was converted to truthiness instead. This asserts both: the
+    proxy is falsy in exactly the cases the old eager `None` was, and the
+    query genuinely doesn't run until request.account is accessed."""
+
+    def setUp(self):
+        from django.test import RequestFactory  # noqa: PLC0415
+
+        from core.middleware import TenantMiddleware  # noqa: PLC0415
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.factory = RequestFactory()
+        self.middleware = TenantMiddleware(get_response=lambda request: request)
+
+        self.member_user = User.objects.create_user(username="mw_member", password="pass")
+        self.account = FamilyAccount.objects.create(
+            name="MW Family", slug=FamilyAccount.generate_unique_slug("mw family"), owner=self.member_user
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.member_user, role="owner")
+
+        self.no_membership_user = User.objects.create_user(username="mw_no_membership", password="pass")
+
+    def _process(self, user):
+        request = self.factory.get("/")
+        request.user = user
+        return self.middleware(request)
+
+    def test_authenticated_with_membership_resolves_truthy_and_correct(self):
+        request = self._process(self.member_user)
+        self.assertTrue(request.account)
+        self.assertEqual(request.account, self.account)
+
+    def test_authenticated_without_membership_resolves_falsy(self):
+        request = self._process(self.no_membership_user)
+        self.assertFalse(request.account)
+        # `is None` never returns True for a proxy — that's the exact
+        # footgun this middleware has to avoid triggering elsewhere.
+        self.assertIsNotNone(request.account)
+        self.assertEqual(request.account, None)
+
+    def test_anonymous_resolves_falsy_without_querying(self):
+        from django.contrib.auth.models import AnonymousUser  # noqa: PLC0415
+
+        request = self._process(AnonymousUser())
+        with self.assertNumQueries(0):
+            self.assertFalse(request.account)
+
+    def test_membership_query_is_deferred_until_accessed(self):
+        request = self.factory.get("/")
+        request.user = self.member_user
+        request = self.middleware(request)
+        # The membership lookup must not have run yet just from middleware
+        # dispatch — only the first real access to request.account triggers it.
+        with self.assertNumQueries(1):
+            _ = request.account.name
+        with self.assertNumQueries(0):
+            _ = request.account.name
 
 
 class SubscriptionRequiredMixinTestCase(TestCase):
@@ -1332,6 +1431,104 @@ class ManageSubscriptionViewTestCase(TestCase):
         self.assertContains(response, "Manage Subscription")
 
 
+class WeeklyDigestToggleViewTestCase(TestCase):
+    """#384 — owner-only single-checkbox account preference."""
+
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.owner = User.objects.create_user(username="digest_owner", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Digest Family", slug="digest-family", owner=self.owner,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.owner, role="owner")
+
+        self.member = User.objects.create_user(username="digest_member", password="pass12345")
+        FamilyMembership.objects.create(account=self.account, user=self.member, role="member")
+
+    def test_defaults_to_enabled(self):
+        self.assertTrue(self.account.email_weekly_digest)
+
+    def test_owner_can_disable(self):
+        self.client.login(username="digest_owner", password="pass12345")
+        response = self.client.post("/profile/weekly-digest/", {})
+        self.assertRedirects(response, "/profile/")
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.email_weekly_digest)
+
+    def test_owner_can_re_enable(self):
+        self.account.email_weekly_digest = False
+        self.account.save(update_fields=["email_weekly_digest"])
+        self.client.login(username="digest_owner", password="pass12345")
+        response = self.client.post("/profile/weekly-digest/", {"email_weekly_digest": "on"})
+        self.assertRedirects(response, "/profile/")
+        self.account.refresh_from_db()
+        self.assertTrue(self.account.email_weekly_digest)
+
+    def test_non_owner_member_cannot_toggle(self):
+        self.client.login(username="digest_member", password="pass12345")
+        response = self.client.post("/profile/weekly-digest/", {})
+        self.assertRedirects(response, "/profile/")
+        self.account.refresh_from_db()
+        self.assertTrue(self.account.email_weekly_digest)
+
+    def test_profile_page_shows_digest_checkbox_for_owner_only(self):
+        self.client.login(username="digest_owner", password="pass12345")
+        self.assertContains(self.client.get("/profile/"), "weekly digest")
+
+        client = Client()
+        client.login(username="digest_member", password="pass12345")
+        self.assertNotContains(client.get("/profile/"), "weekly digest")
+
+
+class SendWeeklyDigestCommandTestCase(TestCase):
+    """#384 — the send_weekly_digest management command itself."""
+
+    def setUp(self):
+        from core.models import FamilyAccount  # noqa: PLC0415
+        from tasks.models import FamilyTask  # noqa: PLC0415
+
+        self.owner_with_items = User.objects.create_user(
+            username="digest_cmd_owner1", password="pass", email="owner1@example.com"
+        )
+        self.account_with_items = FamilyAccount.objects.create(
+            name="Has Attention Items", slug="has-attention-items", owner=self.owner_with_items,
+        )
+        FamilyTask.objects.create(
+            account=self.account_with_items, title="Overdue thing", status="TODO", priority="urgent",
+        )
+
+        self.owner_no_items = User.objects.create_user(
+            username="digest_cmd_owner2", password="pass", email="owner2@example.com"
+        )
+        self.account_no_items = FamilyAccount.objects.create(
+            name="Nothing To Report", slug="nothing-to-report", owner=self.owner_no_items,
+        )
+
+        self.owner_opted_out = User.objects.create_user(
+            username="digest_cmd_owner3", password="pass", email="owner3@example.com"
+        )
+        self.account_opted_out = FamilyAccount.objects.create(
+            name="Opted Out", slug="opted-out", owner=self.owner_opted_out, email_weekly_digest=False,
+        )
+        FamilyTask.objects.create(
+            account=self.account_opted_out, title="Also overdue", status="TODO", priority="urgent",
+        )
+
+    def test_sends_only_to_accounts_with_items_and_digest_enabled(self):
+        from django.core import mail  # noqa: PLC0415
+        from django.core.management import call_command  # noqa: PLC0415
+
+        call_command("send_weekly_digest")
+
+        recipients = [msg.to[0] for msg in mail.outbox]
+        self.assertIn("owner1@example.com", recipients)
+        self.assertNotIn("owner2@example.com", recipients)
+        self.assertNotIn("owner3@example.com", recipients)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Overdue thing", mail.outbox[0].body)
+
+
 class InvitationFlowTestCase(TestCase):
     """End-to-end: owner sends an invite, invitee clicks the link, signs up,
     and lands as a 'member' FamilyMembership on the owner's account (#310).
@@ -1633,6 +1830,52 @@ class ProfileViewTestCase(TestCase):
             {"first_name": "Pat", "last_name": "Original", "email": "pat@example.com"},
         )
         self.assertRedirects(response, "/profile/")
+
+
+class AvatarUploadViewTestCase(TestCase):
+    """#313 — first media upload feature in the app."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="avatar_user", password="pass12345")
+        self.client.login(username="avatar_user", password="pass12345")
+
+    def _tiny_gif(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile  # noqa: PLC0415
+
+        # Smallest possible valid GIF (1x1 transparent pixel).
+        content = (
+            b"GIF87a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\x00\x00\x00!\xf9\x04\x01\x00"
+            b"\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+        )
+        return SimpleUploadedFile("avatar.gif", content, content_type="image/gif")
+
+    def test_profile_get_creates_profile_and_shows_no_photo_placeholder(self):
+        from core.models import UserProfile  # noqa: PLC0415
+
+        response = self.client.get("/profile/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "No photo")
+        self.assertTrue(UserProfile.objects.filter(user=self.user).exists())
+
+    def test_upload_sets_avatar_and_redirects(self):
+        from core.models import UserProfile  # noqa: PLC0415
+
+        response = self.client.post("/profile/avatar/", {"avatar": self._tiny_gif()})
+        self.assertRedirects(response, "/profile/")
+        profile = UserProfile.objects.get(user=self.user)
+        self.assertTrue(profile.avatar)
+
+        response = self.client.get("/profile/")
+        self.assertNotContains(response, "No photo")
+
+    def test_upload_does_not_affect_other_users(self):
+        from core.models import UserProfile  # noqa: PLC0415
+
+        other_user = User.objects.create_user(username="avatar_other", password="pass12345")
+        self.client.post("/profile/avatar/", {"avatar": self._tiny_gif()})
+
+        other_profile, _ = UserProfile.objects.get_or_create(user=other_user)
+        self.assertFalse(other_profile.avatar)
 
 
 class PasswordChangeTestCase(TestCase):
