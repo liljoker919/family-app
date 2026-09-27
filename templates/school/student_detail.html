@@ -47,6 +47,50 @@
     </div>
   </div>
 
+  <!-- Login Access (#407) -->
+  <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden p-6">
+    <h2 class="text-base font-semibold text-gray-900 mb-4">Login Access</h2>
+    {% if student.user %}
+    <p class="text-sm text-gray-600 mb-4">
+      {{ student.name }} can log in as <strong>{{ student.user.username }}</strong>.
+    </p>
+    <form method="post" action="{% url 'school:revoke_access' student.pk %}"
+          onsubmit="return confirm('Revoke {{ student.name }}\'s login? Their assignments and history are kept.');">
+      {% csrf_token %}
+      <button type="submit"
+              class="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+        Revoke Access
+      </button>
+    </form>
+    {% else %}
+    <p class="text-sm text-gray-600 mb-4">
+      {{ student.name }} doesn't have a login yet. Set one up so they can check their own agenda.
+    </p>
+    <form method="post" action="{% url 'school:give_access' student.pk %}" class="space-y-3 max-w-sm">
+      {% csrf_token %}
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Username</label>
+        <input type="text" name="username" required
+               class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Password</label>
+        <input type="password" name="password1" required
+               class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Confirm password</label>
+        <input type="password" name="password2" required
+               class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+      </div>
+      <button type="submit"
+              class="rounded-lg bg-brand-terracotta px-4 py-2 text-sm font-semibold text-white hover:bg-brand-terracotta-hover transition-colors">
+        Give Access
+      </button>
+    </form>
+    {% endif %}
+  </div>
+
   <!-- Courses -->
   <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
     <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">

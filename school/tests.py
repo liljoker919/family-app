@@ -636,3 +636,122 @@ class AgendaChangeStatusTestCase(TestCase):
         self.assertEqual(response.status_code, 404)
         self.sibling_assignment.refresh_from_db()
         self.assertEqual(self.sibling_assignment.status, "not_started")
+
+
+class GiveAccessViewTestCase(TestCase):
+    """#407 — parent-only "Give access" flow: sets a username + password
+    directly for a Student, creating the login in one step."""
+
+    def setUp(self):
+        self.parent = User.objects.create_user(username="parent407", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Family 407", slug="family-407", owner=self.parent, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.parent, role="owner")
+        self.student = Student.objects.create(account=self.account, name="Maya")
+        self.client.login(username="parent407", password="pass12345")
+
+    def _give_access(self, **overrides):
+        data = {"username": "maya407", "password1": "Sup3rSecret!", "password2": "Sup3rSecret!"}
+        data.update(overrides)
+        return self.client.post(reverse("school:give_access", kwargs={"pk": self.student.pk}), data)
+
+    def test_creates_user_and_membership_and_links_student(self):
+        response = self._give_access()
+        self.assertRedirects(response, reverse("school:student_detail", kwargs={"pk": self.student.pk}))
+        self.student.refresh_from_db()
+        self.assertIsNotNone(self.student.user)
+        self.assertEqual(self.student.user.username, "maya407")
+        membership = FamilyMembership.objects.get(account=self.account, user=self.student.user)
+        self.assertEqual(membership.role, "student")
+
+    def test_created_login_has_no_email_verification_row(self):
+        """Must not create an EmailVerification row — mirrors how invited
+        members already skip that path (#377) — so
+        EmailVerificationMiddleware never blocks a kid's login."""
+        from core.models import EmailVerification  # noqa: PLC0415
+
+        self._give_access()
+        self.student.refresh_from_db()
+        self.assertFalse(EmailVerification.objects.filter(user=self.student.user).exists())
+
+    def test_new_login_can_authenticate(self):
+        self._give_access()
+        self.client.logout()
+        self.assertTrue(self.client.login(username="maya407", password="Sup3rSecret!"))
+
+    def test_rejects_mismatched_passwords(self):
+        response = self._give_access(password2="Different!")
+        self.assertRedirects(response, reverse("school:student_detail", kwargs={"pk": self.student.pk}))
+        self.student.refresh_from_db()
+        self.assertIsNone(self.student.user)
+
+    def test_rejects_duplicate_username(self):
+        User.objects.create_user(username="taken", password="pass12345")
+        response = self._give_access(username="taken")
+        self.assertRedirects(response, reverse("school:student_detail", kwargs={"pk": self.student.pk}))
+        self.student.refresh_from_db()
+        self.assertIsNone(self.student.user)
+
+    def test_cannot_give_access_to_other_accounts_student(self):
+        other_owner = User.objects.create_user(username="other407", password="pass12345")
+        other_account = FamilyAccount.objects.create(
+            name="Other 407", slug="other-407", owner=other_owner, tier=FamilyAccount.TIER_FAMILY,
+        )
+        other_student = Student.objects.create(account=other_account, name="Zoe")
+        response = self.client.post(
+            reverse("school:give_access", kwargs={"pk": other_student.pk}),
+            {"username": "hacked", "password1": "Sup3rSecret!", "password2": "Sup3rSecret!"},
+        )
+        self.assertEqual(response.status_code, 404)
+
+
+class RevokeAccessViewTestCase(TestCase):
+    def setUp(self):
+        self.parent = User.objects.create_user(username="parent407b", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Family 407b", slug="family-407b", owner=self.parent, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.parent, role="owner")
+        self.kid_user = User.objects.create_user(username="kid407b", password="pass12345")
+        self.student = Student.objects.create(account=self.account, name="Maya", user=self.kid_user)
+        FamilyMembership.objects.create(account=self.account, user=self.kid_user, role="student")
+        self.course = Course.objects.create(account=self.account, student=self.student, name="Algebra II")
+        self.assignment = Assignment.objects.create(
+            account=self.account, course=self.course, student=self.student,
+            title="Problem Set 1", due_date=date.today(),
+        )
+        self.client.login(username="parent407b", password="pass12345")
+
+    def test_deletes_user_and_membership_without_deleting_student(self):
+        response = self.client.post(reverse("school:revoke_access", kwargs={"pk": self.student.pk}))
+        self.assertRedirects(response, reverse("school:student_detail", kwargs={"pk": self.student.pk}))
+        self.assertFalse(User.objects.filter(username="kid407b").exists())
+        self.student.refresh_from_db()
+        self.assertIsNone(self.student.user)
+        self.assertTrue(Student.objects.filter(pk=self.student.pk).exists())
+
+    def test_keeps_assignment_history(self):
+        self.client.post(reverse("school:revoke_access", kwargs={"pk": self.student.pk}))
+        self.assertTrue(Assignment.objects.filter(pk=self.assignment.pk).exists())
+
+    def test_revoked_user_can_no_longer_log_in(self):
+        self.client.post(reverse("school:revoke_access", kwargs={"pk": self.student.pk}))
+        self.client.logout()
+        self.assertFalse(self.client.login(username="kid407b", password="pass12345"))
+
+    def test_noop_when_student_has_no_login(self):
+        no_login_student = Student.objects.create(account=self.account, name="Amir")
+        response = self.client.post(reverse("school:revoke_access", kwargs={"pk": no_login_student.pk}))
+        self.assertRedirects(response, reverse("school:student_detail", kwargs={"pk": no_login_student.pk}))
+
+    def test_cannot_revoke_other_accounts_student(self):
+        other_owner = User.objects.create_user(username="other407b", password="pass12345")
+        other_account = FamilyAccount.objects.create(
+            name="Other 407b", slug="other-407b", owner=other_owner, tier=FamilyAccount.TIER_FAMILY,
+        )
+        other_kid = User.objects.create_user(username="otherkid407b", password="pass12345")
+        other_student = Student.objects.create(account=other_account, name="Zoe", user=other_kid)
+        response = self.client.post(reverse("school:revoke_access", kwargs={"pk": other_student.pk}))
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(User.objects.filter(username="otherkid407b").exists())

@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404
@@ -17,9 +18,12 @@ from core.mixins import (
     SubscriptionRequiredMixin,
     get_scoped_object_or_404,
 )
+from core.models import FamilyMembership
 
-from .forms import AssignmentForm, CourseForm, StudentForm
+from .forms import AssignmentForm, CourseForm, GiveAccessForm, StudentForm
 from .models import Assignment, Course, Student
+
+User = get_user_model()
 
 
 class StudentListView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, ListView):
@@ -53,6 +57,44 @@ class StudentDeleteView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountSc
     model = Student
     template_name = "school/student_confirm_delete.html"
     success_url = reverse_lazy("school:student_list")
+
+
+class GiveAccessView(LoginRequiredMixin, SubscriptionRequiredMixin, View):
+    """#407 — parent-only. Sets a username + password directly for a Student
+    (no email required, unlike the adult invite flow), creating the User +
+    FamilyMembership(role="student") in one step and linking Student.user.
+    Never creates an EmailVerification row — same as the invited-member
+    path (#377) — so EmailVerificationMiddleware never blocks a kid's login."""
+
+    def post(self, request, pk):
+        student = get_scoped_object_or_404(Student, request.account, pk=pk)
+        form = GiveAccessForm(request.POST)
+        if not form.is_valid():
+            for field_errors in form.errors.values():
+                for error in field_errors:
+                    messages.error(request, error)
+            return redirect("school:student_detail", pk=student.pk)
+
+        data = form.cleaned_data
+        user = User.objects.create_user(username=data["username"], password=data["password1"])
+        FamilyMembership.objects.create(account=request.account, user=user, role="student")
+        student.user = user
+        student.save(update_fields=["user"])
+        messages.success(request, f"Login access granted to {student.name}.")
+        return redirect("school:student_detail", pk=student.pk)
+
+
+class RevokeAccessView(LoginRequiredMixin, SubscriptionRequiredMixin, View):
+    """Deleting the User cascades the FamilyMembership (on_delete=CASCADE)
+    and nulls Student.user (on_delete=SET_NULL) — removes the login without
+    touching the Student record or their assignment history."""
+
+    def post(self, request, pk):
+        student = get_scoped_object_or_404(Student, request.account, pk=pk)
+        if student.user_id:
+            student.user.delete()
+            messages.success(request, f"Access revoked for {student.name}.")
+        return redirect("school:student_detail", pk=student.pk)
 
 
 class CourseDetailView(LoginRequiredMixin, SubscriptionRequiredMixin, AccountScopedMixin, DetailView):
