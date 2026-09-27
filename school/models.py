@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.conf import settings
 from django.db import models
 from simple_history.models import HistoricalRecords
 
@@ -13,6 +14,17 @@ class Student(models.Model):
     name = models.CharField(max_length=100)
     school_name = models.CharField(max_length=150, blank=True)
     grade_level = models.CharField(max_length=30, blank=True)
+    # #404 — set once a parent grants this kid their own login (see
+    # school.views.GiveAccessView). SET_NULL rather than CASCADE so revoking
+    # access (deleting the User) never takes the Student record or their
+    # assignment history with it.
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="student_profile",
+    )
 
     history = HistoricalRecords()
 

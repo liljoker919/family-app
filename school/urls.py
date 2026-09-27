@@ -10,6 +10,8 @@ urlpatterns = [
     path("students/<int:pk>/", views.StudentDetailView.as_view(), name="student_detail"),
     path("students/<int:pk>/edit/", views.StudentUpdateView.as_view(), name="student_update"),
     path("students/<int:pk>/delete/", views.StudentDeleteView.as_view(), name="student_delete"),
+    path("students/<int:pk>/give-access/", views.GiveAccessView.as_view(), name="give_access"),
+    path("students/<int:pk>/revoke-access/", views.RevokeAccessView.as_view(), name="revoke_access"),
     path("students/<int:student_pk>/courses/add/", views.CourseCreateView.as_view(), name="course_create"),
     path("courses/<int:pk>/", views.CourseDetailView.as_view(), name="course_detail"),
     path("courses/<int:pk>/edit/", views.CourseUpdateView.as_view(), name="course_update"),
@@ -18,4 +20,6 @@ urlpatterns = [
     path("assignments/<int:pk>/", views.AssignmentDetailView.as_view(), name="assignment_detail"),
     path("assignments/<int:pk>/edit/", views.AssignmentUpdateView.as_view(), name="assignment_update"),
     path("assignments/<int:pk>/delete/", views.AssignmentDeleteView.as_view(), name="assignment_delete"),
+    path("agenda/", views.MyAgendaView.as_view(), name="my_agenda"),
+    path("agenda/assignments/<int:pk>/status/", views.agenda_change_status, name="agenda_change_status"),
 ]

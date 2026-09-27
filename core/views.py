@@ -44,7 +44,17 @@ User = get_user_model()
 
 @method_decorator(ratelimit(key="ip", rate="5/m", method="POST", block=True), name="dispatch")
 class RateLimitedLoginView(LoginView):
-    pass
+    def get_default_redirect_url(self):
+        """#408 — a student-role user lands on their own agenda instead of
+        the parent LOGIN_REDIRECT_URL everyone else gets. Queried fresh
+        rather than via request.membership_role: login() runs inside
+        form_valid() *after* TenantMiddleware already resolved that for the
+        pre-login anonymous request, so it would still reflect the old,
+        unauthenticated state here."""
+        membership = FamilyMembership.objects.filter(user=self.request.user).only("role").first()
+        if membership and membership.role == "student":
+            return reverse("school:my_agenda")
+        return super().get_default_redirect_url()
 
 
 class UpgradeRequiredView(LoginRequiredMixin, TemplateView):

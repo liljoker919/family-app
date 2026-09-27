@@ -41,6 +41,30 @@ class AccountScopedMixin:
         return qs.filter(**{self.account_lookup: self.request.account})
 
 
+class StudentOwnScopedMixin:
+    """#405 — stacked on top of AccountScopedMixin for the Assignment views a
+    student-role user can actually reach (StudentAccessMiddleware already
+    keeps them out of everything else): further restricts the queryset to
+    their own Student record, via request.user.student_profile, so a kid can
+    never see or touch a sibling's assignments. A no-op for owner/member
+    roles — they keep seeing the whole family's data.
+
+    Set student_lookup for a model that reaches its student via a different
+    field than a direct "student" FK.
+    """
+
+    student_lookup = "student"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if getattr(self.request, "membership_role", None) != "student":
+            return qs
+        own_student = getattr(self.request.user, "student_profile", None)
+        if own_student is None:
+            return qs.none()
+        return qs.filter(**{self.student_lookup: own_student})
+
+
 class AccountStampMixin:
     """Stamps request.account onto new objects in CreateView.form_valid()."""
 

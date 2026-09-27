@@ -1,5 +1,7 @@
 from django import forms
 
+from core.forms import _UsernamePasswordMixin
+
 from .models import Assignment, Course, Student
 
 _INPUT = (
@@ -72,3 +74,22 @@ class AssignmentForm(forms.ModelForm):
             "due_time": forms.TimeInput(attrs={"class": _INPUT, "type": "time"}),
             "estimated_minutes": forms.NumberInput(attrs={"class": _INPUT, "min": 0, "placeholder": "e.g. 30"}),
         }
+
+
+class GiveAccessForm(_UsernamePasswordMixin, forms.Form):
+    """#407 — a parent sets a username + password directly for a kid, since
+    a Student doesn't have their own email the way an invited adult does.
+    Mirrors InvitedSignupForm exactly (same shared validation mixin)."""
+
+    username = forms.CharField(
+        max_length=150,
+        widget=forms.TextInput(attrs={"class": _INPUT, "placeholder": "Choose a username"}),
+    )
+    password1 = forms.CharField(
+        label="Password",
+        widget=forms.PasswordInput(attrs={"class": _INPUT}),
+    )
+    password2 = forms.CharField(
+        label="Confirm password",
+        widget=forms.PasswordInput(attrs={"class": _INPUT}),
+    )

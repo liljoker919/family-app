@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}My Agenda — Hey Famly{% endblock %}
+{% block page_title %}My Agenda{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+  <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">This Week</h2>
+    <div id="agenda-assignments">
+      {% include "school/_agenda_assignments.html" %}
+    </div>
+  </section>
+
+  {% if courses %}
+  <section class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4">Add an Assignment</h2>
+    <form method="post" action="{% url 'school:my_agenda' %}" class="flex flex-wrap items-center gap-3">
+      {% csrf_token %}
+      <select name="course"
+              class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+        {% for course in courses %}
+        <option value="{{ course.pk }}">{{ course.name }}</option>
+        {% endfor %}
+      </select>
+      <input type="text" name="title" placeholder="Assignment title" required
+             class="min-w-[10rem] flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+      <input type="date" name="due_date" required
+             class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+      <button type="submit"
+              class="rounded-lg bg-brand-terracotta px-4 py-2 text-sm font-semibold text-white hover:bg-brand-terracotta-hover transition-colors">
+        Add
+      </button>
+    </form>
+  </section>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+{% endblock %}
