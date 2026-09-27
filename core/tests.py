@@ -223,7 +223,22 @@ class DashboardWidgetsTestCase(TestCase):
         Recipe.objects.create(account=self.account, title="Tacos", category="DINNER", is_family_favorite=True)
         response = self.client.get("/dashboard/")
         self.assertEqual(response.context["dinner_recipe"].title, "Tacos")
+        self.assertFalse(response.context["dinner_is_planned"])
         self.assertContains(response, "Tacos")
+        self.assertContains(response, "Suggested for tonight")
+
+    def test_dinner_widget_shows_planned_meal_over_random_favorite(self):
+        from cookbook.models import MealPlan, Recipe  # noqa: PLC0415
+
+        Recipe.objects.create(account=self.account, title="Random Favorite", category="DINNER", is_family_favorite=True)
+        planned = Recipe.objects.create(account=self.account, title="Planned Lasagna", category="DINNER")
+        MealPlan.objects.create(account=self.account, date=self.today, recipe=planned, meal_type="dinner")
+
+        response = self.client.get("/dashboard/")
+        self.assertEqual(response.context["dinner_recipe"], planned)
+        self.assertTrue(response.context["dinner_is_planned"])
+        self.assertContains(response, "Planned Lasagna")
+        self.assertContains(response, "Tonight's planned dinner")
 
     def test_priority_tasks_sorted_urgent_first_then_by_due_date(self):
         from tasks.models import FamilyTask  # noqa: PLC0415
@@ -581,8 +596,19 @@ class CrossTenantIsolationTestCase(TestCase):
 
 class NoAccountUserTestCase(TestCase):
     """An authenticated user with no FamilyMembership at all (request.account
-    is None) must never see account-less/legacy rows just because both sides
-    of an `account=None` filter happen to match — see #327/#328/#329/#330.
+    is None) must never see another family's data just because both sides of
+    a naive `account=request.account` filter happen to match — see
+    #327/#328/#329/#330.
+
+    Originally exercised this with genuinely account-less/legacy rows (a
+    `account=None` row matching a no-membership user's own `account=None`).
+    Migration C (#301) made `account` required at the schema level, so that
+    exact scenario is now structurally impossible — no row can exist without
+    an account at all. The rows here belong to a real, unrelated
+    `other_account` instead: the protection this test guards (a no-account
+    user must never see data that isn't theirs) is the same one, just
+    exercised against another tenant's data rather than a now-impossible
+    accountless row.
 
     property/vehicles are Family-tier-gated (#308): SubscriptionRequiredMixin
     now intercepts account=None requests before AccountScopedMixin/
@@ -594,6 +620,7 @@ class NoAccountUserTestCase(TestCase):
     """
 
     def setUp(self):
+        from core.models import FamilyAccount  # noqa: PLC0415
         from property.models import Property  # noqa: PLC0415
         from tasks.models import FamilyTask  # noqa: PLC0415
 
@@ -601,10 +628,19 @@ class NoAccountUserTestCase(TestCase):
         self.client_no_account = Client()
         self.client_no_account.login(username="no_account", password="pass")
 
-        # Orphaned/legacy rows with no account — must never surface to a
-        # user whose own request.account also resolves to None.
-        self.orphaned_property = Property.objects.create(name="Orphaned House", address="0 Nowhere Ave")
-        self.orphaned_task = FamilyTask.objects.create(title="Orphaned Task", status="TODO", priority="medium")
+        other_owner = User.objects.create_user(username="other_family_owner", password="pass")
+        self.other_account = FamilyAccount.objects.create(
+            name="Other Family", slug=FamilyAccount.generate_unique_slug("other family"), owner=other_owner
+        )
+
+        # Another tenant's rows — must never surface to a user whose own
+        # request.account resolves to None.
+        self.orphaned_property = Property.objects.create(
+            account=self.other_account, name="Orphaned House", address="0 Nowhere Ave"
+        )
+        self.orphaned_task = FamilyTask.objects.create(
+            account=self.other_account, title="Orphaned Task", status="TODO", priority="medium"
+        )
 
     def test_gated_list_view_redirects_to_upgrade(self):
         response = self.client_no_account.get("/property/")
@@ -646,6 +682,69 @@ class NoAccountUserTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Orphaned Task")
         self.assertNotContains(response, "Orphaned House")
+
+
+class TenantMiddlewareLazyAccountTestCase(TestCase):
+    """#331 — request.account is a SimpleLazyObject so the FamilyMembership
+    query only runs when something actually touches it. `is None`/`is not
+    None` can't be used against it (Python's `is` is identity, which a proxy
+    can never satisfy for a value it merely wraps) — every guard in the
+    codebase was converted to truthiness instead. This asserts both: the
+    proxy is falsy in exactly the cases the old eager `None` was, and the
+    query genuinely doesn't run until request.account is accessed."""
+
+    def setUp(self):
+        from django.test import RequestFactory  # noqa: PLC0415
+
+        from core.middleware import TenantMiddleware  # noqa: PLC0415
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+
+        self.factory = RequestFactory()
+        self.middleware = TenantMiddleware(get_response=lambda request: request)
+
+        self.member_user = User.objects.create_user(username="mw_member", password="pass")
+        self.account = FamilyAccount.objects.create(
+            name="MW Family", slug=FamilyAccount.generate_unique_slug("mw family"), owner=self.member_user
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.member_user, role="owner")
+
+        self.no_membership_user = User.objects.create_user(username="mw_no_membership", password="pass")
+
+    def _process(self, user):
+        request = self.factory.get("/")
+        request.user = user
+        return self.middleware(request)
+
+    def test_authenticated_with_membership_resolves_truthy_and_correct(self):
+        request = self._process(self.member_user)
+        self.assertTrue(request.account)
+        self.assertEqual(request.account, self.account)
+
+    def test_authenticated_without_membership_resolves_falsy(self):
+        request = self._process(self.no_membership_user)
+        self.assertFalse(request.account)
+        # `is None` never returns True for a proxy — that's the exact
+        # footgun this middleware has to avoid triggering elsewhere.
+        self.assertIsNotNone(request.account)
+        self.assertEqual(request.account, None)
+
+    def test_anonymous_resolves_falsy_without_querying(self):
+        from django.contrib.auth.models import AnonymousUser  # noqa: PLC0415
+
+        request = self._process(AnonymousUser())
+        with self.assertNumQueries(0):
+            self.assertFalse(request.account)
+
+    def test_membership_query_is_deferred_until_accessed(self):
+        request = self.factory.get("/")
+        request.user = self.member_user
+        request = self.middleware(request)
+        # The membership lookup must not have run yet just from middleware
+        # dispatch — only the first real access to request.account triggers it.
+        with self.assertNumQueries(1):
+            _ = request.account.name
+        with self.assertNumQueries(0):
+            _ = request.account.name
 
 
 class SubscriptionRequiredMixinTestCase(TestCase):

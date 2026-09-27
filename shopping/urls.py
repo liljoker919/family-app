@@ -10,4 +10,5 @@ urlpatterns = [
     path("<int:pk>/edit/", views.ShoppingItemUpdateView.as_view(), name="item_update"),
     path("<int:pk>/delete/", views.ShoppingItemDeleteView.as_view(), name="item_delete"),
     path("recipe/<int:recipe_pk>/add/", views.add_recipe_ingredients, name="add_recipe"),
+    path("quick-add/", views.quick_add_item, name="quick_add"),
 ]

@@ -55,8 +55,6 @@ class CalendarEvent(models.Model):
     account = models.ForeignKey(
         "core.FamilyAccount",
         on_delete=models.CASCADE,
-        null=True,
-        blank=True,
         related_name="calendar_events",
     )
     EVENT_TYPE_CHOICES = [

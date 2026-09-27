@@ -9,8 +9,6 @@ class Property(models.Model):
     account = models.ForeignKey(
         "core.FamilyAccount",
         on_delete=models.CASCADE,
-        null=True,
-        blank=True,
         related_name="properties",
     )
     PROPERTY_TYPE_CHOICES = [
