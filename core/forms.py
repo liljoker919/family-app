@@ -82,6 +82,14 @@ class ProfileForm(forms.ModelForm):
         return email
 
 
+class AvatarForm(forms.ModelForm):
+    class Meta:
+        from core.models import UserProfile  # noqa: PLC0415
+
+        model = UserProfile
+        fields = ["avatar"]
+
+
 class WeeklyDigestForm(forms.ModelForm):
     """Single-checkbox account-level preference (#384) — owner-only, no
     dedicated preferences page needed for v1."""

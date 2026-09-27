@@ -26,6 +26,7 @@ from .data_export import build_export_zip
 from .email_verification import email_verification_token, send_verification_email
 from .forms import (
     AccountDeleteConfirmForm,
+    AvatarForm,
     InvitedSignupForm,
     PasswordChangeForm,
     ProfileForm,
@@ -517,7 +518,14 @@ class ProfileView(LoginRequiredMixin, View):
     template_name = "core/profile.html"
 
     def get(self, request):
-        context = {"form": ProfileForm(instance=request.user)}
+        from core.models import UserProfile  # noqa: PLC0415
+
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        context = {
+            "form": ProfileForm(instance=request.user),
+            "avatar_form": AvatarForm(instance=profile),
+            "avatar": profile.avatar,
+        }
         if request.account and request.user == request.account.owner:
             context["digest_form"] = WeeklyDigestForm(instance=request.account)
         return render(request, self.template_name, context)
@@ -528,6 +536,23 @@ class ProfileView(LoginRequiredMixin, View):
             return render(request, self.template_name, {"form": form})
         form.save()
         messages.success(request, "Profile updated.")
+        return redirect("core:profile")
+
+
+class AvatarUploadView(LoginRequiredMixin, View):
+    """#313 — separate endpoint from ProfileView so the name/email form
+    doesn't need to become multipart/form-data."""
+
+    def post(self, request):
+        from core.models import UserProfile  # noqa: PLC0415
+
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        form = AvatarForm(request.POST, request.FILES, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Avatar updated.")
+        else:
+            messages.error(request, "Couldn't update your avatar — please try a different image.")
         return redirect("core:profile")
 
 

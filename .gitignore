@@ -132,6 +132,9 @@ __pycache__/
 # Django local database
 *.sqlite3*
 
+# User-uploaded media (avatars, #313) — local disk only until S3 is configured
+/media/
+
 # Rental data export output (contains real financial/guest PII, never commit)
 /exports/
 
