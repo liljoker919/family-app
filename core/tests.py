@@ -2286,3 +2286,40 @@ class AccountDeleteViewTestCase(TestCase):
         self.client.login(username="delete_owner", password="original-pass-123")
         self.client.post("/profile/delete/", {"password": "totally-wrong"})
         self.assertEqual(len(mail.outbox), 0)
+
+
+class LoginRedirectTestCase(TestCase):
+    """#408 — a student-role user lands on their own agenda after login,
+    not the parent LOGIN_REDIRECT_URL everyone else gets."""
+
+    def setUp(self):
+        from core.models import FamilyAccount, FamilyMembership  # noqa: PLC0415
+        from school.models import Student  # noqa: PLC0415
+
+        self.owner = User.objects.create_user(username="loginowner", password="pass12345")
+        self.account = FamilyAccount.objects.create(
+            name="Login Family", slug="login-family", owner=self.owner, tier=FamilyAccount.TIER_FAMILY,
+        )
+        FamilyMembership.objects.create(account=self.account, user=self.owner, role="owner")
+
+        self.kid_user = User.objects.create_user(username="loginkid", password="pass12345")
+        Student.objects.create(account=self.account, name="Riley", user=self.kid_user)
+        FamilyMembership.objects.create(account=self.account, user=self.kid_user, role="student")
+
+    def test_student_redirects_to_agenda(self):
+        response = self.client.post(_LOGIN_URL, {"username": "loginkid", "password": "pass12345"})
+        self.assertRedirects(response, "/school/agenda/")
+
+    def test_owner_redirects_to_dashboard(self):
+        response = self.client.post(_LOGIN_URL, {"username": "loginowner", "password": "pass12345"})
+        self.assertRedirects(response, "/dashboard/")
+
+    def test_next_param_still_takes_priority_for_student(self):
+        """?next= must still win — a student bookmarking a specific page
+        (even one they'll immediately get bounced from by
+        StudentAccessMiddleware) shouldn't be silently overridden here;
+        that redirect decision belongs to the middleware, not login."""
+        response = self.client.post(
+            f"{_LOGIN_URL}?next=/calendar/", {"username": "loginkid", "password": "pass12345"},
+        )
+        self.assertRedirects(response, "/calendar/")
