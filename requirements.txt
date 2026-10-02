@@ -8,7 +8,7 @@ sentry-sdk[django]>=2.66.1
 django-ratelimit>=4.1.0
 psycopg2-binary>=2.9.12
 dj-stripe==2.11.0
-django-ses>=4.0.0
+django-ses>=4.7.2
 django-invitations>=2.1.0
 Pillow>=10.0.0
 django-storages>=1.14.0
