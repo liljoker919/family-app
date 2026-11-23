@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('vacations', '0003_add_family_account_fk'),
+        ('vacations', '0004_alter_vacation_account'),
     ]
 
     operations = [
