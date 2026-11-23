@@ -9,19 +9,26 @@
      class="mb-4 inline-block text-sm text-gray-500 hover:text-teal-600">← {{ vacation.name }}</a>
 
   <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-    <form method="post" novalidate>
+    <form method="post" novalidate id="reservation-form"
+          data-trip-start="{{ vacation.start_date|date:'Y-m-d' }}"
+          data-trip-end="{{ vacation.end_date|date:'Y-m-d' }}">
       {% csrf_token %}
+      {% if form.non_field_errors %}
+      <p class="mb-4 text-sm text-red-600">{{ form.non_field_errors|join:", " }}</p>
+      {% endif %}
       <div class="space-y-4">
-        {% for field in form %}
-        <div>
+        {% for row in form.rows %}
+        {% with field=row.field %}
+        <div data-field="{{ field.name }}"{% if row.is_extra %} data-extra-field{% endif %}{% if row.hidden %} class="hidden"{% endif %}>
           <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700">
-            {{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}
+            <span data-label>{{ field.label }}</span> <span data-required-marker class="text-red-500{% if not field.field.required %} hidden{% endif %}">*</span>
           </label>
           {{ field }}
           {% if field.errors %}
           <p class="mt-1 text-xs text-red-600">{{ field.errors|join:", " }}</p>
           {% endif %}
         </div>
+        {% endwith %}
         {% endfor %}
       </div>
       <div class="mt-6 flex gap-3">
@@ -37,4 +44,63 @@
     </form>
   </div>
 </div>
+{{ reservation_type_config|json_script:"reservation-type-config" }}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  // Labels, placeholders, required markers and extra fields all follow
+  // RESERVATION_TYPE_FIELDS (vacations/reservation_types.py). Switching type
+  // never clears what's been typed into shared fields.
+  const form = document.getElementById('reservation-form');
+  const configs = JSON.parse(document.getElementById('reservation-type-config').textContent);
+  const typeSelect = form.querySelector('[name="type"]');
+
+  function configFor(type) {
+    return configs[type] || configs[''];
+  }
+
+  function apply() {
+    const cfg = configFor(typeSelect.value);
+    form.querySelectorAll('[data-field]').forEach(function (wrapper) {
+      const name = wrapper.dataset.field;
+      const label = wrapper.querySelector('[data-label]');
+      if (label && cfg.labels[name]) label.textContent = cfg.labels[name];
+
+      const marker = wrapper.querySelector('[data-required-marker]');
+      if (marker) marker.classList.toggle('hidden', cfg.required.indexOf(name) === -1);
+
+      const input = wrapper.querySelector('input, textarea');
+      if (input && input.type !== 'hidden') {
+        if (cfg.placeholders[name]) input.placeholder = cfg.placeholders[name];
+        else input.removeAttribute('placeholder');
+      }
+
+      if (wrapper.hasAttribute('data-extra-field')) {
+        wrapper.classList.toggle('hidden', cfg.extra_fields.indexOf(name) === -1);
+      }
+    });
+  }
+
+  // Default times (e.g. hotel check-in 3:00 PM / check-out 11:00 AM).
+  // Browsers don't expose a half-filled datetime-local value, so when an empty
+  // start/end field is focused we prefill the trip's start/end date at the
+  // default time; picking a different date keeps that time.
+  function prefillDefaultTime(event) {
+    const input = event.target;
+    if (input.value) return;
+    const time = (configFor(typeSelect.value).default_times || {})[input.name];
+    const day = input.name === 'departure_time' ? form.dataset.tripStart : form.dataset.tripEnd;
+    if (time && day) input.value = day + 'T' + time;
+  }
+  ['departure_time', 'arrival_time'].forEach(function (name) {
+    const input = form.querySelector('[name="' + name + '"]');
+    if (input) input.addEventListener('focus', prefillDefaultTime);
+  });
+
+  typeSelect.addEventListener('change', apply);
+  apply();
+}());
+</script>
 {% endblock %}
