@@ -75,7 +75,13 @@ def build_export_zip(account):
         zf.writestr(
             "reservations.csv",
             _csv_bytes(
-                ["id", "vacation_id", "type", "provider", "confirmation_number", "departure_time", "arrival_time", "notes"],
+                [
+                    "id", "vacation_id", "type", "provider", "confirmation_number", "departure_time", "arrival_time", "notes",
+                    # Type-specific extras, appended so existing columns keep their positions.
+                    "flight_number", "departure_airport", "arrival_airport",
+                    "property_name", "address", "room_type", "host_name", "host_phone", "listing_url",
+                    "pickup_location", "dropoff_location", "vehicle_class",
+                ],
                 Reservation.objects.filter(vacation__account=account),
             ),
         )

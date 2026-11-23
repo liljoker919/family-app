@@ -109,25 +109,58 @@
         {% if res.type == 'FLIGHT' %}
         <span class="inline-flex items-center rounded-full bg-brand-terracotta/15 px-2.5 py-1 text-xs font-medium text-brand-terracotta-hover">✈ Flight</span>
         {% elif res.type == 'HOTEL' %}
-        <span class="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-700">🏨 Hotel</span>
+        <span class="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-700">🏨 Hotel / Rental</span>
         {% elif res.type == 'CAR' %}
         <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">🚗 Car</span>
         {% else %}
         <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">Other</span>
         {% endif %}
       </div>
+      {% with labels=res.field_config.labels %}
       <div class="flex-1 min-w-0">
         <div class="flex items-baseline gap-2">
-          <span class="font-medium text-gray-900">{{ res.provider }}</span>
+          <span class="font-medium text-gray-900">{{ res.display_title }}</span>
+          {% if res.property_name and res.provider %}<span class="text-xs text-gray-500">via {{ res.provider }}</span>{% endif %}
           <span class="text-xs font-mono text-gray-400">{{ res.confirmation_number }}</span>
         </div>
         <div class="mt-1 text-sm text-gray-500">
-          {{ res.departure_time|date:"M j, Y g:i A" }} → {{ res.arrival_time|date:"M j, Y g:i A" }}
+          {{ labels.departure_time }} {{ res.departure_time|date:"M j, Y g:i A" }} · {{ labels.arrival_time }} {{ res.arrival_time|date:"M j, Y g:i A" }}
         </div>
+        {% if res.type == 'FLIGHT' %}
+          {% if res.flight_number or res.departure_airport or res.arrival_airport %}
+          <div class="mt-1 text-sm text-gray-500">
+            {% if res.flight_number %}{{ res.flight_number }}{% endif %}
+            {% if res.departure_airport or res.arrival_airport %}{% if res.flight_number %} · {% endif %}{{ res.departure_airport|default:"?" }} → {{ res.arrival_airport|default:"?" }}{% endif %}
+          </div>
+          {% endif %}
+        {% elif res.type == 'HOTEL' %}
+          {% if res.address %}<div class="mt-1 text-sm text-gray-500">📍 {{ res.address }}</div>{% endif %}
+          {% if res.room_type %}<div class="mt-1 text-sm text-gray-500">{{ labels.room_type }}: {{ res.room_type }}</div>{% endif %}
+          {% if res.host_name or res.host_phone or res.listing_url %}
+          <div class="mt-1 text-sm text-gray-500">
+            {% if res.host_name or res.host_phone %}Host: {{ res.host_name }}{% if res.host_name and res.host_phone %} · {% endif %}{% if res.host_phone %}<a href="tel:{{ res.host_phone }}" class="hover:text-teal-600">{{ res.host_phone }}</a>{% endif %}{% endif %}
+            {% if res.listing_url %}{% if res.host_name or res.host_phone %} · {% endif %}<a href="{{ res.listing_url }}" target="_blank" rel="noopener noreferrer" class="text-teal-600 hover:text-teal-700">View listing ↗</a>{% endif %}
+          </div>
+          {% endif %}
+        {% elif res.type == 'CAR' %}
+          {% if res.pickup_location %}
+          <div class="mt-1 text-sm text-gray-500">
+            {{ labels.pickup_location }}: {{ res.pickup_location }} · {{ labels.dropoff_location }}: {% if res.dropoff_location %}{{ res.dropoff_location }}{% else %}same as pick-up{% endif %}
+          </div>
+          {% elif res.dropoff_location %}
+          <div class="mt-1 text-sm text-gray-500">{{ labels.dropoff_location }}: {{ res.dropoff_location }}</div>
+          {% endif %}
+          {% if res.vehicle_class %}<div class="mt-1 text-sm text-gray-500">{{ labels.vehicle_class }}: {{ res.vehicle_class }}</div>{% endif %}
+        {% else %}
+          {% for label, value in res.extra_details %}
+          <div class="mt-1 text-sm text-gray-500">{{ label }}: {{ value }}</div>
+          {% endfor %}
+        {% endif %}
         {% if res.notes %}
         <div class="mt-1 text-sm text-gray-400">{{ res.notes }}</div>
         {% endif %}
       </div>
+      {% endwith %}
       <div class="shrink-0 flex gap-2">
         <a href="{% url 'vacations:reservation_update' res.pk %}" class="text-xs text-gray-400 hover:text-gray-600">Edit</a>
         <a href="{% url 'vacations:reservation_delete' res.pk %}" class="text-xs text-red-400 hover:text-red-600">Delete</a>

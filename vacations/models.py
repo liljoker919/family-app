@@ -66,7 +66,8 @@ class VacationExpense(models.Model):
 class Reservation(models.Model):
     TYPE_CHOICES = [
         ("FLIGHT", "Flight"),
-        ("HOTEL", "Hotel"),
+        # Stored value stays "HOTEL"; the label also covers vacation rentals.
+        ("HOTEL", "Hotel / Rental"),
         ("CAR", "Car Rental"),
         ("OTHER", "Other"),
     ]
@@ -75,9 +76,29 @@ class Reservation(models.Model):
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     provider = models.CharField(max_length=200)
     confirmation_number = models.CharField(max_length=100)
+    # Storage fields for every type: the user-facing labels come from
+    # vacations.reservation_types (e.g. Check-in / Check-out for hotels).
     departure_time = models.DateTimeField()
     arrival_time = models.DateTimeField()
     notes = models.TextField(blank=True)
+
+    # Optional type-specific details. Each is only shown for the type(s) listed
+    # in RESERVATION_TYPE_FIELDS; all are blank for older reservations.
+    # Flight
+    flight_number = models.CharField(max_length=20, blank=True, default="")
+    departure_airport = models.CharField(max_length=100, blank=True, default="")
+    arrival_airport = models.CharField(max_length=100, blank=True, default="")
+    # Hotel / Rental
+    property_name = models.CharField(max_length=200, blank=True, default="")
+    address = models.CharField(max_length=300, blank=True, default="")
+    room_type = models.CharField(max_length=100, blank=True, default="")
+    host_name = models.CharField(max_length=100, blank=True, default="")
+    host_phone = models.CharField(max_length=30, blank=True, default="")
+    listing_url = models.URLField(max_length=500, blank=True, default="")
+    # Car Rental
+    pickup_location = models.CharField(max_length=300, blank=True, default="")
+    dropoff_location = models.CharField(max_length=300, blank=True, default="")
+    vehicle_class = models.CharField(max_length=100, blank=True, default="")
 
     history = HistoricalRecords()
 
@@ -86,6 +107,26 @@ class Reservation(models.Model):
 
     def __str__(self):
         return f"{self.get_type_display()} — {self.provider} ({self.confirmation_number})"
+
+    @property
+    def field_config(self):
+        from .reservation_types import get_type_config
+
+        return get_type_config(self.type)
+
+    @property
+    def extra_details(self):
+        """(label, value) pairs for this type's filled-in extra fields."""
+        cfg = self.field_config
+        return [
+            (cfg["labels"][name], getattr(self, name))
+            for name in cfg["extra_fields"]
+            if getattr(self, name)
+        ]
+
+    @property
+    def display_title(self):
+        return self.property_name or self.provider
 
 
 class ItineraryItem(models.Model):

@@ -8,6 +8,7 @@ from core.mixins import AccountScopedMixin, AccountStampMixin, SubscriptionRequi
 
 from .forms import ItineraryItemForm, ReservationForm, VacationExpenseForm, VacationForm
 from .models import ItineraryItem, Reservation, Vacation, VacationExpense
+from .reservation_types import all_type_configs
 
 
 # ── Vacation CRUD ─────────────────────────────────────────────────────────────
@@ -124,6 +125,7 @@ class ReservationCreateView(LoginRequiredMixin, SubscriptionRequiredMixin, Creat
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["vacation"] = self._get_vacation()
+        context["reservation_type_config"] = all_type_configs()
         return context
 
     def form_valid(self, form):
@@ -143,6 +145,7 @@ class ReservationUpdateView(LoginRequiredMixin, SubscriptionRequiredMixin, Accou
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["vacation"] = self.object.vacation
+        context["reservation_type_config"] = all_type_configs()
         return context
 
     def get_success_url(self):
